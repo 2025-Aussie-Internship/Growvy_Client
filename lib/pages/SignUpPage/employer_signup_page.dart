@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../theme/color.dart';
+import '../../styles/colors.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/next_button.dart';
 import '../../widgets/signin_app_bar.dart';

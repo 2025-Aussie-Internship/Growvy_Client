@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../theme/color.dart';
+import '../../styles/colors.dart';
 import '../../widgets/signup_button.dart';
 import '../../widgets/signin_app_bar.dart';
-import 'signup_page.dart';
+// import 'signup_page.dart';
 import 'common_signup_page.dart'; 
 
 class SignInPage extends StatelessWidget {

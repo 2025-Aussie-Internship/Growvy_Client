@@ -18,14 +18,6 @@ class SignUpPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Spacer(),
-              const Text(
-                'Welcome To',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.white,
-                ),
-              ),
               
               const SizedBox(height: 10),
 

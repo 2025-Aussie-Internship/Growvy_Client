@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/color.dart';
+import '../styles/colors.dart';
 
 class SignUpButton extends StatelessWidget {
   final String text;
