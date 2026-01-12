@@ -151,7 +151,6 @@ class _CommonSignUpPageState extends State<CommonSignUpPage> {
             });
           },
           activeColor: AppColors.subColor, 
-          // [수정 2] 원형(CircleBorder) 제거하고 둥근 사각형으로 변경
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(4), 
           ),
