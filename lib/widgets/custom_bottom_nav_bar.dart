@@ -24,17 +24,16 @@ class CustomBottomNavigationBar extends StatelessWidget {
           BoxShadow(
             color: const Color(0xFF202020).withValues(alpha: 0.1),
             blurRadius: 20,
-            offset: const Offset(4, -4), // 그림자를 위쪽으로
+            offset: const Offset(4, -4),
           ),
         ],
       ),
       child: SafeArea(
-        // 하단 안전 영역 확보 (홈 인디케이터 등)
         child: Container(
-          height: 80, // 높이 조절 (SVG 크기에 맞춰 조정 필요)
+          height: 80,
           // padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center, // [수정] 가운데 정렬
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _buildNavItem(0, 'home'),
               _buildNavItem(1, 'map'),
@@ -51,14 +50,13 @@ class CustomBottomNavigationBar extends StatelessWidget {
   Widget _buildNavItem(int index, String iconName) {
     final bool isSelected = currentIndex == index;
 
-    // 선택 여부에 따라 _filled 또는 _not 파일명 결정
     final String svgPath = isSelected
         ? 'assets/icon/${iconName}_filled.svg'
         : 'assets/icon/${iconName}_not.svg';
 
     return GestureDetector(
       onTap: () => onTap(index),
-      behavior: HitTestBehavior.opaque, // 터치 영역 확보
+      behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         alignment: Alignment.center,
