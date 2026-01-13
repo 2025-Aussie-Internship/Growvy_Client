@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../styles/colors.dart'; // 색상 파일 경로 확인
+import '../../styles/colors.dart';
 import '../../widgets/next_button.dart';
 import '../../widgets/signin_app_bar.dart';
-// [추가] 메인 페이지 import
-import '../MainPage/main_page.dart'; 
+import '../MainPage/main_page.dart';
 
 class SeekerInterestPage extends StatefulWidget {
   const SeekerInterestPage({super.key});
@@ -32,12 +31,11 @@ class _SeekerInterestPageState extends State<SeekerInterestPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: const SignInAppBar(),
-      // [수정] 화면 수직 중앙 정렬
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center, // 내부 요소 중앙 정렬
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
                 'About you',
@@ -70,7 +68,7 @@ class _SeekerInterestPageState extends State<SeekerInterestPage> {
                 runSpacing: 0,
                 children: interests.keys.map((key) {
                   return SizedBox(
-                    width: MediaQuery.of(context).size.width / 2 - 30, // 화면 절반 너비
+                    width: MediaQuery.of(context).size.width / 2 - 30,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -81,7 +79,6 @@ class _SeekerInterestPageState extends State<SeekerInterestPage> {
                               interests[key] = val!;
                             });
                           },
-                          // [디자인 통일] 다른 페이지와 같게 스타일 적용
                           activeColor: AppColors.subColor, 
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(4),
@@ -108,7 +105,7 @@ class _SeekerInterestPageState extends State<SeekerInterestPage> {
               NextButton(
                 text: 'Next',
                 onPressed: () {
-                  // [수정] 메인 페이지로 이동 (이전 기록 삭제)
+                  // MainPage로 이동
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (context) => const MainPage()),
