@@ -7,6 +7,7 @@ import '../../widgets/popular_job_card.dart';
 import '../../widgets/calendar_modal.dart';
 import '../../widgets/notification_modal.dart';
 import '../SearchPage/search_page.dart';
+import '../ChatPage/chat_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -19,9 +20,9 @@ class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    HomePageContent(),
+    const HomePageContent(),
     const Center(child: Text('Map Page')),
-    const Center(child: Text('Chat Page')),
+    const ChatListPage(),
     const Center(child: Text('Note Page')),
     const Center(child: Text('Profile Page')),
   ];
@@ -32,16 +33,71 @@ class _MainPageState extends State<MainPage> {
     });
   }
 
+  Widget _buildBottomBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF202020).withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(4, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Container(
+          height: 80,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildNavItem(0, 'home'),
+              _buildNavItem(1, 'map'),
+              _buildNavItem(2, 'chat'),
+              _buildNavItem(3, 'note'),
+              _buildNavItem(4, 'profile'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, String iconName) {
+    final bool isSelected = _selectedIndex == index;
+    final String svgPath = isSelected
+        ? 'assets/icon/${iconName}_filled.svg'
+        : 'assets/icon/${iconName}_not.svg';
+
+    return GestureDetector(
+      onTap: () => _onItemTapped(index),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        alignment: Alignment.center,
+        child: SvgPicture.asset(
+          svgPath,
+          width: 31,
+          height: 44,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
       extendBody: true,
-      // 로고 AppBar 추가 - 모든 페이지에서 고정
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(56),
         child: AppBar(
           backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
           elevation: 0,
           centerTitle: true,
           title: SvgPicture.asset(
@@ -51,10 +107,7 @@ class _MainPageState extends State<MainPage> {
         ),
       ),
       body: _pages[_selectedIndex],
-      bottomNavigationBar: CustomBottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-      ),
+      bottomNavigationBar: _buildBottomBar(),
     );
   }
 }
@@ -67,7 +120,7 @@ class HomePageContent extends StatefulWidget {
 }
 
 class _HomePageContentState extends State<HomePageContent> {
-  String _sortFilter = 'Newest'; // 'Nearest' or 'Newest'
+  String _sortFilter = 'Newest';
   bool _isCalendarOpen = false;
   bool _isNotificationOpen = false;
   
@@ -159,7 +212,7 @@ class _HomePageContentState extends State<HomePageContent> {
           children: [
             const SizedBox(height: 24),
 
-            // 검색창: 너비 290 고정 & 중앙 정렬
+            // 검색창
             Center(
               child: GestureDetector(
                 onTap: () {
@@ -212,7 +265,7 @@ class _HomePageContentState extends State<HomePageContent> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // 왼쪽: 캘린더/알림 버튼 그룹
+                  // 캘린더/알림 버튼
                   Container(
                     width: 60,
                     height: 124,
@@ -223,7 +276,6 @@ class _HomePageContentState extends State<HomePageContent> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Calendar Button
                         Expanded(
                           child: InkWell(
                             onTap: () {
@@ -276,10 +328,8 @@ class _HomePageContentState extends State<HomePageContent> {
                           ),
                         ),
                         
-                        // Divider
                         const Divider(height: 1, thickness: 1, indent: 8, endIndent: 8),
 
-                        // Notification Button
                         Expanded(
                           child: InkWell(
                             onTap: () {
@@ -483,7 +533,6 @@ class _HomePageContentState extends State<HomePageContent> {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       itemCount: (nearbyJobs.length / 2).ceil(),
                       itemBuilder: (context, columnIndex) {
-                        // 필터에 따라 정렬
                         List<Map<String, dynamic>> sortedJobs = List.from(nearbyJobs);
                         if (_sortFilter == 'Nearest') {
                           sortedJobs.sort((a, b) {
