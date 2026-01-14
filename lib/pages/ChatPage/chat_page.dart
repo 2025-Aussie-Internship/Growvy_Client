@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-// 채팅 리스트 화면
 class ChatListPage extends StatelessWidget {
   const ChatListPage({super.key});
 
@@ -62,9 +61,9 @@ class ChatListPage extends StatelessWidget {
           );
         },
         child: Stack(
-          clipBehavior: Clip.none, // 배지가 경계 밖으로 나갈 수 있게 설정
+          clipBehavior: Clip.none, 
           children: [
-            // 1. 메인 카드 컨테이너
+            // 메인 카드 컨테이너
             Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
@@ -75,14 +74,12 @@ class ChatListPage extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  // 프로필 이미지
                   const CircleAvatar(
                     radius: 25,
                     backgroundColor: Color(0xFFEEEEEE),
                     child: Icon(Icons.person, color: Colors.grey),
                   ),
                   const SizedBox(width: 12),
-                  // 이름 및 메시지 영역
                   const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,7 +98,7 @@ class ChatListPage extends StatelessWidget {
                   Column(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      const SizedBox(height: 35), // 이름 위치와 맞추기 위한 여백
+                      const SizedBox(height: 35),
                       const Text(
                         'Month, Date, Year(Time)',
                         style: TextStyle(color: Colors.grey, fontSize: 10),
@@ -142,94 +139,198 @@ class ChatListPage extends StatelessWidget {
       );
     }
 }
-
-// 상세 채팅 화면
 class ChatDetailPage extends StatelessWidget {
   const ChatDetailPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Row(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
           children: [
-            CircleAvatar(radius: 18, backgroundColor: Color(0xFFEEEEEE)),
-            SizedBox(width: 10),
-            Text('Name', style: TextStyle(color: Colors.black, fontSize: 18)),
+            // 고정 로고 영역
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: SvgPicture.asset(
+                'assets/icon/logo_orange.svg',
+                height: 36,
+              ),
+            ),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFD9D9D9)),
+
+            // 중앙 정렬 타이틀 헤더
+            Padding(
+              padding: const EdgeInsets.only(left: 8, right: 8, top: 4, bottom: 0),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  const Text(
+                    'Name',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 채팅 메시지 리스트 더미 값
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                children: [
+                  _buildMessage(false, "Text", "00:00 AM/PM"),
+                  _buildMessage(false, "Text", "00:00 AM/PM"),
+                  _buildMessage(true, "Text", "00:00 AM/PM"),
+                  _buildMessage(false, "Text", "00:00 AM/PM"),
+                  _buildMessage(true, "Text", "00:00 AM/PM"),
+                ],
+              ),
+            ),
+
+            // 입력 영역 (318x42, 전송버튼 외부)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildInputArea(),
+            ),
           ],
         ),
       ),
-      body: Column(
+    );
+  }
+
+  // 메시지 말풍선
+  Widget _buildMessage(bool isMe, String text, String time) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                _buildMessage(false, "Hello! How can I help you?"),
-                _buildMessage(true, "I'm looking for a job."),
-                _buildMessage(false, "Sure, let me check."),
-              ],
+          if (!isMe) ...[
+            const CircleAvatar(
+              radius: 20, // 지름 40
+              backgroundColor: Color(0xFFD9D9D9),
+              child: Icon(Icons.person, color: Colors.white, size: 24),
             ),
+            const SizedBox(width: 8),
+          ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (isMe) ...[
+                Text(time, style: const TextStyle(color: Color(0xFF747474), fontSize: 9)),
+                const SizedBox(width: 6),
+              ],
+              Container(
+                height: 30, // 말풍선 높이 h:30
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: isMe ? const Color(0xFFFF7252) : const Color(0xFFD9D9D9),
+                  borderRadius: isMe 
+                    ? const BorderRadius.only(topLeft: Radius.circular(15), topRight: Radius.circular(15), bottomLeft: Radius.circular(15))
+                    : const BorderRadius.only(topRight: Radius.circular(15), bottomRight: Radius.circular(15), topLeft: Radius.circular(15)),
+                ),
+                child: Text(text, style: TextStyle(color: isMe ? Colors.white : Colors.black, fontSize: 13)),
+              ),
+              if (!isMe) ...[
+                const SizedBox(width: 6),
+                Text(time, style: const TextStyle(color: Color(0xFF747474), fontSize: 9)),
+              ],
+            ],
           ),
-          _buildInputArea(),
         ],
       ),
     );
   }
 
-  Widget _buildMessage(bool isMe, String text) {
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 5),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isMe ? const Color(0xFFFF7A5C) : const Color(0xFFF0F0F0),
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(color: isMe ? Colors.white : Colors.black),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputArea() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(color: Colors.white),
-      child: Row(
-        children: [
-          const Icon(Icons.add, color: Colors.grey),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const TextField(
-                decoration: InputDecoration(
-                  hintText: 'Type a Message',
-                  border: InputBorder.none,
+//입력
+    
+    Widget _buildInputArea() {
+      return Center(
+        child: SizedBox(
+          width: 350,
+          height: 42,
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(115),
+                    border: Border.all(color: const Color(0xFFB2B2B2)),
+                  ),
+                  child: Row(
+                    children: [
+                      SvgPicture.asset(
+                        'assets/icon/plus_icon.svg',
+                        width: 16,
+                        height: 16,
+                      ),
+                      const SizedBox(width: 8),
+    
+                      const Expanded(
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'Type a Message',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.only(bottom: 12),
+                          ),
+                        ),
+                      ),
+    
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFC6340),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.mic,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
+    
+              const SizedBox(width: 10),
+    
+              Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFC6340),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: SvgPicture.asset(
+                    'assets/icon/sent_icon.svg',
+                    width: 32,
+                    height: 32,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          const Icon(Icons.mic, color: Color(0xFFFF7A5C)),
-          const SizedBox(width: 10),
-          const Icon(Icons.send, color: Color(0xFFFF7A5C)),
-        ],
-      ),
-    );
-  }
+        ),
+      );
+    }
+    
 }
