@@ -19,83 +19,85 @@ class NearbyJobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 358,
-        height: 180,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: const Color(0xFFF5F5F5),
-            width: 1,
+    return Container(
+      width: 358,
+      height: 180,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFF5F5F5), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(2, 4),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(2, 4),
-            )
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. 타이틀
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-                color: Colors.black,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. 타이틀
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              color: Colors.black,
             ),
-            const SizedBox(height: 8),
-            
-            // 2. 회사명
-            Text(
-              company,
-              style: const TextStyle(
-                fontWeight: FontWeight.w400, 
-                fontSize: 12, 
-                color: Color(0xFF696969)
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-            
-            const SizedBox(height: 24),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+          const SizedBox(height: 8),
 
-            // 3. 태그와 거리
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Row(
-                  children: tags.map((tag) => Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: _buildTag(tag),
-                  )).toList(),
-                ),
-                Text(
-                  "Around $distance",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w400,
-                    fontSize: 12,
-                    color: Color(0xFF747474),
-                  ),
-                ),
-              ],
+          // 2. 회사명
+          Text(
+            company,
+            style: const TextStyle(
+              fontWeight: FontWeight.w400,
+              fontSize: 12,
+              color: Color(0xFF696969),
             ),
-            
-            const SizedBox(height: 16),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
 
-            // 4. See More 버튼
-            Container(
+          const SizedBox(height: 24),
+
+          // 3. 태그와 거리
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Row(
+                children: tags
+                    .map(
+                      (tag) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: _buildTag(tag),
+                      ),
+                    )
+                    .toList(),
+              ),
+              Text(
+                "Around $distance",
+                style: const TextStyle(
+                  fontWeight: FontWeight.w400,
+                  fontSize: 12,
+                  color: Color(0xFF747474),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // 4. See More 버튼
+          GestureDetector(
+            onTap: onTap,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
               width: double.infinity,
               height: 32,
               alignment: Alignment.center,
@@ -107,13 +109,13 @@ class NearbyJobCard extends StatelessWidget {
                 "See More",
                 style: TextStyle(
                   color: AppColors.mainColor,
-                  fontWeight: FontWeight.w600, 
+                  fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
