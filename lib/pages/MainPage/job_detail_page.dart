@@ -49,75 +49,16 @@ class JobDetailPage extends StatelessWidget {
             ),
           ),
 
-          // 2. Scrollable Content Sheet containing Overlay Icons
-          // We assume SingleChildScrollView fills the body.
+          // 2. Scrollable Content Sheet
           Positioned.fill(
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  // Stack to hold the spacing and the floating icons
-                  Stack(
-                    children: [
-                      // Invisible Spacer that allows seeing the background image
-                      // Ensuring full width so the stack takes full width
-                      Container(
-                        width: double.infinity,
-                        height: imageHeight - overlap,
-                      ),
-
-                      // Overlay Icons (Back, Share, Bookmark) positioned at top
-                      Positioned(
-                        top: 10,
-                        left: 0,
-                        right: 0,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.arrow_back_ios_new,
-                                  color: Colors.white,
-                                  size: 24,
-                                ),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                              Row(
-                                children: [
-                                  // Share Icon
-                                  IconButton(
-                                    icon: SvgPicture.asset(
-                                      'assets/icon/share_icon.svg',
-                                      colorFilter: const ColorFilter.mode(
-                                        AppColors.mainColor,
-                                        BlendMode.srcIn,
-                                      ),
-                                      width: 24,
-                                      height: 24,
-                                    ),
-                                    onPressed: () {},
-                                  ),
-                                  // Bookmark Icon
-                                  IconButton(
-                                    icon: SvgPicture.asset(
-                                      'assets/icon/boolmark_icon.svg',
-                                      colorFilter: const ColorFilter.mode(
-                                        AppColors.mainColor,
-                                        BlendMode.srcIn,
-                                      ),
-                                      width: 24,
-                                      height: 24,
-                                    ),
-                                    onPressed: () {},
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                  // Invisible Spacer so text starts below image
+                  // Since icons are FIXED now, we just need space for image.
+                  Container(
+                    width: double.infinity,
+                    height: imageHeight - overlap,
                   ),
 
                   // White Content Sheet
@@ -220,7 +161,60 @@ class JobDetailPage extends StatelessWidget {
             ),
           ),
 
-          // 3. Sticky Bottom Button
+          // 3. Overlay Icons (Back, Share, Bookmark) - FIXED POSITION & TOP Z-INDEX
+          Positioned(
+            top: 10,
+            left: 0,
+            right: 0,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  Row(
+                    children: [
+                      // Share Icon
+                      IconButton(
+                        icon: SvgPicture.asset(
+                          'assets/icon/share_icon.svg',
+                          colorFilter: const ColorFilter.mode(
+                            AppColors.mainColor,
+                            BlendMode.srcIn,
+                          ),
+                          width: 24,
+                          height: 24,
+                        ),
+                        onPressed: () {},
+                      ),
+                      // Bookmark Icon
+                      IconButton(
+                        icon: SvgPicture.asset(
+                          'assets/icon/boolmark_icon.svg',
+                          colorFilter: const ColorFilter.mode(
+                            AppColors.mainColor,
+                            BlendMode.srcIn,
+                          ),
+                          width: 24,
+                          height: 24,
+                        ),
+                        onPressed: () {},
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // 4. Sticky Bottom Button
           Align(alignment: Alignment.bottomCenter, child: _buildBottomButton()),
         ],
       ),
