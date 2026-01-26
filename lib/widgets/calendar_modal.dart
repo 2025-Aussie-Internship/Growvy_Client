@@ -16,47 +16,27 @@ class _CalendarModalState extends State<CalendarModal> {
   // 샘플 투두 데이터
   final Map<String, List<Map<String, String>>> _todoData = {
     '2026-02-16': [
-      {
-        'title': 'Café or Restaurant Staff',
-        'time': '12:00 PM ~ 4:00 PM',
-      },
-      {
-        'title': 'Retail Assistant',
-        'time': '9:00 AM ~ 11:00 AM',
-      },
+      {'title': 'Café or Restaurant Staff', 'time': '12:00 PM ~ 4:00 PM'},
+      {'title': 'Retail Assistant', 'time': '9:00 AM ~ 11:00 AM'},
     ],
-    '2025-01-12': [
-      {
-        'title': 'Delivery Driver',
-        'time': '2:00 PM ~ 6:00 PM',
-      },
+    '2025-01-28': [
+      {'title': 'Delivery Driver', 'time': '2:00 PM ~ 6:00 PM'},
     ],
     '2025-02-15': [
-      {
-        'title': 'Warehouse Work',
-        'time': '8:00 AM ~ 5:00 PM',
-      },
-      {
-        'title': 'Kitchen Helper',
-        'time': '6:00 PM ~ 9:00 PM',
-      },
+      {'title': 'Warehouse Work', 'time': '8:00 AM ~ 5:00 PM'},
+      {'title': 'Kitchen Helper', 'time': '6:00 PM ~ 9:00 PM'},
     ],
     '2025-03-15': [
-      {
-        'title': 'Team Meeting',
-        'time': '10:00 AM ~ 11:30 AM',
-      },
+      {'title': 'Team Meeting', 'time': '10:00 AM ~ 11:30 AM'},
     ],
     '2025-01-12': [
-      {
-        'title': 'Barista Training',
-        'time': '1:00 PM ~ 3:00 PM',
-      },
+      {'title': 'Barista Training', 'time': '1:00 PM ~ 3:00 PM'},
     ],
   };
 
   List<Map<String, String>> _getTodosForDate(DateTime date) {
-    String key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    String key =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     return _todoData[key] ?? [];
   }
 
@@ -89,14 +69,20 @@ class _CalendarModalState extends State<CalendarModal> {
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          color: isSelected ? AppColors.mainColor.withOpacity(0.2) : null,
+                          color: isSelected
+                              ? AppColors.mainColor.withOpacity(0.2)
+                              : null,
                           child: Center(
                             child: Text(
                               '$year',
                               style: TextStyle(
                                 fontSize: 18,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                color: isSelected ? AppColors.mainColor : Colors.black,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? AppColors.mainColor
+                                    : Colors.black,
                               ),
                             ),
                           ),
@@ -121,14 +107,20 @@ class _CalendarModalState extends State<CalendarModal> {
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          color: isSelected ? AppColors.mainColor.withOpacity(0.2) : null,
+                          color: isSelected
+                              ? AppColors.mainColor.withOpacity(0.2)
+                              : null,
                           child: Center(
                             child: Text(
                               _getMonthName(month),
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                color: isSelected ? AppColors.mainColor : Colors.black,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? AppColors.mainColor
+                                    : Colors.black,
                               ),
                             ),
                           ),
@@ -166,9 +158,7 @@ class _CalendarModalState extends State<CalendarModal> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: 300,
         constraints: const BoxConstraints(maxHeight: 500),
@@ -182,7 +172,10 @@ class _CalendarModalState extends State<CalendarModal> {
                 GestureDetector(
                   onTap: _showMonthYearPicker,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF5F5F5),
                       borderRadius: BorderRadius.circular(20),
@@ -231,18 +224,20 @@ class _CalendarModalState extends State<CalendarModal> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-                  .map((day) => SizedBox(
-                        width: 36,
-                        child: Center(
-                          child: Text(
-                            day,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
+                  .map(
+                    (day) => SizedBox(
+                      width: 36,
+                      child: Center(
+                        child: Text(
+                          day,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
                           ),
                         ),
-                      ))
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
             const SizedBox(height: 8),
@@ -253,11 +248,7 @@ class _CalendarModalState extends State<CalendarModal> {
             const SizedBox(height: 12),
 
             // 구분선
-            Container(
-              width: 276,
-              height: 1,
-              color: const Color(0xFFF5F5F5),
-            ),
+            Container(width: 276, height: 1, color: const Color(0xFFF5F5F5)),
 
             const SizedBox(height: 12),
 
@@ -268,10 +259,7 @@ class _CalendarModalState extends State<CalendarModal> {
               children: [
                 const Text(
                   "Today's To Do List",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
@@ -299,7 +287,9 @@ class _CalendarModalState extends State<CalendarModal> {
                               Container(
                                 width: 1,
                                 height: 50,
-                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
                                 color: const Color(0xFFE0E0E0),
                               ),
                             // 오른쪽 컬럼
@@ -349,10 +339,7 @@ class _CalendarModalState extends State<CalendarModal> {
               const SizedBox(height: 2),
               Text(
                 todo['time']!,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -362,8 +349,16 @@ class _CalendarModalState extends State<CalendarModal> {
   }
 
   Widget _buildCalendarGrid() {
-    final firstDayOfMonth = DateTime(_currentMonth.year, _currentMonth.month, 1);
-    final lastDayOfMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
+    final firstDayOfMonth = DateTime(
+      _currentMonth.year,
+      _currentMonth.month,
+      1,
+    );
+    final lastDayOfMonth = DateTime(
+      _currentMonth.year,
+      _currentMonth.month + 1,
+      0,
+    );
     final firstWeekday = firstDayOfMonth.weekday % 7; // 0 = Sunday
     final daysInMonth = lastDayOfMonth.day;
 
@@ -371,8 +366,12 @@ class _CalendarModalState extends State<CalendarModal> {
 
     // 이전 달 날짜 (회색으로 표시)
     final prevMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
-    final daysInPrevMonth = DateTime(_currentMonth.year, _currentMonth.month, 0).day;
-    
+    final daysInPrevMonth = DateTime(
+      _currentMonth.year,
+      _currentMonth.month,
+      0,
+    ).day;
+
     for (int i = firstWeekday - 1; i >= 0; i--) {
       final day = daysInPrevMonth - i;
       final date = DateTime(prevMonth.year, prevMonth.month, day);
@@ -411,11 +410,13 @@ class _CalendarModalState extends State<CalendarModal> {
   }
 
   Widget _buildDayCell(DateTime date, {required bool isCurrentMonth}) {
-    final isToday = date.year == DateTime.now().year &&
+    final isToday =
+        date.year == DateTime.now().year &&
         date.month == DateTime.now().month &&
         date.day == DateTime.now().day;
 
-    final isSelected = date.year == _selectedDate.year &&
+    final isSelected =
+        date.year == _selectedDate.year &&
         date.month == _selectedDate.month &&
         date.day == _selectedDate.day;
 
@@ -445,8 +446,8 @@ class _CalendarModalState extends State<CalendarModal> {
               color: isSelected
                   ? Colors.white
                   : isCurrentMonth
-                      ? Colors.black
-                      : Colors.grey[400],
+                  ? Colors.black
+                  : Colors.grey[400],
             ),
           ),
         ),
@@ -467,7 +468,7 @@ class _CalendarModalState extends State<CalendarModal> {
       'September',
       'October',
       'November',
-      'December'
+      'December',
     ];
     return months[month - 1];
   }
