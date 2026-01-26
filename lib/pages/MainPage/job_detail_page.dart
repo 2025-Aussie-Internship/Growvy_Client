@@ -123,35 +123,41 @@ class JobDetailPage extends StatelessWidget {
                         Text(
                           'People Needs Rabbit! is looking for a friendly, reliable team member who loves music, enjoys talking with customers, and has a positive, responsible attitude.\nThis is a part-time position with flexible shifts (around 3–5 days a week, 4–6 hours per shift), perfect for someone who wants to work in a relaxed, community-focused record shop.',
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 14,
                             height: 1.6,
-                            color: Colors.grey[800],
+                            color: const Color(0xFF696969),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 14),
                         const Divider(
                           height: 1,
                           thickness: 1,
                           color: Color(0xFFF2F4F7),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 14),
 
                         // Info Rows
                         _buildInfoRow(
-                          Icons.access_time_filled_rounded,
+                          'assets/icon/calendar_icon.svg',
                           '3–5 days a week',
                         ),
                         _buildInfoRow(
-                          Icons.schedule_rounded,
+                          'assets/icon/time_icon.svg',
                           '4–6 hours per shift (flexible schedule)',
                         ),
                         _buildInfoRow(
-                          Icons.location_on_rounded,
+                          'assets/icon/address_icon.svg',
                           '27 Willow Street, Newtown NSW 2042, Australia',
                         ),
-                        _buildInfoRow(Icons.person_rounded, '3 openings.'),
+                        _buildInfoRow(
+                          'assets/icon/salary_icon.svg',
+                          '\$ 600 per week',
+                        ),
+                        _buildInfoRow(
+                          'assets/icon/people_icon.svg',
+                          '3 openings.',
+                        ),
 
-                        // Bottom padding for button
                         const SizedBox(height: 80),
                       ],
                     ),
@@ -161,7 +167,6 @@ class JobDetailPage extends StatelessWidget {
             ),
           ),
 
-          // 3. Overlay Icons (Back, Share, Bookmark) - FIXED POSITION & TOP Z-INDEX
           Positioned(
             top: 10,
             left: 0,
@@ -197,7 +202,7 @@ class JobDetailPage extends StatelessWidget {
                       // Bookmark Icon
                       IconButton(
                         icon: SvgPicture.asset(
-                          'assets/icon/boolmark_icon.svg',
+                          'assets/icon/bookmark_icon.svg',
                           colorFilter: const ColorFilter.mode(
                             AppColors.mainColor,
                             BlendMode.srcIn,
@@ -242,20 +247,28 @@ class JobDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String text) {
+  Widget _buildInfoRow(String icon, String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Colors.grey[400]),
-          const SizedBox(width: 12),
+          SvgPicture.asset(
+            icon,
+            width: 20,
+            height: 20,
+            colorFilter: const ColorFilter.mode(
+              Color(0xFFBDBDBD),
+              BlendMode.srcIn,
+            ),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 15,
-                color: Colors.grey[400],
+                color: Color(0xFFBDBDBD),
                 fontWeight: FontWeight.w400,
               ),
             ),
