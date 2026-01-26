@@ -9,6 +9,7 @@ import '../../widgets/notification_modal.dart';
 import '../SearchPage/search_page.dart';
 import '../ChatPage/chat_page.dart';
 import '../MainPage/job_detail_page.dart';
+import '../MyPage/my_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -25,7 +26,7 @@ class _MainPageState extends State<MainPage> {
     const Center(child: Text('Map Page')),
     const ChatListPage(),
     const Center(child: Text('Note Page')),
-    const Center(child: Text('Profile Page')),
+    const MyPage(),
   ];
 
   void _onItemTapped(int index) {
