@@ -151,7 +151,7 @@ class JobDetailPage extends StatelessWidget {
                         ),
                         _buildInfoRow(
                           'assets/icon/salary_icon.svg',
-                          '\$ 600 per week',
+                          '\$600 per week',
                         ),
                         _buildInfoRow(
                           'assets/icon/people_icon.svg',

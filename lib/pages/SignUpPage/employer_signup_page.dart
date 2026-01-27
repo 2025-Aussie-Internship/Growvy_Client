@@ -3,6 +3,7 @@ import '../../styles/colors.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/next_button.dart';
 import '../../widgets/signin_app_bar.dart';
+import 'profile_picker_page.dart';
 
 class EmployerSignupPage extends StatefulWidget {
   const EmployerSignupPage({super.key});
@@ -19,7 +20,6 @@ class _EmployerSignupPageState extends State<EmployerSignupPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: const SignInAppBar(),
-      // [수정 1] 화면 전체 요소를 수직 중앙 정렬하기 위해 Center로 감쌈
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 36.0),
@@ -37,8 +37,8 @@ class _EmployerSignupPageState extends State<EmployerSignupPage> {
               const SizedBox(height: 40),
 
               const CustomTextField(
-                label: 'Company Name', 
-                hintText: 'Enter Company Name'
+                label: 'Company Name',
+                hintText: 'Enter Company Name',
               ),
 
               Row(
@@ -50,12 +50,13 @@ class _EmployerSignupPageState extends State<EmployerSignupPage> {
                         isSoleProprietorship = val!;
                       });
                     },
-                    activeColor: AppColors.subColor, 
+                    activeColor: AppColors.subColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(4),
                     ),
                     side: MaterialStateBorderSide.resolveWith(
-                      (states) => const BorderSide(color: Colors.grey, width: 1.5),
+                      (states) =>
+                          const BorderSide(color: Colors.grey, width: 1.5),
                     ),
                   ),
                   const Text('Sole Proprietorship'),
@@ -64,20 +65,24 @@ class _EmployerSignupPageState extends State<EmployerSignupPage> {
               const SizedBox(height: 7),
 
               const CustomTextField(
-                label: '*Business Address', 
-                hintText: 'Enter Business Address'
+                label: '*Business Address',
+                hintText: 'Enter Business Address',
               ),
 
               const SizedBox(height: 24),
-              
+
               NextButton(
                 text: 'Next',
                 onPressed: () {
-                  // Employer 회원가입 완료 로직 또는 다음 단계
-                  debugPrint("Employer Signup Finished");
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfilePickerPage(),
+                    ),
+                  );
                 },
               ),
-              const SizedBox(height: 40), // 하단 여백 추가
+              const SizedBox(height: 40),
             ],
           ),
         ),

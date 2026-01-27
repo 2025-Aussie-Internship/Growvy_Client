@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; 
+import 'package:flutter/services.dart';
 import '../../styles/colors.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/next_button.dart';
@@ -17,7 +17,6 @@ class CommonSignUpPage extends StatefulWidget {
 }
 
 class _CommonSignUpPageState extends State<CommonSignUpPage> {
-  // 성별 선택 상태 (하나만 선택되도록 String으로 관리)
   String selectedGender = '';
 
   @override
@@ -25,12 +24,11 @@ class _CommonSignUpPageState extends State<CommonSignUpPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: const SignInAppBar(),
-      // [수정 1] Center 위젯으로 감싸서 전체 내용을 화면 세로 중앙에 배치
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center, // 컬럼 내부 요소들도 중앙 정렬
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
                 'About you',
@@ -41,18 +39,18 @@ class _CommonSignUpPageState extends State<CommonSignUpPage> {
                 ),
               ),
               const SizedBox(height: 34),
-              
-              // 1. 이름
+
               CustomTextField(
                 label: '*Name',
                 hintText: 'Full Name',
                 keyboardType: TextInputType.name,
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Zㄱ-ㅎ가-힣\s]')),
+                  FilteringTextInputFormatter.allow(
+                    RegExp(r'[a-zA-Zㄱ-ㅎ가-힣\s]'),
+                  ),
                 ],
               ),
 
-              // 2. 생년월일
               CustomTextField(
                 label: '*Date of Birth',
                 hintText: 'YYYY/MM/DD',
@@ -64,23 +62,19 @@ class _CommonSignUpPageState extends State<CommonSignUpPage> {
                 ],
               ),
 
-              // 3. 전화번호
               CustomTextField(
                 label: '*Phone Number',
                 hintText: '+61 0000 0000',
                 keyboardType: TextInputType.phone,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                ],
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
 
               const SizedBox(height: 10),
-              
-              // Gender 라벨 박스
+
               Container(
-                width: 130, 
-                height: 30, 
-                alignment: Alignment.center, 
+                width: 130,
+                height: 30,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   border: Border.all(color: const Color(0xFF747474)),
                   borderRadius: BorderRadius.circular(26),
@@ -91,8 +85,7 @@ class _CommonSignUpPageState extends State<CommonSignUpPage> {
                 ),
               ),
               const SizedBox(height: 10),
-              
-              // 성별 체크박스들
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -101,29 +94,25 @@ class _CommonSignUpPageState extends State<CommonSignUpPage> {
                   _buildCheckbox("Female"),
                 ],
               ),
-              // Prefer not to say 추가 (필요시 주석 해제하여 사용)
-              // Row(
-              //   mainAxisAlignment: MainAxisAlignment.center,
-              //   children: [
-              //     _buildCheckbox("Prefer not to say"),
-              //   ],
-              // ),
 
               const SizedBox(height: 40),
 
-              // Next 버튼
               NextButton(
                 text: 'Next',
                 onPressed: () {
                   if (widget.isEmployer) {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const EmployerSignupPage()),
+                      MaterialPageRoute(
+                        builder: (context) => const EmployerSignupPage(),
+                      ),
                     );
                   } else {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const SeekerAddressPage()),
+                      MaterialPageRoute(
+                        builder: (context) => const SeekerAddressPage(),
+                      ),
                     );
                   }
                 },
@@ -140,20 +129,18 @@ class _CommonSignUpPageState extends State<CommonSignUpPage> {
     return Row(
       children: [
         Checkbox(
-          value: selectedGender == genderValue, 
+          value: selectedGender == genderValue,
           onChanged: (bool? value) {
             setState(() {
               if (value == true) {
-                selectedGender = genderValue; // 하나만 선택되도록 업데이트
+                selectedGender = genderValue;
               } else {
                 selectedGender = '';
               }
             });
           },
-          activeColor: AppColors.subColor, 
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(4), 
-          ),
+          activeColor: AppColors.subColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           side: MaterialStateBorderSide.resolveWith(
             (states) => const BorderSide(color: Colors.grey, width: 1.5),
           ),
@@ -166,7 +153,10 @@ class _CommonSignUpPageState extends State<CommonSignUpPage> {
 
 class DateTextFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     var text = newValue.text;
 
     if (newValue.selection.baseOffset == 0) {

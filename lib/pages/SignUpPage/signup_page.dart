@@ -118,7 +118,7 @@ class SignUpPage extends StatelessWidget {
                             color: Color(0xFFB2B2B2),
                           ),
                         ),
-                        const SizedBox(width: 27), // 좌우 균형 맞춤
+                        const SizedBox(width: 27),
                       ],
                     ),
                   ),
