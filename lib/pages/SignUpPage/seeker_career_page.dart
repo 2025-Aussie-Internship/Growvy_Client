@@ -3,11 +3,16 @@ import '../../styles/colors.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/next_button.dart';
 import '../../widgets/signin_app_bar.dart';
-import 'seeker_interest_page.dart';
+import 'profile_picker_page.dart';
 
-class SeekerAddressPage extends StatelessWidget {
-  const SeekerAddressPage({super.key});
+class SeekerCareerPage extends StatefulWidget {
+  const SeekerCareerPage({super.key});
 
+  @override
+  State<SeekerCareerPage> createState() => _SeekerCareerPageState();
+}
+
+class _SeekerCareerPageState extends State<SeekerCareerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -15,7 +20,7 @@ class SeekerAddressPage extends StatelessWidget {
       appBar: const SignInAppBar(),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 36.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -27,14 +32,20 @@ class SeekerAddressPage extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 34),
+              const SizedBox(height: 40),
 
               const CustomTextField(
-                label: '*Home Address',
-                hintText: 'Enter Home Address',
+                label: 'Career',
+                hintText: 'Enter Your Career',
+              ),
+              const SizedBox(height: 16),
+
+              const CustomTextField(
+                label: 'One Line Introduction',
+                hintText: 'Enter Your Introduction',
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 48),
 
               NextButton(
                 text: 'Next',
@@ -42,7 +53,7 @@ class SeekerAddressPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const SeekerInterestPage(),
+                      builder: (context) => const ProfilePickerPage(),
                     ),
                   );
                 },

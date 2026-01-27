@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../styles/colors.dart';
 import '../../widgets/next_button.dart';
 import '../../widgets/signin_app_bar.dart';
-import '../MainPage/main_page.dart';
+import 'seeker_career_page.dart';
 
 class SeekerInterestPage extends StatefulWidget {
   const SeekerInterestPage({super.key});
@@ -48,9 +48,9 @@ class _SeekerInterestPageState extends State<SeekerInterestPage> {
               const SizedBox(height: 20),
 
               Container(
-                width: 130, 
-                height: 30, 
-                alignment: Alignment.center, 
+                width: 130,
+                height: 30,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   border: Border.all(color: const Color(0xFF747474)),
                   borderRadius: BorderRadius.circular(26),
@@ -62,9 +62,8 @@ class _SeekerInterestPageState extends State<SeekerInterestPage> {
               ),
               const SizedBox(height: 20),
 
-              // 체크박스 리스트 (2열 배치)
               Wrap(
-                spacing: 10, 
+                spacing: 10,
                 runSpacing: 0,
                 children: interests.keys.map((key) {
                   return SizedBox(
@@ -79,12 +78,15 @@ class _SeekerInterestPageState extends State<SeekerInterestPage> {
                               interests[key] = val!;
                             });
                           },
-                          activeColor: AppColors.subColor, 
+                          activeColor: AppColors.subColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(4),
                           ),
                           side: MaterialStateBorderSide.resolveWith(
-                            (states) => const BorderSide(color: Colors.grey, width: 1.5),
+                            (states) => const BorderSide(
+                              color: Colors.grey,
+                              width: 1.5,
+                            ),
                           ),
                         ),
                         Expanded(
@@ -105,11 +107,11 @@ class _SeekerInterestPageState extends State<SeekerInterestPage> {
               NextButton(
                 text: 'Next',
                 onPressed: () {
-                  // MainPage로 이동
-                  Navigator.pushAndRemoveUntil(
+                  Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const MainPage()),
-                    (route) => false,
+                    MaterialPageRoute(
+                      builder: (context) => const SeekerCareerPage(),
+                    ),
                   );
                 },
               ),

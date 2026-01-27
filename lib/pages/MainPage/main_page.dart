@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../styles/colors.dart';
 import '../../widgets/custom_bottom_nav_bar.dart';
@@ -22,7 +23,7 @@ class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    const HomePageContent(),
+    HomePageContent(),
     const Center(child: Text('Map Page')),
     const ChatListPage(),
     const Center(child: Text('Note Page')),
@@ -53,7 +54,7 @@ class _MainPageState extends State<MainPage> {
       ),
       child: SafeArea(
         child: Container(
-          height: 80,
+          height: 65,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -90,13 +91,13 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
-      extendBody: true,
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(56),
+        preferredSize: const Size.fromHeight(48),
         child: AppBar(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
-          elevation: 0,
+          elevation: 0.5,
+          shadowColor: Colors.black.withOpacity(0.1),
           centerTitle: true,
           title: SvgPicture.asset('assets/icon/logo_orange.svg', height: 36),
         ),
@@ -118,6 +119,42 @@ class _HomePageContentState extends State<HomePageContent> {
   String _sortFilter = 'Newest';
   bool _isCalendarOpen = false;
   bool _isNotificationOpen = false;
+
+  // Banner State
+  late PageController _bannerController;
+  late Timer _bannerTimer;
+  int _bannerCurrentPage = 1000;
+
+  final List<String> _bannerImages = [
+    'assets/image/banner1.png',
+    'assets/image/banner2.png',
+    'assets/image/banner3.png',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _bannerController = PageController(initialPage: _bannerCurrentPage);
+    _startBannerTimer();
+  }
+
+  @override
+  void dispose() {
+    _bannerTimer.cancel();
+    _bannerController.dispose();
+    super.dispose();
+  }
+
+  void _startBannerTimer() {
+    _bannerTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _bannerCurrentPage++;
+      _bannerController.animateToPage(
+        _bannerCurrentPage,
+        duration: const Duration(milliseconds: 1000),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
 
   final List<Map<String, dynamic>> nearbyJobs = const [
     {
@@ -690,83 +727,59 @@ class _HomePageContentState extends State<HomePageContent> {
                   const SizedBox(height: 30),
 
                   // Banner
-                  // Banner - Wrapped in GestureDetector for better touch area
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const JobDetailPage(),
-                        ),
-                      );
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      width: double.infinity,
-                      height: 150,
-                      color: Colors.lightBlueAccent,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Positioned(
-                            left: 20,
-                            top: 20,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
-                                  "Holiday Season",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    fontStyle: FontStyle.italic,
-                                  ),
+                  SizedBox(
+                    height: 212,
+                    child: PageView.builder(
+                      controller: _bannerController,
+                      itemBuilder: (context, index) {
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const JobDetailPage(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              image: DecorationImage(
+                                image: AssetImage(
+                                  _bannerImages[index % _bannerImages.length],
                                 ),
-                                Text(
-                                  "Jobs",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    fontStyle: FontStyle.italic,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            child: Stack(
+                              children: [
+                                Positioned(
+                                  right: 20,
+                                  bottom: 20,
+                                  child: Container(
+                                    width: 111,
+                                    height: 33,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Text(
+                                      "See More",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Color(0xFF3B3B3B),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-
-                          Positioned(
-                            right: 20,
-                            bottom: 20,
-                            child: GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const JobDetailPage(),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.3),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: Colors.white),
-                                ),
-                                child: const Text(
-                                  "See More",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ],
