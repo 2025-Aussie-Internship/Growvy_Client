@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../styles/colors.dart';
 import '../../services/user_service.dart';
+import '../../widgets/confirm_modal.dart';
 
 class DashedBorderPainter extends CustomPainter {
   @override
@@ -307,229 +308,28 @@ class _SeekerNoteWritePageState extends State<SeekerNoteWritePage> {
     );
   }
 
-  // 첫 번째 모달: "Do you really want to stop recruiting?"
   void _showStopRecruitingModal() {
-    showDialog(
+    ConfirmModal.show(
       context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (BuildContext context) {
-        return Center(
-          child: Container(
-            width: 324,
-            height: 181,
-            margin: const EdgeInsets.symmetric(horizontal: 30),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              children: [
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Text(
-                        'Do you really want to stop recruiting?',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Container(
-                  height: 60,
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context);
-                          },
-                          child: Container(
-                            height: 60,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(20),
-                              ),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'Cancel',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Container(
-                        width: 1,
-                        height: 60,
-                        color: const Color(0xFFE0E0E0),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context); // 모달 닫기
-                            Navigator.pop(context); // 페이지 닫기
-                          },
-                          child: Container(
-                            height: 60,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF2643A),
-                              borderRadius: BorderRadius.only(
-                                bottomRight: Radius.circular(20),
-                              ),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'Accept',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+      message: 'Do you really want to stop recruiting?',
+      cancelLabel: 'Cancel',
+      acceptLabel: 'Accept',
+      onAccept: () {
+        Navigator.pop(context);
+        Navigator.pop(context);
       },
     );
   }
 
-  // 두 번째 모달: "Do you want to save draft it?"
   void _showSaveDraftModal() {
-    showDialog(
+    ConfirmModal.show(
       context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (BuildContext context) {
-        return Center(
-          child: Container(
-            width: 324,
-            height: 181,
-            margin: const EdgeInsets.symmetric(horizontal: 30),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              children: [
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Text(
-                        'Do you want to save draft it?',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Container(
-                  height: 60,
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context);
-                          },
-                          child: Container(
-                            height: 60,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(20),
-                              ),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'Cancel',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Container(
-                        width: 1,
-                        height: 60,
-                        color: const Color(0xFFE0E0E0),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            // 저장 로직 (여기에 실제 저장 로직 추가)
-                            Navigator.pop(context); // 모달 닫기
-                            Navigator.pop(context); // 페이지 닫기
-                          },
-                          child: Container(
-                            height: 60,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF2643A),
-                              borderRadius: BorderRadius.only(
-                                bottomRight: Radius.circular(20),
-                              ),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'Accept',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+      message: 'Do you want to save draft it?',
+      cancelLabel: 'Cancel',
+      acceptLabel: 'Accept',
+      onAccept: () {
+        Navigator.pop(context);
+        Navigator.pop(context);
       },
     );
   }

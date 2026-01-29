@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../styles/colors.dart';
+import '../../widgets/confirm_modal.dart';
 
 class JobDetailPage extends StatelessWidget {
   const JobDetailPage({super.key});
@@ -220,7 +221,7 @@ class JobDetailPage extends StatelessWidget {
           ),
 
           // 4. Sticky Bottom Button
-          Align(alignment: Alignment.bottomCenter, child: _buildBottomButton()),
+          Align(alignment: Alignment.bottomCenter, child: _buildBottomButton(context)),
         ],
       ),
     );
@@ -278,7 +279,7 @@ class JobDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomButton() {
+  Widget _buildBottomButton(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -297,7 +298,18 @@ class JobDetailPage extends StatelessWidget {
           width: double.infinity,
           height: 56,
           child: ElevatedButton(
-            onPressed: () {},
+            onPressed: () {
+              ConfirmModal.show(
+                context: context,
+                message: 'Submit Application?',
+                cancelLabel: 'Cancel',
+                acceptLabel: 'Apply',
+                onAccept: () {
+                  Navigator.pop(context);
+                  // TODO: 지원 제출 로직
+                },
+              );
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.mainColor,
               foregroundColor: Colors.white,
