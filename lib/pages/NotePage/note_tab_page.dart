@@ -1,46 +1,26 @@
 import 'package:flutter/material.dart';
-import '../../services/user_service.dart';
+import 'package:get/get.dart';
+import '../../controllers/auth_controller.dart';
+import '../../controllers/note_page_controller.dart';
 import 'note_page.dart';
 
-/// Note 탭: Employer/Seeker 동일한 Note 페이지 표시. write만 타입에 따라 다름.
-class NoteTabPage extends StatefulWidget {
+/// Note 탭 View (GetX MVVM) – 동일한 Note 페이지, write만 직업별 분리
+class NoteTabPage extends GetView<AuthController> {
   const NoteTabPage({super.key});
 
   @override
-  State<NoteTabPage> createState() => _NoteTabPageState();
-}
-
-class _NoteTabPageState extends State<NoteTabPage> {
-  bool _isLoading = true;
-  bool _isEmployer = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserType();
-  }
-
-  Future<void> _loadUserType() async {
-    final isEmployer = await UserService.isEmployer();
-    if (mounted) {
-      setState(() {
-        _isEmployer = isEmployer;
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    return NotePage(isEmployer: _isEmployer);
+    return Obx(() {
+      if (controller.isLoading.value) {
+        return const Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
+      if (!Get.isRegistered<NotePageController>()) {
+        Get.put(NotePageController());
+      }
+      return const NotePage();
+    });
   }
 }

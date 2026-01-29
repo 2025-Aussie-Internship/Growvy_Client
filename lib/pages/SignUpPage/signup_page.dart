@@ -38,12 +38,12 @@ class SignUpPage extends StatelessWidget {
       print('Firebase Token: $firebaseIdToken');
 
       // 백엔드 로그인 요청
-      final response = await http.post(
-        Uri.parse('http://43.201.9.192/api/auth/login'),
-        headers: {'Authorization': 'Bearer $firebaseIdToken'},
-      );
-      print('Backend status: ${response.statusCode}');
-      print('Backend response: ${response.body}');
+      // final response = await http.post(
+      //   Uri.parse('http://43.201.9.192/api/auth/login'),
+      //   headers: {'Authorization': 'Bearer $firebaseIdToken'},
+      // );
+      // print('Backend status: ${response.statusCode}');
+      // print('Backend response: ${response.body}');
 
       // registered 여부 따라 flow 처리
 

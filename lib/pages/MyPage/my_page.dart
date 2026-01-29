@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../styles/colors.dart';
-import '../../services/user_service.dart';
+import 'package:get/get.dart';
+import '../../controllers/auth_controller.dart';
 import '../SignUpPage/signup_page.dart';
 
 class MyPage extends StatefulWidget {
@@ -80,9 +81,7 @@ class _MyPageState extends State<MyPage> {
           const SizedBox(height: 40),
           GestureDetector(
             onTap: () async {
-              // 사용자 타입 삭제
-              await UserService.clearUserType();
-              
+              await Get.find<AuthController>().clearUserType();
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const SignUpPage()),

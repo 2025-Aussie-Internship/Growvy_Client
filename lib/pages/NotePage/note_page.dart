@@ -1,150 +1,10 @@
 import 'package:flutter/material.dart';
-import 'employer_note_write_page.dart';
-import 'seeker_note_write_page.dart';
+import 'package:get/get.dart';
+import '../../controllers/note_page_controller.dart';
 
-/// Employer / Seeker 공통 Note 목록 페이지. write만 직업별(employer_note_write / seeker_note_write)로 분리.
-class NotePage extends StatefulWidget {
-  /// 직업 타입. write 페이지 이동 시 사용.
-  final bool isEmployer;
-
-  const NotePage({super.key, required this.isEmployer});
-
-  @override
-  State<NotePage> createState() => _NotePageState();
-}
-
-class _NotePageState extends State<NotePage> {
-  int _selectedTab = 0; 
-  int _volunteerFilter = 1; // 0: Draft, 1: most recent
-
-  bool get _isEmployer => widget.isEmployer;
-
-  final List<Map<String, dynamic>> _recruitmentHistory = [
-    {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'hasContent': false, 
-      'photos': [],
-    },
-    {
-      'title': 'Festival Support Staff',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-12',
-      'tag': 'Veteran',
-      'hasContent': true,
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-        'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=100',
-      ],
-    },
-    {
-      'title': 'Event Helper',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-5',
-      'tag': 'Rookie',
-      'hasContent': true,
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-      ],
-    },
-    {
-      'title': 'Casual Bar Support Staff',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-20',
-      'tag': 'Veteran',
-      'hasContent': false,
-      'photos': [],
-    },
-    {
-      'title': 'Temporary Sales Assistant',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-8',
-      'tag': 'Seasonal',
-      'hasContent': true,
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-      ],
-    },
-  ];
-
-  final List<Map<String, dynamic>> _completionHistoryWorks = [
-    {
-      'title': 'Weekend Market Assistant',
-      'employer': 'Freshyyy',
-      'dDay': 'Completed',
-      'tag': 'Veteran',
-      'hasContent': true,
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-        'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=100',
-      ],
-    },
-    {
-      'title': 'Casual Event Assistant',
-      'employer': 'Central Art Concert Hall',
-      'dDay': 'Completed',
-      'tag': 'Rookie',
-      'hasContent': true,
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-      ],
-    },
-    {
-      'title': 'Festival Support Staff',
-      'employer': 'IngA Music Festival',
-      'dDay': 'Completed',
-      'tag': 'Rookie',
-      'hasContent': true,
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-      ],
-    },
-  ];
-
-  final List<Map<String, dynamic>> _completionHistoryVolunteer = [
-    {
-      'title': 'Youth Program Support Assistant',
-      'employer': 'You and Us',
-      'dDay': 'Completed',
-      'tag': 'Rookie',
-      'hasContent': true,
-      'isDraft': false,
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-      ],
-    },
-    {
-      'title': 'Animal Care Volunteer Assistant',
-      'employer': 'W.H.A (Animal Care Center)',
-      'dDay': 'Completed',
-      'tag': 'Veteran',
-      'hasContent': true,
-      'isDraft': false,
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-        'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=100',
-      ],
-    },
-    {
-      'title': 'Horse Care Volunteer Assistant',
-      'employer': 'Hehe Farm',
-      'dDay': 'Completed',
-      'tag': 'Rookie',
-      'hasContent': true,
-      'isDraft': false,
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-      ],
-    },
-  ];
+/// Note 목록 View (GetX MVVM). write만 직업별(employer_note_write / seeker_note_write)로 분리.
+class NotePage extends GetView<NotePageController> {
+  const NotePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -156,102 +16,58 @@ class _NotePageState extends State<NotePage> {
             child: Row(
               children: [
                 Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedTab = 0;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10.5),
-                      decoration: BoxDecoration(
-                        color: _selectedTab == 0
-                            ? Colors.white
-                            : const Color(0xFFF5F5F5),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(12),
-                          topRight: Radius.circular(12),
-                        ),
-                        boxShadow: _selectedTab == 0
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  offset: const Offset(0, -3),
-                                  blurRadius: 4,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Text(
-                        'Recruitment history',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: _selectedTab == 0
-                              ? const Color(0xFF931515)
-                              : const Color(0xFF747474),
-                        ),
-                      ),
-                    ),
-                  ),
+                  child: Obx(() => _buildTab(0, 'Recruitment history')),
                 ),
                 Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedTab = 1;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: _selectedTab == 1
-                            ? Colors.white
-                            : const Color(0xFFF5F5F5),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(12),
-                          topRight: Radius.circular(12),
-                        ),
-                        boxShadow: _selectedTab == 1
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  offset: const Offset(0, -3),
-                                  blurRadius: 4,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Text(
-                        'Completion history',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: _selectedTab == 1
-                              ? const Color(0xFF931515)
-                              : const Color(0xFF747474),
-                        ),
-                      ),
-                    ),
-                  ),
+                  child: Obx(() => _buildTab(1, 'Completion history')),
                 ),
               ],
             ),
           ),
-
-          // 헤더와 리스트
           Expanded(
-            child: _selectedTab == 0
+            child: Obx(() => controller.selectedTab.value == 0
                 ? _buildRecruitmentHistory()
-                : _buildCompletionHistory(),
+                : _buildCompletionHistory()),
           ),
         ],
       ),
     );
   }
 
+  Widget _buildTab(int index, String label) {
+    final isSelected = controller.selectedTab.value == index;
+    return GestureDetector(
+      onTap: () => controller.setSelectedTab(index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10.5),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : const Color(0xFFF5F5F5),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(12),
+            topRight: Radius.circular(12),
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    offset: const Offset(0, -3),
+                    blurRadius: 4,
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? const Color(0xFF931515) : const Color(0xFF747474),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildRecruitmentHistory() {
     return Column(
@@ -283,9 +99,9 @@ class _NotePageState extends State<NotePage> {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _recruitmentHistory.length,
+            itemCount: controller.recruitmentHistory.length,
             itemBuilder: (context, index) {
-              return _buildHistoryCard(_recruitmentHistory[index]);
+              return _buildHistoryCard(controller.recruitmentHistory[index]);
             },
           ),
         ),
@@ -294,145 +110,122 @@ class _NotePageState extends State<NotePage> {
   }
 
   Widget _buildCompletionHistory() {
-    final filteredVolunteerList = _volunteerFilter == 0
-        ? _completionHistoryVolunteer.where((item) => item['isDraft'] == true).toList()
-        : _completionHistoryVolunteer.where((item) => item['isDraft'] == false).toList();
-
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Works 섹션
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Works',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
+    return Obx(() {
+      final filteredVolunteerList = controller.filteredVolunteerList;
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Works',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
                   ),
-                ),
-                Text(
-                  'most recent',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: const Color(0xFF931515),
-                    fontWeight: FontWeight.w400,
+                  Text(
+                    'most recent',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: const Color(0xFF931515),
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _completionHistoryWorks.length,
-            itemBuilder: (context, index) {
-              return _buildHistoryCard(_completionHistoryWorks[index]);
-            },
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Volunteer 섹션
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Volunteer',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: controller.completionHistoryWorks.length,
+              itemBuilder: (context, index) {
+                return _buildHistoryCard(
+                    controller.completionHistoryWorks[index]);
+              },
+            ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Volunteer',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
                   ),
-                ),
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _volunteerFilter = 0;
-                        });
-                      },
-                      child: Text(
-                        'Draft',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: _volunteerFilter == 0
-                              ? const Color(0xFF931515)
-                              : const Color(0xFF931515),
-                          fontWeight: FontWeight.w400,
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => controller.setVolunteerFilter(0),
+                        child: Text(
+                          'Draft',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: controller.volunteerFilter.value == 0
+                                ? const Color(0xFF931515)
+                                : const Color(0xFF931515),
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Container(
-                        width: 1,
-                        height: 14,
-                        color: const Color(0xFF931515),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _volunteerFilter = 1;
-                        });
-                      },
-                      child: Text(
-                        'most recent',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: _volunteerFilter == 1
-                              ? const Color(0xFF931515)
-                              : const Color(0xFF931515),
-                          fontWeight: FontWeight.w400,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Container(
+                          width: 1,
+                          height: 14,
+                          color: const Color(0xFF931515),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      GestureDetector(
+                        onTap: () => controller.setVolunteerFilter(1),
+                        child: Text(
+                          'most recent',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: controller.volunteerFilter.value == 1
+                                ? const Color(0xFF931515)
+                                : const Color(0xFF931515),
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: filteredVolunteerList.length,
-            itemBuilder: (context, index) {
-              return _buildHistoryCard(filteredVolunteerList[index]);
-            },
-          ),
-        ],
-      ),
-    );
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: filteredVolunteerList.length,
+              itemBuilder: (context, index) {
+                return _buildHistoryCard(filteredVolunteerList[index]);
+              },
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildHistoryCard(Map<String, dynamic> item) {
-    final bool isRecruitmentTab = _selectedTab == 0;
-    final bool shouldNavigateToWrite = isRecruitmentTab && !item['hasContent'];
+    final isRecruitmentTab = controller.selectedTab.value == 0;
+    final shouldNavigateToWrite = isRecruitmentTab && (item['hasContent'] != true);
 
     return GestureDetector(
-      onTap: shouldNavigateToWrite
-          ? () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => _isEmployer
-                      ? const EmployerNoteWritePage()
-                      : const SeekerNoteWritePage(),
-                ),
-              );
-            }
-          : null,
+      onTap: shouldNavigateToWrite ? () => controller.goToWritePage(item) : null,
       child: Container(
         width: 358,
         height: 111,
@@ -455,7 +248,7 @@ class _NotePageState extends State<NotePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item['title'],
+                        item['title'] as String,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -464,7 +257,7 @@ class _NotePageState extends State<NotePage> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        item['employer'],
+                        item['employer'] as String,
                         style: TextStyle(
                           fontSize: 12,
                           color: const Color(0xFF747474),
@@ -475,16 +268,16 @@ class _NotePageState extends State<NotePage> {
                   ),
                   Row(
                     children: [
-                      _buildTag(item['dDay']),
+                      _buildTag(item['dDay'] as String),
                       const SizedBox(width: 10),
-                      _buildTag(item['tag']),
+                      _buildTag(item['tag'] as String),
                     ],
                   ),
                 ],
               ),
             ),
-            // 사진 썸네일
-            if (item['photos'] != null && (item['photos'] as List).isNotEmpty)
+            if (item['photos'] != null &&
+                (item['photos'] as List).isNotEmpty)
               _buildPhotoThumbnails(item['photos'] as List<String>),
           ],
         ),
@@ -507,7 +300,7 @@ class _NotePageState extends State<NotePage> {
           color: Color(0xFF931515),
           fontSize: 12,
           fontWeight: FontWeight.w500,
-          height: 14/12,
+          height: 14 / 12,
         ),
       ),
     );
@@ -515,8 +308,8 @@ class _NotePageState extends State<NotePage> {
 
   Widget _buildPhotoThumbnails(List<String> photos) {
     final displayPhotos = photos.take(3).toList();
-    final double photoSize = 30;
-    final double overlap = 8;
+    const double photoSize = 30;
+    const double overlap = 8;
 
     return SizedBox(
       width: photoSize + (displayPhotos.length - 1) * (photoSize - overlap),

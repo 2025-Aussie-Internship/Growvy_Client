@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:get/get.dart';
 import 'firebase_options.dart';
 import 'services/user_service.dart';
+import 'bindings/initial_binding.dart';
+import 'routes/app_pages.dart';
 import 'pages/SignUpPage/signup_page.dart';
 
 void main() async {
@@ -20,16 +21,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false, 
+    return GetMaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Growvy',
       theme: ThemeData(
-        fontFamily: 'Pretendard', 
-        
+        fontFamily: 'Pretendard',
         scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
       ),
-      home: const SignUpPage(), 
+      initialBinding: InitialBinding(),
+      getPages: AppPages.routes,
+      home: const SignUpPage(),
     );
   }
 }
