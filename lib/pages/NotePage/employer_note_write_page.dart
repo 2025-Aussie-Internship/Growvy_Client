@@ -1,0 +1,817 @@
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import '../../styles/colors.dart';
+import '../../services/user_service.dart';
+
+class DashedBorderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.grey.shade300
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+
+    const double dashWidth = 4;
+    const double dashSpace = 4;
+    final radius = 8.0;
+
+    // Draw dashed rectangle
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    _drawDashedRRect(canvas, rect, radius, paint, dashWidth, dashSpace);
+  }
+
+  void _drawDashedRRect(Canvas canvas, Rect rect, double radius, Paint paint,
+      double dashWidth, double dashSpace) {
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
+
+    final dashPath = Path();
+    double distance = 0;
+    for (final pathMetric in path.computeMetrics()) {
+      while (distance < pathMetric.length) {
+        final segment = pathMetric.extractPath(distance, distance + dashWidth);
+        dashPath.addPath(segment, Offset.zero);
+        distance += dashWidth + dashSpace;
+      }
+    }
+    canvas.drawPath(dashPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(DashedBorderPainter oldDelegate) => false;
+}
+
+class EmployerNoteWritePage extends StatefulWidget {
+  const EmployerNoteWritePage({super.key});
+
+  @override
+  State<EmployerNoteWritePage> createState() => _EmployerNoteWritePageState();
+}
+
+class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _scheduleController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _payController = TextEditingController();
+  
+  int _numberOfHires = 1;
+  final List<String> _selectedTags = [];
+  final List<String> _photos = [];
+  bool _isEmployer = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserType();
+  }
+
+  Future<void> _checkUserType() async {
+    final isEmployer = await UserService.isEmployer();
+    if (!isEmployer) {
+      // Employer가 아니면 이전 페이지로 돌아가기
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Employer 회원만 접근할 수 있습니다.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      setState(() {
+        _isEmployer = true;
+        _isLoading = false;
+      });
+    }
+  }
+
+  // 내용이 입력되어 있는지 확인하는 메서드
+  bool _hasContent() {
+    return _titleController.text.isNotEmpty ||
+        _descriptionController.text.isNotEmpty ||
+        _scheduleController.text.isNotEmpty ||
+        _locationController.text.isNotEmpty ||
+        _payController.text.isNotEmpty ||
+        _selectedTags.isNotEmpty ||
+        _photos.isNotEmpty;
+  }
+
+  final List<String> _availableTags = [
+    'Rookie',
+    'Veteran',
+    'Seasonal',
+    'Flexible',
+    'Volunteer',
+  ];
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _scheduleController.dispose();
+    _locationController.dispose();
+    _payController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (!_isEmployer) {
+      return const Scaffold(
+        body: Center(
+          child: Text('접근 권한이 없습니다.'),
+        ),
+      );
+    }
+
+    return PopScope(
+      canPop: !_hasContent(),
+      onPopInvoked: (didPop) {
+        if (!didPop && _hasContent()) {
+          _showStopRecruitingModal();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
+            onPressed: () {
+              if (_hasContent()) {
+                _showStopRecruitingModal();
+              } else {
+                Navigator.pop(context);
+              }
+            },
+          ),
+          title: const Text(
+            'Note',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          surfaceTintColor: Colors.white,
+        ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 제목 입력 필드와 Save Draft 버튼
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 37,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.mainColor, width: 1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: TextField(
+                      controller: _titleController,
+                      textAlignVertical: TextAlignVertical.center,
+                      decoration: const InputDecoration(
+                        hintText: 'title',
+                        hintStyle: TextStyle(color: Colors.grey),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    if (_hasContent()) {
+                      _showSaveDraftModal();
+                    }
+                  },
+                  child: Container(
+                    height: 37,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.mainColor,
+                      borderRadius: BorderRadius.circular(52),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'Save Draft',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // 상세 내용 입력 필드
+            Container(
+              height: 220,
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFBDBDBD), width: 1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: TextField(
+                controller: _descriptionController,
+                maxLines: null,
+                expands: true,
+                textAlignVertical: TextAlignVertical.top,
+                decoration: const InputDecoration(
+                  hintText: 'Write about your experience',
+                  hintStyle: TextStyle(color: Color(0xFFBDBDBD)),
+                  contentPadding: EdgeInsets.all(16),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                ),
+              ),
+            ),
+            const SizedBox(height: 26),
+
+            // Schedule
+            _buildSectionLabel('Schedule'),
+            const SizedBox(height: 6),
+            _buildTextField(
+              controller: _scheduleController,
+              hintText: 'Enter the Schedule',
+            ),
+            const SizedBox(height: 16),
+
+            // Location
+            _buildSectionLabel('Location'),
+            const SizedBox(height: 6),
+            _buildTextField(
+              controller: _locationController,
+              hintText: 'Enter the location',
+            ),
+            const SizedBox(height: 16),
+
+            // Pay
+            _buildSectionLabel('Pay'),
+            const SizedBox(height: 6),
+            _buildTextField(
+              controller: _payController,
+              hintText: 'Enter the daily rate',
+            ),
+            const SizedBox(height: 16),
+
+            // Number of Hires
+            _buildSectionLabel('Number of Hires'),
+            const SizedBox(height: 6),
+            Container(
+              height: 30,
+              width: 106,
+              decoration: BoxDecoration(
+                color: AppColors.mainColor,
+                borderRadius: BorderRadius.circular(21),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove, color: Colors.white, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {
+                      if (_numberOfHires > 1) {
+                        setState(() {
+                          _numberOfHires--;
+                        });
+                      }
+                    },
+                  ),
+                  Text(
+                    '$_numberOfHires',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {
+                      setState(() {
+                        _numberOfHires++;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Tags
+            _buildSectionLabel('Tags'),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _availableTags.map((tag) {
+                  final isSelected = _selectedTags.contains(tag);
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (isSelected) {
+                          _selectedTags.remove(tag);
+                        } else {
+                          _selectedTags.add(tag);
+                        }
+                      });
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFFFEE9D8)
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Text(
+                          tag,
+                          style: TextStyle(
+                            color: isSelected
+                                ? const Color(0xFFFC6340)
+                                : Colors.grey[700],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Photos
+            _buildSectionLabel('Photos'),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                ...List.generate(4, (index) {
+                  if (index < _photos.length) {
+                    return _buildPhotoSlot(_photos[index], index);
+                  }
+                  return _buildEmptyPhotoSlot(index);
+                }),
+              ],
+            ),
+          ],
+        ),
+      ),
+
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: () {
+                if (_hasContent()) {
+                  _showSaveDraftModal();
+                } else {
+                  Navigator.pop(context);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.mainColor,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              child: const Text(
+                'Save',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  // 첫 번째 모달: "Do you really want to stop recruiting?"
+  void _showStopRecruitingModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (BuildContext context) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            textSelectionTheme: TextSelectionThemeData(
+              selectionColor: Colors.transparent,
+              selectionHandleColor: Colors.transparent,
+            ),
+          ),
+          child: Center(
+            child: Container(
+              width: 324,
+              height: 181,
+              margin: const EdgeInsets.symmetric(horizontal: 30),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          'Do you really want to stop recruiting?',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              height: 60,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.only(
+                                  bottomLeft: Radius.circular(20),
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Cancel',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 60,
+                          color: const Color(0xFFE0E0E0),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context); // 모달 닫기
+                              Navigator.pop(context); // 페이지 닫기
+                            },
+                            child: Container(
+                              height: 60,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFF2643A),
+                                borderRadius: BorderRadius.only(
+                                  bottomRight: Radius.circular(20),
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Accept',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+          ),
+        ),
+        );
+      },
+    );
+  }
+
+  // 두 번째 모달: "Do you want to save draft it?"
+  void _showSaveDraftModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (BuildContext context) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            textSelectionTheme: TextSelectionThemeData(
+              selectionColor: Colors.transparent,
+              selectionHandleColor: Colors.transparent,
+            ),
+          ),
+          child: Center(
+            child: Container(
+              width: 324,
+              height: 181,
+              margin: const EdgeInsets.symmetric(horizontal: 30),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          'Do you want to save draft it?',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              height: 60,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.only(
+                                  bottomLeft: Radius.circular(20),
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Cancel',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 60,
+                          color: const Color(0xFFE0E0E0),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              // 저장 로직 (여기에 실제 저장 로직 추가)
+                              Navigator.pop(context); // 모달 닫기
+                              Navigator.pop(context); // 페이지 닫기
+                            },
+                            child: Container(
+                              height: 60,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFF2643A),
+                                borderRadius: BorderRadius.only(
+                                  bottomRight: Radius.circular(20),
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Accept',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+          ),
+        ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSectionLabel(String label) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: Colors.black,
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+  }) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.mainColor, width: 1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(color: Colors.grey),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          filled: false,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoSlot(String photoUrl, int index) {
+    return Container(
+      width: 78,
+      height: 78,
+      margin: index < 3 ? const EdgeInsets.only(right: 15) : null,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(7),
+            child: photoUrl.startsWith('http')
+                ? Image.network(
+                    photoUrl,
+                    width: 78,
+                    height: 78,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.image, size: 30),
+                      );
+                    },
+                  )
+                : Image.file(
+                    File(photoUrl),
+                    width: 78,
+                    height: 78,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.image, size: 30),
+                      );
+                    },
+                  ),
+          ),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _photos.removeAt(index);
+                });
+              },
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyPhotoSlot(int index) {
+    return GestureDetector(
+      onTap: () async {
+        final ImagePicker picker = ImagePicker();
+        final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+        
+        if (image != null) {
+          setState(() {
+            _photos.add(image.path);
+          });
+        }
+      },
+      child: Container(
+        width: 78,
+        height: 78,
+        margin: index < 3 ? const EdgeInsets.only(right: 15) : null,
+        child: CustomPaint(
+          painter: DashedBorderPainter(),
+          child: Center(
+            child: const Icon(
+              Icons.add,
+              color: Colors.grey,
+              size: 30,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

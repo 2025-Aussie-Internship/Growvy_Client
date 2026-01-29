@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../styles/colors.dart';
-import '../../widgets/custom_bottom_nav_bar.dart';
 import '../../widgets/nearby_job_card.dart';
 import '../../widgets/popular_job_card.dart';
 import '../../widgets/calendar_modal.dart';
@@ -11,6 +10,7 @@ import '../SearchPage/search_page.dart';
 import '../ChatPage/chat_page.dart';
 import '../MainPage/job_detail_page.dart';
 import '../MyPage/my_page.dart';
+import '../NotePage/employer_note_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -26,7 +26,7 @@ class _MainPageState extends State<MainPage> {
     HomePageContent(),
     const Center(child: Text('Map Page')),
     const ChatListPage(),
-    const Center(child: Text('Note Page')),
+    const EmployerNotePage(),
     const MyPage(),
   ];
 
@@ -97,7 +97,6 @@ class _MainPageState extends State<MainPage> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           elevation: 0.5,
-          shadowColor: Colors.black.withOpacity(0.1),
           centerTitle: true,
           title: SvgPicture.asset('assets/icon/logo_orange.svg', height: 36),
         ),
