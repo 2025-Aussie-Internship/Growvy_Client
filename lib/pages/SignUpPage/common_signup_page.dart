@@ -4,6 +4,7 @@ import '../../styles/colors.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/next_button.dart';
 import '../../widgets/signin_app_bar.dart';
+import '../../services/user_service.dart';
 import 'employer_signup_page.dart';
 import 'seeker_address_page.dart';
 
@@ -99,7 +100,10 @@ class _CommonSignUpPageState extends State<CommonSignUpPage> {
 
               NextButton(
                 text: 'Next',
-                onPressed: () {
+                onPressed: () async {
+                  // 사용자 타입 저장
+                  await UserService.saveUserType(widget.isEmployer);
+                  
                   if (widget.isEmployer) {
                     Navigator.push(
                       context,

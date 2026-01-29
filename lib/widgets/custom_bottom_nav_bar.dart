@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../pages/ChatPage/chat_page.dart';
-import '../pages/MainPage/main_page.dart';
 import '../pages/MyPage/my_page.dart';
+import '../pages/NotePage/employer_note_page.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -33,7 +33,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               );
             },
           ),
-          const Center(child: Text('Note')),
+          const EmployerNotePage(),
           const MyPage(),
         ],
       ),
