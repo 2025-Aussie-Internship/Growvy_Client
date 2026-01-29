@@ -1,46 +1,23 @@
 import 'package:flutter/material.dart';
-import '../../services/user_service.dart';
 import 'employer_note_write_page.dart';
+import 'seeker_note_write_page.dart';
 
-class EmployerNotePage extends StatefulWidget {
-  const EmployerNotePage({super.key});
+/// Employer / Seeker 공통 Note 목록 페이지. write만 직업별(employer_note_write / seeker_note_write)로 분리.
+class NotePage extends StatefulWidget {
+  /// 직업 타입. write 페이지 이동 시 사용.
+  final bool isEmployer;
+
+  const NotePage({super.key, required this.isEmployer});
 
   @override
-  State<EmployerNotePage> createState() => _EmployerNotePageState();
+  State<NotePage> createState() => _NotePageState();
 }
 
-class _EmployerNotePageState extends State<EmployerNotePage> {
+class _NotePageState extends State<NotePage> {
   int _selectedTab = 0; 
   int _volunteerFilter = 1; // 0: Draft, 1: most recent
-  bool _isEmployer = false;
-  bool _isLoading = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _checkUserType();
-  }
-
-  Future<void> _checkUserType() async {
-    final isEmployer = await UserService.isEmployer();
-    if (!isEmployer) {
-      // Employer가 아니면 이전 페이지로 돌아가기
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Employer 회원만 접근할 수 있습니다.'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } else {
-      setState(() {
-        _isEmployer = true;
-        _isLoading = false;
-      });
-    }
-  }
+  bool get _isEmployer => widget.isEmployer;
 
   final List<Map<String, dynamic>> _recruitmentHistory = [
     {
@@ -171,22 +148,6 @@ class _EmployerNotePageState extends State<EmployerNotePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    if (!_isEmployer) {
-      return const Scaffold(
-        body: Center(
-          child: Text('접근 권한이 없습니다.'),
-        ),
-      );
-    }
-
     return Scaffold(
       body: Column(
         children: [
@@ -465,7 +426,9 @@ class _EmployerNotePageState extends State<EmployerNotePage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const EmployerNoteWritePage(),
+                  builder: (context) => _isEmployer
+                      ? const EmployerNoteWritePage()
+                      : const SeekerNoteWritePage(),
                 ),
               );
             }

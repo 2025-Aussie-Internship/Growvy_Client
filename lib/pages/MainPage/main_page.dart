@@ -10,7 +10,7 @@ import '../SearchPage/search_page.dart';
 import '../ChatPage/chat_page.dart';
 import '../MainPage/job_detail_page.dart';
 import '../MyPage/my_page.dart';
-import '../NotePage/employer_note_page.dart';
+import '../NotePage/note_tab_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -26,7 +26,7 @@ class _MainPageState extends State<MainPage> {
     HomePageContent(),
     const Center(child: Text('Map Page')),
     const ChatListPage(),
-    const EmployerNotePage(),
+    const NoteTabPage(),
     const MyPage(),
   ];
 

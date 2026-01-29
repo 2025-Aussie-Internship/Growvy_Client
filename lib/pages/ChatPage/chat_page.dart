@@ -38,7 +38,7 @@ class ChatListPage extends StatelessWidget {
             ),
           ),
         ),
-        
+
         // 채팅방 목록
         Expanded(
           child: ListView.builder(
@@ -52,93 +52,106 @@ class ChatListPage extends StatelessWidget {
       ],
     );
   }
-    Widget _buildChatTile(BuildContext context) {
-      return GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ChatDetailPage()),
-          );
-        },
-        child: Stack(
-          clipBehavior: Clip.none, 
-          children: [
-            // 메인 카드 컨테이너
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 25,
-                    backgroundColor: Color(0xFFEEEEEE),
-                    child: Icon(Icons.person, color: Colors.grey),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'User Name',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                        ),
-                        Text(
-                          'Last Message text...',
-                          style: TextStyle(color: Color(0xFF747474), fontWeight: FontWeight.w400, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
+
+  Widget _buildChatTile(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ChatDetailPage()),
+        );
+      },
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // 메인 카드 컨테이너
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  radius: 25,
+                  backgroundColor: Color(0xFFEEEEEE),
+                  child: Icon(Icons.person, color: Colors.grey),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 35),
-                      const Text(
-                        'Month, Date, Year(Time)',
-                        style: TextStyle(color: Colors.grey, fontSize: 10),
+                      Text(
+                        'User Name',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        'Last Message text...',
+                        style: TextStyle(
+                          color: Color(0xFF747474),
+                          fontWeight: FontWeight.w400,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            //오른쪽 위 주황색 알림 배지
-            Positioned(
-              top: -5,  
-              right: -5,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFF7252), 
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+                ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const SizedBox(height: 35),
+                    const Text(
+                      'Month, Date, Year(Time)',
+                      style: TextStyle(color: Colors.grey, fontSize: 10),
+                    ),
                   ],
                 ),
-                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                child: const Center(
-                  child: Text(
-                    '1',
-                    style: TextStyle(
-                      color: Colors.white, 
-                      fontSize: 10, 
-                      fontWeight: FontWeight.bold
-                    ),
+              ],
+            ),
+          ),
+          //오른쪽 위 주황색 알림 배지
+          Positioned(
+            top: -5,
+            right: -5,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFF7252),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+              child: const Center(
+                child: Text(
+                  '1',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ),
-          ],
-        ),
-      );
-    }
+          ),
+        ],
+      ),
+    );
+  }
 }
+
 class ChatDetailPage extends StatelessWidget {
   const ChatDetailPage({super.key});
 
@@ -149,26 +162,25 @@ class ChatDetailPage extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // 고정 로고 영역
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: SvgPicture.asset(
-                'assets/icon/logo_orange.svg',
-                height: 36,
-              ),
-            ),
-            const Divider(height: 1, thickness: 1, color: Color(0xFFD9D9D9)),
-
             // 중앙 정렬 타이틀 헤더
             Padding(
-              padding: const EdgeInsets.only(left: 8, right: 8, top: 4, bottom: 0),
+              padding: const EdgeInsets.only(
+                left: 8,
+                right: 8,
+                top: 4,
+                bottom: 0,
+              ),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
+                      icon: const Icon(
+                        Icons.arrow_back_ios,
+                        color: Colors.black,
+                        size: 20,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ),
@@ -187,7 +199,10 @@ class ChatDetailPage extends StatelessWidget {
             // 채팅 메시지 리스트 더미 값
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 children: [
                   _buildMessage(false, "Text", "00:00 AM/PM"),
                   _buildMessage(false, "Text", "00:00 AM/PM"),
@@ -214,7 +229,9 @@ class ChatDetailPage extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isMe
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (!isMe) ...[
@@ -229,7 +246,10 @@ class ChatDetailPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               if (isMe) ...[
-                Text(time, style: const TextStyle(color: Color(0xFF747474), fontSize: 9)),
+                Text(
+                  time,
+                  style: const TextStyle(color: Color(0xFF747474), fontSize: 9),
+                ),
                 const SizedBox(width: 6),
               ],
               Container(
@@ -237,16 +257,35 @@ class ChatDetailPage extends StatelessWidget {
                 alignment: Alignment.center,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  color: isMe ? const Color(0xFFFF7252) : const Color(0xFFD9D9D9),
-                  borderRadius: isMe 
-                    ? const BorderRadius.only(topLeft: Radius.circular(15), topRight: Radius.circular(15), bottomLeft: Radius.circular(15))
-                    : const BorderRadius.only(topRight: Radius.circular(15), bottomRight: Radius.circular(15), topLeft: Radius.circular(15)),
+                  color: isMe
+                      ? const Color(0xFFFF7252)
+                      : const Color(0xFFD9D9D9),
+                  borderRadius: isMe
+                      ? const BorderRadius.only(
+                          topLeft: Radius.circular(15),
+                          topRight: Radius.circular(15),
+                          bottomLeft: Radius.circular(15),
+                        )
+                      : const BorderRadius.only(
+                          topRight: Radius.circular(15),
+                          bottomRight: Radius.circular(15),
+                          topLeft: Radius.circular(15),
+                        ),
                 ),
-                child: Text(text, style: TextStyle(color: isMe ? Colors.white : Colors.black, fontSize: 13)),
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    color: isMe ? Colors.white : Colors.black,
+                    fontSize: 13,
+                  ),
+                ),
               ),
               if (!isMe) ...[
                 const SizedBox(width: 6),
-                Text(time, style: const TextStyle(color: Color(0xFF747474), fontSize: 9)),
+                Text(
+                  time,
+                  style: const TextStyle(color: Color(0xFF747474), fontSize: 9),
+                ),
               ],
             ],
           ),
@@ -255,82 +294,84 @@ class ChatDetailPage extends StatelessWidget {
     );
   }
 
-//입력
-    
-    Widget _buildInputArea() {
-      return Center(
-        child: SizedBox(
-          width: 350,
-          height: 42,
-          child: Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(115),
-                    border: Border.all(color: const Color(0xFFB2B2B2)),
-                  ),
-                  child: Row(
-                    children: [
-                      SvgPicture.asset(
-                        'assets/icon/plus_icon.svg',
-                        width: 16,
-                        height: 16,
-                      ),
-                      const SizedBox(width: 8),
-    
-                      const Expanded(
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Type a Message',
-                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.only(bottom: 12),
+  //입력
+
+  Widget _buildInputArea() {
+    return Center(
+      child: SizedBox(
+        width: 350,
+        height: 42,
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(115),
+                  border: Border.all(color: const Color(0xFFB2B2B2)),
+                ),
+                child: Row(
+                  children: [
+                    SvgPicture.asset(
+                      'assets/icon/plus_icon.svg',
+                      width: 16,
+                      height: 16,
+                    ),
+                    const SizedBox(width: 8),
+
+                    const Expanded(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Type a Message',
+                          hintStyle: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
                           ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.only(bottom: 12),
                         ),
                       ),
-    
-                      Container(
-                        width: 30,
-                        height: 30,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFC6340),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.mic,
-                          color: Colors.white,
-                          size: 24,
-                        ),
+                    ),
+
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFC6340),
+                        shape: BoxShape.circle,
                       ),
-                    ],
-                  ),
+                      child: const Icon(
+                        Icons.mic,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-    
-              const SizedBox(width: 10),
-    
-              Container(
-                width: 32,
-                height: 32,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFC6340),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: SvgPicture.asset(
-                    'assets/icon/sent_icon.svg',
-                    width: 32,
-                    height: 32,
-                  ),
+            ),
+
+            const SizedBox(width: 10),
+
+            Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFC6340),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: SvgPicture.asset(
+                  'assets/icon/sent_icon.svg',
+                  width: 32,
+                  height: 32,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
-    }
-    
+      ),
+    );
+  }
 }
