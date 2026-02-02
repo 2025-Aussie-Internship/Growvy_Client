@@ -4,6 +4,7 @@ import '../../styles/colors.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../SignUpPage/signup_page.dart';
+import 'review_page.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -206,17 +207,30 @@ class _MyPageState extends State<MyPage> {
             ],
           ),
           const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () {
-              // Navigate to reviews
-            },
-            child: const Text(
-              'Check reviews',
-              style: TextStyle(
-                color: Color(0xFF931515),
-                decoration: TextDecoration.underline,
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ReviewPage(),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Center(
+                  child: Text(
+                    'Check reviews',
+                    style: TextStyle(
+                      color: const Color(0xFF931515),
+                      decoration: TextDecoration.underline,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
