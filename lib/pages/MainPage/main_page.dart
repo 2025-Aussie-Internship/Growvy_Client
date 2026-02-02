@@ -617,8 +617,6 @@ class _HomePageContentState extends State<HomePageContent> {
                               NearbyJobCard(
                                 title: sortedJobs[columnIndex * 2]['title'],
                                 company: sortedJobs[columnIndex * 2]['company'],
-                                distance:
-                                    sortedJobs[columnIndex * 2]['distance'],
                                 tags: List<String>.from(
                                   sortedJobs[columnIndex * 2]['tags'],
                                 ),
@@ -640,9 +638,6 @@ class _HomePageContentState extends State<HomePageContent> {
                                   company:
                                       sortedJobs[columnIndex * 2 +
                                           1]['company'],
-                                  distance:
-                                      sortedJobs[columnIndex * 2 +
-                                          1]['distance'],
                                   tags: List<String>.from(
                                     sortedJobs[columnIndex * 2 + 1]['tags'],
                                   ),
@@ -696,8 +691,6 @@ class _HomePageContentState extends State<HomePageContent> {
                                 company:
                                     popularJobs[columnIndex * 2]['company'],
                                 dDay: popularJobs[columnIndex * 2]['dDay'],
-                                distance:
-                                    popularJobs[columnIndex * 2]['distance'],
                                 onTap: () {},
                               ),
                               if (columnIndex * 2 + 1 < popularJobs.length) ...[
@@ -710,9 +703,6 @@ class _HomePageContentState extends State<HomePageContent> {
                                           1]['company'],
                                   dDay:
                                       popularJobs[columnIndex * 2 + 1]['dDay'],
-                                  distance:
-                                      popularJobs[columnIndex * 2 +
-                                          1]['distance'],
                                   onTap: () {},
                                 ),
                               ],

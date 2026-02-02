@@ -8,9 +8,7 @@ class JobDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Image height
     const double imageHeight = 300;
-    // Overlap amount to show some rounded corners effect
     const double overlap = 20;
 
     return Scaffold(
@@ -25,7 +23,6 @@ class JobDetailPage extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          // 1. Image with 11% Black Opacity Overlay
           Positioned(
             top: 0,
             left: 0,
@@ -50,19 +47,15 @@ class JobDetailPage extends StatelessWidget {
             ),
           ),
 
-          // 2. Scrollable Content Sheet
           Positioned.fill(
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  // Invisible Spacer so text starts below image
-                  // Since icons are FIXED now, we just need space for image.
                   Container(
                     width: double.infinity,
                     height: imageHeight - overlap,
                   ),
 
-                  // White Content Sheet
                   Container(
                     width: double.infinity,
                     constraints: const BoxConstraints(minHeight: 524),
@@ -98,7 +91,6 @@ class JobDetailPage extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            // Divider below description summary
                             const Divider(
                               height: 1,
                               thickness: 1,
@@ -108,7 +100,6 @@ class JobDetailPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 20),
 
-                        // Tags
                         Row(
                           children: [
                             _buildTag('D-24'),
@@ -120,7 +111,6 @@ class JobDetailPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 24),
 
-                        // Long Description
                         Text(
                           'People Needs Rabbit! is looking for a friendly, reliable team member who loves music, enjoys talking with customers, and has a positive, responsible attitude.\nThis is a part-time position with flexible shifts (around 3–5 days a week, 4–6 hours per shift), perfect for someone who wants to work in a relaxed, community-focused record shop.',
                           style: TextStyle(
@@ -137,7 +127,6 @@ class JobDetailPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 14),
 
-                        // Info Rows
                         _buildInfoRow(
                           'assets/icon/calendar_icon.svg',
                           '3–5 days a week',
@@ -220,7 +209,6 @@ class JobDetailPage extends StatelessWidget {
             ),
           ),
 
-          // 4. Sticky Bottom Button
           Align(alignment: Alignment.bottomCenter, child: _buildBottomButton(context)),
         ],
       ),
@@ -232,7 +220,7 @@ class JobDetailPage extends StatelessWidget {
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFF5F3D), // Primary Orange
+        color: const Color(0xFFFF5F3D),
         borderRadius: BorderRadius.circular(4),
       ),
       alignment: Alignment.center,

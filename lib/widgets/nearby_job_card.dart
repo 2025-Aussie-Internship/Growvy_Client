@@ -4,7 +4,6 @@ import '../styles/colors.dart';
 class NearbyJobCard extends StatelessWidget {
   final String title;
   final String company;
-  final String distance;
   final List<String> tags;
   final VoidCallback? onTap;
 
@@ -12,7 +11,6 @@ class NearbyJobCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.company,
-    required this.distance,
     required this.tags,
     this.onTap,
   });
@@ -38,7 +36,6 @@ class NearbyJobCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. 타이틀
           Text(
             title,
             style: const TextStyle(
@@ -51,7 +48,6 @@ class NearbyJobCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // 2. 회사명
           Text(
             company,
             style: const TextStyle(
@@ -65,35 +61,19 @@ class NearbyJobCard extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // 3. 태그와 거리
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Row(
-                children: tags
-                    .map(
-                      (tag) => Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: _buildTag(tag),
-                      ),
-                    )
-                    .toList(),
-              ),
-              Text(
-                "Around $distance",
-                style: const TextStyle(
-                  fontWeight: FontWeight.w400,
-                  fontSize: 12,
-                  color: Color(0xFF747474),
-                ),
-              ),
-            ],
+            children: tags
+                .map(
+                  (tag) => Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: _buildTag(tag),
+                  ),
+                )
+                .toList(),
           ),
 
           const SizedBox(height: 16),
 
-          // 4. See More 버튼
           GestureDetector(
             onTap: onTap,
             behavior: HitTestBehavior.opaque,

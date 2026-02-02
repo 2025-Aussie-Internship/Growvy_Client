@@ -18,9 +18,7 @@ class ReviewDetailPage extends StatefulWidget {
   final String title;
   final int rating;
   final String body;
-  /// My Reviews 탭에서 열 때만 전달. 저장 시 리스트 갱신용.
   final int? index;
-  /// false면 수정 불가(Received Reviews).
   final bool isEditable;
 
   @override
