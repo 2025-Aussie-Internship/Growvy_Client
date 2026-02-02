@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:get/get.dart';
 import '../../styles/colors.dart';
+import '../../controllers/auth_controller.dart';
 import '../../widgets/nearby_job_card.dart';
 import '../../widgets/popular_job_card.dart';
 import '../../widgets/calendar_modal.dart';
 import '../../widgets/notification_modal.dart';
+import '../../widgets/job_application_list_modal.dart';
 import '../SearchPage/search_page.dart';
 import '../ChatPage/chat_page.dart';
 import '../MainPage/job_detail_page.dart';
@@ -27,7 +30,7 @@ class _MainPageState extends State<MainPage> {
     const Center(child: Text('Map Page')),
     const ChatListPage(),
     const NoteTabPage(),
-    const MyPage(),
+    MyPage(),
   ];
 
   void _onItemTapped(int index) {
@@ -101,8 +104,27 @@ class _MainPageState extends State<MainPage> {
           title: SvgPicture.asset('assets/icon/logo_orange.svg', height: 36),
         ),
       ),
-      body: _pages[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: _buildBottomBar(),
+      floatingActionButton: Obx(() {
+        final isEmployer = AuthController.to.isEmployer.value;
+        if (_selectedIndex != 2 || !isEmployer) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 1),
+          child: GestureDetector(
+            onTap: () => JobApplicationListModal.show(context),
+            child: SvgPicture.asset(
+              'assets/icon/chat_button.svg',
+              width: 66,
+              height: 66,
+            ),
+          ),
+        );
+      }),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

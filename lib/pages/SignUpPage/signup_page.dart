@@ -3,8 +3,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'signin_page.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 class SignUpPage extends StatelessWidget {
   const SignUpPage({super.key});
