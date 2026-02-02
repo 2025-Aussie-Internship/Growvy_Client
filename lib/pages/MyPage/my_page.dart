@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../SignUpPage/signup_page.dart';
 import 'review_page.dart';
+import 'profile_edit_page.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -14,10 +15,13 @@ class MyPage extends StatefulWidget {
 }
 
 class _MyPageState extends State<MyPage> {
-  // Current profile image provider
-  ImageProvider _currentProfileImage = const AssetImage(
-    'assets/image/test_profile.png',
-  );
+  int _currentProfileIndex = 0;
+  ImageProvider get _currentProfileImage =>
+      _profileImages[_currentProfileIndex];
+  Color _bannerColor = AppColors.mainColor;
+  String _userName = 'My Name';
+  String _editPronouns = 'She/Her';
+  late final TextEditingController _nameController;
 
   final List<ImageProvider> _profileImages = [
     const AssetImage('assets/image/test_profile1.png'),
@@ -31,22 +35,44 @@ class _MyPageState extends State<MyPage> {
     const AssetImage('assets/image/test_profile9.png'),
   ];
 
-  void _showProfilePicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return _ProfilePickerBottomSheetContent(
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: _userName);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _openProfileEdit() async {
+    if (!mounted) return;
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (context) => ProfileEditPage(
           profileImages: _profileImages,
-          onImageSelected: (image) {
-            setState(() {
-              _currentProfileImage = image;
-            });
-          },
-        );
-      },
+          initialProfileIndex: _currentProfileIndex,
+          initialBannerColor: _bannerColor,
+          initialUserName: _userName,
+          initialPronouns: _editPronouns,
+        ),
+      ),
     );
+    if (!mounted) return;
+    if (result != null) {
+      setState(() {
+        _currentProfileIndex =
+            result['profileIndex'] as int? ?? _currentProfileIndex;
+        _bannerColor = result['bannerColor'] as Color? ?? _bannerColor;
+        if (result['userName'] != null)
+          _userName = result['userName'] as String;
+        if (result['pronouns'] != null)
+          _editPronouns = result['pronouns'] as String;
+      });
+      _nameController.text = _userName;
+    }
   }
 
   @override
@@ -56,8 +82,8 @@ class _MyPageState extends State<MyPage> {
         children: [
           _buildHeader(),
           const SizedBox(height: 12),
-          const Text(
-            'My Name',
+          Text(
+            _userName,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -110,13 +136,7 @@ class _MyPageState extends State<MyPage> {
       child: Stack(
         alignment: Alignment.topCenter,
         children: [
-          // Green Background
-          Container(
-            height: 140,
-            width: double.infinity,
-            color: AppColors.mainColor,
-          ),
-          // Profile Image
+          Container(height: 140, width: double.infinity, color: _bannerColor),
           Positioned(
             bottom: 0,
             child: Stack(
@@ -126,7 +146,6 @@ class _MyPageState extends State<MyPage> {
                   height: 120,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 4),
                     image: DecorationImage(
                       image: _currentProfileImage,
                       fit: BoxFit.cover,
@@ -137,18 +156,24 @@ class _MyPageState extends State<MyPage> {
                   right: 0,
                   bottom: 0,
                   child: GestureDetector(
-                    onTap: _showProfilePicker,
+                    onTap: _openProfileEdit,
                     child: Container(
-                      width: 36,
-                      height: 36,
+                      width: 24,
+                      height: 24,
                       decoration: const BoxDecoration(
-                        color: AppColors.mainColor, // Using main orange color
+                        color: AppColors.mainColor,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.edit,
-                        color: Colors.white,
-                        size: 20,
+                      padding: const EdgeInsets.all(6.5),
+                      child: SvgPicture.asset(
+                        'assets/icon/profile_edit_icon.svg',
+                        width: 11,
+                        height: 11,
+                        fit: BoxFit.contain,
+                        colorFilter: const ColorFilter.mode(
+                          Colors.white,
+                          BlendMode.srcIn,
+                        ),
                       ),
                     ),
                   ),
@@ -212,14 +237,15 @@ class _MyPageState extends State<MyPage> {
             child: InkWell(
               onTap: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ReviewPage(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const ReviewPage()),
                 );
               },
               borderRadius: BorderRadius.circular(8),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Center(
                   child: Text(
                     'Check reviews',
@@ -269,225 +295,5 @@ class _MyPageState extends State<MyPage> {
       indent: 20,
       endIndent: 20,
     );
-  }
-}
-
-class _ProfilePickerBottomSheetContent extends StatefulWidget {
-  final List<ImageProvider> profileImages;
-  final Function(ImageProvider) onImageSelected;
-
-  const _ProfilePickerBottomSheetContent({
-    required this.profileImages,
-    required this.onImageSelected,
-  });
-
-  @override
-  State<_ProfilePickerBottomSheetContent> createState() =>
-      _ProfilePickerBottomSheetContentState();
-}
-
-class _ProfilePickerBottomSheetContentState
-    extends State<_ProfilePickerBottomSheetContent> {
-  late PageController _pageController;
-  double _currentPage = 10000.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(
-      viewportFraction: 0.18,
-      initialPage: 10000,
-    );
-    _pageController.addListener(() {
-      setState(() {
-        _currentPage = _pageController.page ?? 10000.0;
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  int get _currentIndex => (_currentPage.round() % widget.profileImages.length);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 480,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          Align(
-            alignment: Alignment.topRight,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 20),
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFF7252), // Orange close button
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.close, color: Colors.white, size: 20),
-                ),
-              ),
-            ),
-          ),
-          const Text(
-            'Pick Your Profile',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFFFF7252), // Orange text
-            ),
-          ),
-          const SizedBox(height: 40),
-          // Overlapping Carousel with 5 visible profiles
-          SizedBox(
-            height: 160,
-            child: Stack(
-              children: [
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Stack(
-                      alignment: Alignment.center,
-                      clipBehavior: Clip.none,
-                      children: _buildProfileStack(constraints.maxWidth),
-                    );
-                  },
-                ),
-                PageView.builder(
-                  controller: _pageController,
-                  physics: const BouncingScrollPhysics(),
-                  itemBuilder: (context, index) {
-                    return const SizedBox();
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Dot indicators
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              widget.profileImages.length,
-              (index) => Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: index == _currentIndex ? 16 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  color: index == _currentIndex
-                      ? AppColors.mainColor
-                      : Colors.grey[300],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () {
-                  widget.onImageSelected(widget.profileImages[_currentIndex]);
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.mainColor, // Orange
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Save Changes',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 40),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildProfileStack(double screenWidth) {
-    List<Widget> items = [];
-    int centerIndex = _currentPage.round();
-
-    List<int> renderOrder = [-2, 2, -1, 1, 0];
-
-    double edgePadding = 35;
-
-    for (int offset in renderOrder) {
-      int index = centerIndex + offset;
-      int actualIndex = index % widget.profileImages.length;
-      if (actualIndex < 0) actualIndex += widget.profileImages.length;
-
-      double difference = index - _currentPage;
-
-      double size = offset == 0 ? 120 : 80;
-
-      double availableWidth = screenWidth - (edgePadding * 2);
-
-      double centerX = screenWidth / 2;
-
-      double horizontalSpacing = (availableWidth / 5);
-      double xOffset = difference * horizontalSpacing;
-
-      double yOffset = difference.abs() * 10;
-
-      items.add(
-        Positioned(
-          left: centerX - (size / 2) + xOffset,
-          top: (160 - size) / 2 + yOffset,
-          child: GestureDetector(
-            onTap: () {
-              if (offset != 0) {
-                _pageController.animateToPage(
-                  index,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              }
-            },
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                image: DecorationImage(
-                  image: widget.profileImages[actualIndex],
-                  fit: BoxFit.cover,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(offset == 0 ? 0.2 : 0.1),
-                    blurRadius: offset == 0 ? 15 : 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return items;
   }
 }
