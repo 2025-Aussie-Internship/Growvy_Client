@@ -17,7 +17,16 @@ class ChatMessage {
 }
 
 class ChatDetailPage extends StatefulWidget {
-  const ChatDetailPage({super.key});
+  const ChatDetailPage({
+    super.key,
+    this.peerName,
+    this.peerProfileImagePath,
+  });
+
+  /// 선택한 지원자(채팅 상대) 이름. 없으면 'Name'.
+  final String? peerName;
+  /// 선택한 지원자 프로필 이미지 경로.
+  final String? peerProfileImagePath;
 
   @override
   State<ChatDetailPage> createState() => _ChatDetailPageState();
@@ -114,9 +123,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       onPressed: () => Navigator.pop(context),
                     ),
                   ),
-                  const Text(
-                    'Name',
-                    style: TextStyle(
+                  Text(
+                    widget.peerName ?? 'Name',
+                    style: const TextStyle(
                       color: Colors.black,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,

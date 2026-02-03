@@ -13,6 +13,7 @@ import '../../widgets/job_application_list_modal.dart';
 import '../../widgets/my_job_openings_modal.dart';
 import '../SearchPage/search_page.dart';
 import '../ChatPage/chat_page.dart';
+import '../ChatPage/chat_detail_page.dart';
 import '../MainPage/job_detail_page.dart';
 import '../MyPage/my_page.dart';
 import '../MapPage/map_page.dart';
@@ -174,7 +175,21 @@ class _MainPageState extends State<MainPage> {
                 final selected = await MyJobOpeningsModal.show(context, jobs: jobs);
                 if (!context.mounted) return;
                 if (selected != null) {
-                  JobApplicationListModal.show(context);
+                  final accepted = await JobApplicationListModal.show(context);
+                  if (!context.mounted) return;
+                  if (accepted != null) {
+                    setState(() => _selectedIndex = 2);
+                    if (!context.mounted) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatDetailPage(
+                          peerName: accepted['name'],
+                          peerProfileImagePath: accepted['profileImagePath'],
+                        ),
+                      ),
+                    );
+                  }
                 }
               },
               child: SvgPicture.asset(
