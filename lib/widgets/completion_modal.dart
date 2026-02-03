@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../styles/modal_theme.dart';
 
 /// 확인 후 2초 뒤 자동으로 닫히는 완료 모달 (Share Complete! / Delete Complete! 등).
 /// ConfirmModal과 동일 크기 324x181, 가운데 check_icon.svg 77.
@@ -24,9 +25,12 @@ class CompletionModal extends StatefulWidget {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withOpacity(0.5),
-      builder: (context) => CompletionModal(
-        message: message,
-        onDismiss: onDismiss,
+      builder: (context) => Theme(
+        data: modalTheme(context),
+        child: CompletionModal(
+          message: message,
+          onDismiss: onDismiss,
+        ),
       ),
     );
   }

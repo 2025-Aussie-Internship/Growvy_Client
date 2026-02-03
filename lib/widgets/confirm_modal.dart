@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../styles/modal_theme.dart';
 
 class ConfirmModal extends StatelessWidget {
   final String message;
@@ -30,7 +31,7 @@ class ConfirmModal extends StatelessWidget {
       barrierDismissible: barrierDismissible,
       barrierColor: Colors.black.withOpacity(0.5),
       builder: (context) => Theme(
-        data: Theme.of(context).copyWith(
+        data: modalTheme(context).copyWith(
           splashColor: Colors.transparent,
           highlightColor: Colors.transparent,
         ),

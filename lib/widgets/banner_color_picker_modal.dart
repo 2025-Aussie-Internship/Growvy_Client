@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../styles/colors.dart';
+import '../styles/modal_theme.dart';
 
 /// 배너 색상 선택 모달. 프로필 선택 모달과 스타일 완전 동일(캐러셀 스택 + 인디케이터 + Save Changes).
 class BannerColorPickerModal {
@@ -19,9 +20,12 @@ class BannerColorPickerModal {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => _BannerColorPickerContent(
-        presetColors: _presetColors,
-        initialColor: initialColor,
+      builder: (context) => Theme(
+        data: modalTheme(context),
+        child: _BannerColorPickerContent(
+          presetColors: _presetColors,
+          initialColor: initialColor,
+        ),
       ),
     );
   }

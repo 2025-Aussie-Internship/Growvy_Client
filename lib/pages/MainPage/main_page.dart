@@ -329,9 +329,9 @@ class _HomePageContentState extends State<HomePageContent> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
 
-            // 검색창
+            // 검색창 (mapPage와 스타일 통일)
             Center(
               child: GestureDetector(
                 onTap: () {
@@ -340,38 +340,44 @@ class _HomePageContentState extends State<HomePageContent> {
                     MaterialPageRoute(builder: (context) => const SearchPage()),
                   );
                 },
-                child: Container(
+                child: SizedBox(
                   width: 290,
                   height: 48,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Row(
-                    children: [
-                      SvgPicture.asset(
-                        'assets/icon/search_icon.svg',
-                        width: 24,
-                        height: 24,
-                        colorFilter: const ColorFilter.mode(
-                          Colors.grey,
-                          BlendMode.srcIn,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: const Color(0xFFEEEEEE)),
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 14),
+                        SvgPicture.asset(
+                          'assets/icon/search_icon.svg',
+                          width: 18,
+                          height: 18,
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text(
-                          'search for jobs',
-                          style: TextStyle(color: Colors.grey),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            'search for jobs',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF9E9E9E),
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
                         ),
-                      ),
-                      SvgPicture.asset(
-                        'assets/icon/mike_icon.svg',
-                        width: 32,
-                        height: 32,
-                      ),
-                    ],
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: SvgPicture.asset(
+                            'assets/icon/mike_icon.svg',
+                            width: 32,
+                            height: 32,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

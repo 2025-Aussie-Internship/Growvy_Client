@@ -26,6 +26,12 @@ class MyApp extends StatelessWidget {
       title: 'Growvy',
       theme: ThemeData(
         fontFamily: 'Pretendard',
+        textTheme: ThemeData.light().textTheme.apply(
+          fontFamily: 'Pretendard',
+        ),
+        primaryTextTheme: ThemeData.light().primaryTextTheme.apply(
+          fontFamily: 'Pretendard',
+        ),
         scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
       ),

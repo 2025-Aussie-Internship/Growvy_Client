@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../styles/colors.dart';
+import '../styles/modal_theme.dart';
 
 class CalendarModal extends StatefulWidget {
   const CalendarModal({super.key});
@@ -13,8 +14,12 @@ class _CalendarModalState extends State<CalendarModal> {
   DateTime _selectedDate = DateTime.now();
   DateTime _currentMonth = DateTime.now();
 
-  // 샘플 투두 데이터
+  // 샘플 투두 데이터 (이미지: 2/19 선택 시 Today's To Do List)
   final Map<String, List<Map<String, String>>> _todoData = {
+    '2026-02-19': [
+      {'title': 'Café or Restaurant Staff', 'time': '12:00 PM ~ 4:00 PM'},
+      {'title': 'Retail Assistant', 'time': '9:00 AM ~ 11:00 AM'},
+    ],
     '2026-02-16': [
       {'title': 'Café or Restaurant Staff', 'time': '12:00 PM ~ 4:00 PM'},
       {'title': 'Retail Assistant', 'time': '9:00 AM ~ 11:00 AM'},
@@ -40,115 +45,155 @@ class _CalendarModalState extends State<CalendarModal> {
     return _todoData[key] ?? [];
   }
 
-  void _showMonthYearPicker() async {
+  void _showYearPicker() async {
     int selectedYear = _currentMonth.year;
-    int selectedMonth = _currentMonth.month;
 
     await showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Select Month and Year'),
+      builder: (context) => Theme(
+        data: modalTheme(context).copyWith(
+          dialogBackgroundColor: Colors.white,
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            surface: Colors.white,
+            onSurface: Colors.black,
+          ),
+        ),
+        child: StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            backgroundColor: Colors.white,
+            title: const Text(
+              'Select Year',
+              style: TextStyle(color: Colors.black),
+            ),
           content: SizedBox(
             height: 200,
-            width: 300,
-            child: Row(
-              children: [
-                // Year picker
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: 20,
-                    itemBuilder: (context, index) {
-                      final year = 2020 + index;
-                      final isSelected = year == selectedYear;
-                      return GestureDetector(
-                        onTap: () {
-                          setDialogState(() {
-                            selectedYear = year;
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+            width: 200,
+            child: ListView.builder(
+              itemCount: 20,
+              itemBuilder: (context, index) {
+                final year = 2020 + index;
+                final isSelected = year == selectedYear;
+                return GestureDetector(
+                  onTap: () {
+                    setDialogState(() => selectedYear = year);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    color: isSelected
+                        ? AppColors.mainColor.withOpacity(0.2)
+                        : null,
+                    child: Center(
+                      child: Text(
+                        '$year',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
                           color: isSelected
-                              ? AppColors.mainColor.withOpacity(0.2)
-                              : null,
-                          child: Center(
-                            child: Text(
-                              '$year',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: isSelected
-                                    ? AppColors.mainColor
-                                    : Colors.black,
-                              ),
-                            ),
-                          ),
+                              ? AppColors.mainColor
+                              : Colors.black,
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 20),
-                // Month picker
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: 12,
-                    itemBuilder: (context, index) {
-                      final month = index + 1;
-                      final isSelected = month == selectedMonth;
-                      return GestureDetector(
-                        onTap: () {
-                          setDialogState(() {
-                            selectedMonth = month;
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          color: isSelected
-                              ? AppColors.mainColor.withOpacity(0.2)
-                              : null,
-                          child: Center(
-                            child: Text(
-                              _getMonthName(month),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: isSelected
-                                    ? AppColors.mainColor
-                                    : Colors.black,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: Colors.black)),
             ),
             TextButton(
               onPressed: () {
                 setState(() {
-                  _currentMonth = DateTime(selectedYear, selectedMonth);
-                  // 선택한 달로 이동하면서 해당 달의 첫날로 선택일 변경
-                  _selectedDate = DateTime(selectedYear, selectedMonth, 1);
+                  _currentMonth = DateTime(selectedYear, _currentMonth.month);
+                  _selectedDate = DateTime(selectedYear, _currentMonth.month, 1);
                 });
                 Navigator.pop(context);
               },
-              child: const Text('OK'),
+              child: const Text('OK', style: TextStyle(color: AppColors.mainColor)),
             ),
           ],
+        ),
+        ),
+      ),
+    );
+  }
+
+  void _showMonthPicker() async {
+    int selectedMonth = _currentMonth.month;
+
+    await showDialog(
+      context: context,
+      builder: (context) => Theme(
+        data: modalTheme(context).copyWith(
+          dialogBackgroundColor: Colors.white,
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            surface: Colors.white,
+            onSurface: Colors.black,
+          ),
+        ),
+        child: StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            backgroundColor: Colors.white,
+            title: const Text(
+              'Select Month',
+              style: TextStyle(color: Colors.black),
+            ),
+          content: SizedBox(
+            height: 280,
+            width: 200,
+            child: ListView.builder(
+              itemCount: 12,
+              itemBuilder: (context, index) {
+                final month = index + 1;
+                final isSelected = month == selectedMonth;
+                return GestureDetector(
+                  onTap: () {
+                    setDialogState(() => selectedMonth = month);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    color: isSelected
+                        ? AppColors.mainColor.withOpacity(0.2)
+                        : null,
+                    child: Center(
+                      child: Text(
+                        _getMonthName(month),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? AppColors.mainColor
+                              : Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: Colors.black)),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _currentMonth = DateTime(_currentMonth.year, selectedMonth);
+                  _selectedDate = DateTime(_currentMonth.year, selectedMonth, 1);
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('OK', style: TextStyle(color: AppColors.mainColor)),
+            ),
+          ],
+        ),
         ),
       ),
     );
@@ -157,68 +202,129 @@ class _CalendarModalState extends State<CalendarModal> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        width: 300,
-        constraints: const BoxConstraints(maxHeight: 500),
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Theme(
+        data: modalTheme(context),
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
           children: [
-            // 월/년도 선택 버튼
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: _showMonthYearPicker,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.calendar_today, size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${_getMonthName(_currentMonth.month)} ${_currentMonth.year}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.keyboard_arrow_down, size: 16),
-                      ],
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                // 닫기 버튼
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: const BoxDecoration(
-                      color: AppColors.mainColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
+            // 흰색 캘린더 모달 박스
+            Container(
+            width: 300,
+            height: 344,
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 년/월 선택: w 86 h 26, 캘린더 SVG(년도), 년·월 각각 피커
+                  Row(
+                  children: [
+                    GestureDetector(
+                      onTap: _showYearPicker,
+                      child: SizedBox(
+                        width: 86,
+                        height: 26,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F0F0),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFE5E5E5),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SvgPicture.asset(
+                                'assets/icon/calendar_icon.svg',
+                                width: 14,
+                                height: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  '${_currentMonth.year}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey[800],
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(
+                                Icons.keyboard_arrow_down,
+                                size: 16,
+                                color: Colors.grey[700],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: _showMonthPicker,
+                      child: SizedBox(
+                        width: 86,
+                        height: 26,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F0F0),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFE5E5E5),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  _getMonthName(_currentMonth.month),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey[800],
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(
+                                Icons.keyboard_arrow_down,
+                                size: 16,
+                                color: Colors.grey[700],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
 
             // 요일 헤더
             Row(
@@ -252,59 +358,92 @@ class _CalendarModalState extends State<CalendarModal> {
 
             const SizedBox(height: 12),
 
-            // Today's To Do List
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "Today's To Do List",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 80,
-                  child: _getTodosForDate(_selectedDate).isEmpty
-                      ? Text(
-                          "No tasks for this day",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[600],
+                // Today's To Do List (이미지 스타일: 제목 굵게, 두 항목 가로 배치, 세로 구분선)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "Today's To Do List",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey[900],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _getTodosForDate(_selectedDate).isEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              "No tasks for this day",
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          )
+                        : Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (_getTodosForDate(_selectedDate).isNotEmpty)
+                                Expanded(
+                                  child: _buildTodoItem(
+                                    _getTodosForDate(_selectedDate)[0],
+                                  ),
+                                ),
+                              if (_getTodosForDate(_selectedDate).length > 1) ...[
+                                Container(
+                                  width: 1,
+                                  height: 44,
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  color: const Color(0xFFE8E8E8),
+                                ),
+                                Expanded(
+                                  child: _buildTodoItem(
+                                    _getTodosForDate(_selectedDate)[1],
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
-                        )
-                      : Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 왼쪽 컬럼
-                            if (_getTodosForDate(_selectedDate).isNotEmpty)
-                              Expanded(
-                                child: _buildTodoItem(
-                                  _getTodosForDate(_selectedDate)[0],
-                                ),
-                              ),
-                            // 구분선
-                            if (_getTodosForDate(_selectedDate).length > 1)
-                              Container(
-                                width: 1,
-                                height: 50,
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                ),
-                                color: const Color(0xFFE0E0E0),
-                              ),
-                            // 오른쪽 컬럼
-                            if (_getTodosForDate(_selectedDate).length > 1)
-                              Expanded(
-                                child: _buildTodoItem(
-                                  _getTodosForDate(_selectedDate)[1],
-                                ),
-                              ),
-                          ],
-                        ),
+                  ],
                 ),
-              ],
+                ],
+              ),
             ),
-          ],
+          ),
+          // X 버튼: 모달 밖 우상단, 크기 32
+          Positioned(
+            top: -8,
+            right: -8,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: AppColors.mainColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x33000000),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+        ],
         ),
       ),
     );
@@ -317,7 +456,7 @@ class _CalendarModalState extends State<CalendarModal> {
         Container(
           width: 8,
           height: 8,
-          margin: const EdgeInsets.only(top: 4, right: 6),
+          margin: const EdgeInsets.only(top: 5, right: 6),
           decoration: const BoxDecoration(
             color: AppColors.mainColor,
             shape: BoxShape.circle,
@@ -329,17 +468,22 @@ class _CalendarModalState extends State<CalendarModal> {
             children: [
               Text(
                 todo['title']!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[900],
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 todo['time']!,
-                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.normal,
+                  color: Colors.grey[600],
+                ),
               ),
             ],
           ),
@@ -410,11 +554,6 @@ class _CalendarModalState extends State<CalendarModal> {
   }
 
   Widget _buildDayCell(DateTime date, {required bool isCurrentMonth}) {
-    final isToday =
-        date.year == DateTime.now().year &&
-        date.month == DateTime.now().month &&
-        date.day == DateTime.now().day;
-
     final isSelected =
         date.year == _selectedDate.year &&
         date.month == _selectedDate.month &&

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../styles/colors.dart';
+import '../styles/modal_theme.dart';
 
 /// 프로필 이미지 선택 모달. [onSelected]에 선택한 인덱스 전달.
 class ProfilePickerModal {
@@ -12,9 +13,12 @@ class ProfilePickerModal {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => _ProfilePickerContent(
-        profileImages: profileImages,
-        onSelected: onSelected,
+      builder: (context) => Theme(
+        data: modalTheme(context),
+        child: _ProfilePickerContent(
+          profileImages: profileImages,
+          onSelected: onSelected,
+        ),
       ),
     );
   }
