@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../styles/modal_theme.dart';
 
 /// 구인자용 Job Application List 모달. 아래에서 위로 슬라이드, 신청한 구직자 중 선택 후 Accept로 새 채팅방 생성.
 class JobApplicationListModal {
@@ -8,7 +9,10 @@ class JobApplicationListModal {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => const _JobApplicationListContent(),
+      builder: (context) => Theme(
+        data: modalTheme(context),
+        child: const _JobApplicationListContent(),
+      ),
     );
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../../styles/colors.dart';
+import '../../styles/colors.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -11,21 +11,34 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
+  bool _autoSave = true;
+  bool _recentExpanded = true;
 
-  @override
-  void initState() {
-    super.initState();
-    // 페이지 진입 시 자동으로 포커스
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
-    });
-  }
+  final List<String> _recentSearches = [
+    'Farm work',
+    'Farm',
+    'Cafe',
+    'Cafe staff',
+    'Hotel staff',
+    'Hotel',
+    'Warehouse',
+  ];
+
+  // 이미지: 1,2,5,6,8 주황 / 3,4,7 검정. 1,6 트렌딩(위 화살표)
+  final List<Map<String, dynamic>> _popularSearches = [
+    {'title': 'Barista', 'trending': true, 'orange': true},
+    {'title': 'Restaurant Staff', 'trending': false, 'orange': true},
+    {'title': 'Farm Work', 'trending': false, 'orange': false},
+    {'title': 'Hotel Staff', 'trending': false, 'orange': false},
+    {'title': 'Event Staff', 'trending': false, 'orange': true},
+    {'title': 'Deckhand', 'trending': true, 'orange': true},
+    {'title': 'Au Pair', 'trending': false, 'orange': false},
+    {'title': 'Warehouse Assi...', 'trending': false, 'orange': true},
+  ];
 
   @override
   void dispose() {
     _searchController.dispose();
-    _focusNode.dispose();
     super.dispose();
   }
 
@@ -33,165 +46,278 @@ class _SearchPageState extends State<SearchPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Container(
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: TextField(
-            controller: _searchController,
-            focusNode: _focusNode,
-            decoration: InputDecoration(
-              hintText: 'search for jobs',
-              hintStyle: const TextStyle(color: Colors.grey),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              prefixIcon: Padding(
-                padding: const EdgeInsets.all(12),
-                child: SvgPicture.asset(
-                  'assets/search_icon.svg',
-                  width: 24,
-                  height: 24,
-                  colorFilter: const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
-                ),
-              ),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.grey),
-                      onPressed: () {
-                        setState(() {
-                          _searchController.clear();
-                        });
-                      },
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: SvgPicture.asset(
-                        'assets/mike_icon.svg',
-                        width: 24,
-                        height: 24,
-                        colorFilter: const ColorFilter.mode(AppColors.mainColor, BlendMode.srcIn),
-                      ),
-                    ),
-            ),
-            onChanged: (value) {
-              setState(() {});
-            },
-            onSubmitted: (value) {
-              // 검색 실행
-              _performSearch(value);
-            },
-          ),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(48),
+        child: AppBar(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0.5,
+          centerTitle: true,
+          title: SvgPicture.asset(
+              'assets/icon/logo_orange.svg', height: 36),
         ),
       ),
       body: SafeArea(
-        child: _searchController.text.isEmpty
-            ? _buildRecentSearches()
-            : _buildSearchResults(),
-      ),
-    );
-  }
-
-  Widget _buildRecentSearches() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Recent Searches',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              TextButton(
-                onPressed: () {
-                  // 최근 검색 기록 삭제
-                },
-                child: const Text(
-                  'Clear All',
-                  style: TextStyle(color: Colors.grey),
+        top: false,
+        child: Column(
+          children: [
+            // 검색창 (main_page와 동일)
+            const SizedBox(height: 12),
+            Center(
+              child: SizedBox(
+                width: 290,
+                height: 48,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFFEEEEEE)),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 14),
+                      SvgPicture.asset(
+                        'assets/icon/search_icon.svg',
+                        width: 18,
+                        height: 18,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: const InputDecoration(
+                            hintText: 'search for jobs',
+                            hintStyle: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF9E9E9E),
+                              fontWeight: FontWeight.w400,
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          style: const TextStyle(fontSize: 14),
+                          onChanged: (value) => setState(() {}),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: SvgPicture.asset(
+                          'assets/icon/mike_icon.svg',
+                          width: 32,
+                          height: 32,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // 최근 검색어 예시
-          _buildRecentItem('Café'),
-          _buildRecentItem('Farm work'),
-          _buildRecentItem('Restaurant'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentItem(String text) {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _searchController.text = text;
-        });
-        _performSearch(text);
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            const Icon(Icons.history, color: Colors.grey),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                text,
-                style: const TextStyle(fontSize: 16),
-              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.close, size: 20, color: Colors.grey),
-              onPressed: () {
-                // 해당 검색 기록 삭제
-              },
+            const SizedBox(height: 24),
+            // 하얀 영역: Recent searches / Popular searches
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    // Recent searches 헤더: 제목 + auto save 토글
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Recent searches',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'auto save',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () =>
+                                  setState(() => _autoSave = !_autoSave),
+                              child: Container(
+                                width: 44,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: _autoSave
+                                      ? AppColors.mainColor
+                                      : const Color(0xFFE0E0E0),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                alignment: Alignment(
+                                    _autoSave ? 1.0 : -1.0, 0),
+                                child: Container(
+                                  width: 20,
+                                  height: 20,
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 2),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // 최근 검색 칩: 연한 회색 배경, 연한 회색 글자, 검정 X
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _recentSearches.map((term) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F0F0),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: const Color(0xFFE0E0E0)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                term,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF757575),
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() =>
+                                      _recentSearches.remove(term));
+                                },
+                                child: const Icon(
+                                  Icons.close,
+                                  size: 16,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: GestureDetector(
+                        onTap: () =>
+                            setState(() => _recentExpanded = !_recentExpanded),
+                        child: const Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 24,
+                          color: Color(0xFF9E9E9E),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() => _recentSearches.clear());
+                        },
+                        child: const Text(
+                          'delete all',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF9E9E9E),
+                            fontWeight: FontWeight.w400,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    // Popular searches
+                    const Text(
+                      'Popular searches',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ...List.generate(_popularSearches.length, (index) {
+                      final item = _popularSearches[index];
+                      final title = item['title'] as String;
+                      final trending = item['trending'] as bool;
+                      final orange = item['orange'] as bool;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: InkWell(
+                          onTap: () {
+                            _searchController.text = title;
+                            setState(() {});
+                          },
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                child: Text(
+                                  '${index + 1}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: orange
+                                        ? AppColors.mainColor
+                                        : Colors.black,
+                                  ),
+                                ),
+                              ),
+                              if (trending)
+                                const Icon(
+                                  Icons.arrow_upward,
+                                  size: 18,
+                                  color: AppColors.mainColor,
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildSearchResults() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Search results for "${_searchController.text}"',
-            style: const TextStyle(fontSize: 16, color: Colors.grey),
-          ),
-          const SizedBox(height: 20),
-          // 여기에 검색 결과를 표시
-          const Center(
-            child: Text(
-              'Search results will be displayed here',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _performSearch(String query) {
-    // 검색 로직 구현
-    print('Searching for: $query');
-    // 백엔드 API 호출 등
   }
 }

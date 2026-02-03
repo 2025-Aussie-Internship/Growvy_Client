@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../styles/colors.dart';
+import '../styles/modal_theme.dart';
 
 class NotificationModal extends StatelessWidget {
   const NotificationModal({super.key});
@@ -7,47 +8,43 @@ class NotificationModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Container(
-        width: 316,
-        height: 360,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 헤더
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Notifications',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      color: AppColors.mainColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Theme(
+        data: modalTheme(context),
+        child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 316,
+            height: 360,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Notifications',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
 
             // 스크롤 가능한 알림 리스트
             Expanded(
@@ -230,6 +227,37 @@ class NotificationModal extends StatelessWidget {
           ],
         ),
       ),
+          // X 버튼: 캘린더와 동일 스타일 (모달 밖 우상단, 32px 원형)
+          Positioned(
+            top: -8,
+            right: -8,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: AppColors.mainColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x33000000),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+        ],
+        ),
+      ),
     );
   }
 
@@ -263,7 +291,7 @@ class NotificationModal extends StatelessWidget {
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -274,7 +302,7 @@ class NotificationModal extends StatelessWidget {
                     Text(
                       time,
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 12,
                         color: Colors.grey[600],
                       ),
                     ),
@@ -283,7 +311,7 @@ class NotificationModal extends StatelessWidget {
                       Text(
                         date,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 12,
                           color: Colors.grey[400],
                         ),
                       ),
@@ -296,7 +324,7 @@ class NotificationModal extends StatelessWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 12,
                     color: Colors.grey[600],
                   ),
                 ),

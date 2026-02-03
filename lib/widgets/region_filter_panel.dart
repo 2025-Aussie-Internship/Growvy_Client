@@ -230,7 +230,7 @@ class _RegionFilterPanelState extends State<RegionFilterPanel> {
                             child: TextField(
                               controller: _searchController,
                               decoration: const InputDecoration(
-                                hintText: 'Sydney',
+                                hintText: 'search for region',
                                 hintStyle: TextStyle(
                                   fontSize: 14,
                                   color: Color(0xFF8C8C8C),
@@ -375,7 +375,6 @@ class _RegionFilterPanelState extends State<RegionFilterPanel> {
                 ),
               ],
             ),
-            // 오른쪽 아래 선택 도시 칩: FF7252, h40 r47, 도시명에 따라 너비 변동, 양옆 패딩 16
             if (_selectedRegion != null)
               Positioned(
                 right: 16,

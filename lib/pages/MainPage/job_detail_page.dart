@@ -1,16 +1,57 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../styles/colors.dart';
 import '../../widgets/confirm_modal.dart';
 
-class JobDetailPage extends StatelessWidget {
+class JobDetailPage extends StatefulWidget {
   const JobDetailPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    const double imageHeight = 300;
-    const double overlap = 20;
+  State<JobDetailPage> createState() => _JobDetailPageState();
+}
 
+class _JobDetailPageState extends State<JobDetailPage> {
+  static const double imageHeight = 300;
+  static const double overlap = 20.0;
+
+  late PageController _imageController;
+  late Timer _imageTimer;
+  int _imageCurrentPage = 1000;
+
+  final List<String> _imageUrls = [
+    'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+    'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+    'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _imageController = PageController(initialPage: _imageCurrentPage);
+    _startImageTimer();
+  }
+
+  @override
+  void dispose() {
+    _imageTimer.cancel();
+    _imageController.dispose();
+    super.dispose();
+  }
+
+  void _startImageTimer() {
+    _imageTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _imageCurrentPage++;
+      _imageController.animateToPage(
+        _imageCurrentPage,
+        duration: const Duration(milliseconds: 1000),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -31,16 +72,19 @@ class JobDetailPage extends StatelessWidget {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: Image.network(
-                    'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-                    fit: BoxFit.cover,
+                  child: PageView.builder(
+                    controller: _imageController,
+                    itemBuilder: (context, index) {
+                      return Image.network(
+                        _imageUrls[index % _imageUrls.length],
+                        fit: BoxFit.cover,
+                      );
+                    },
                   ),
                 ),
                 Positioned.fill(
                   child: Container(
-                    color: Colors.black.withOpacity(
-                      0.11,
-                    ), // 11% opacity black overlay
+                    color: Colors.black.withOpacity(0.11),
                   ),
                 ),
               ],

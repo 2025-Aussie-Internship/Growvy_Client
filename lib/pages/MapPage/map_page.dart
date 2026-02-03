@@ -1,16 +1,19 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' hide Path;
 
 import '../../styles/colors.dart';
 import '../../widgets/map_job_info_sheet.dart';
 import '../../widgets/region_filter_panel.dart';
+import '../MainPage/job_detail_page.dart';
 
-/// 지도 페이지: 내 위치, 공고 마커(검정/주황), 검색, Region 버튼, 공고 정보 하단 시트.
+
 class MapPage extends StatefulWidget {
   const MapPage({super.key, this.onRegionPanelChanged});
 
@@ -28,12 +31,12 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   bool _showRegionPanel = false;
   bool _isBookmarked = false;
   final TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
   late AnimationController _regionSlideController;
   late Animation<Offset> _regionSlideAnimation;
 
   static const _defaultCenter = LatLng(37.5665, 126.9780);
 
-  /// 내 위치 기준 더미 공고 (lat/lng 오프셋)
   final List<Map<String, dynamic>> _jobsTemplate = [
     {'id': 1, 'latOffset': 0.008, 'lngOffset': 0.005, 'title': 'Warehouse Job', 'company': 'Company', 'payment': '\$24.95 per hour', 'time': '4~8 hours per day', 'qualifications': 'Age 18+ 2025'},
     {'id': 2, 'latOffset': -0.007, 'lngOffset': -0.006, 'title': 'Event Staff', 'company': 'Event Co', 'payment': '\$22.00 per hour', 'time': '6~10 hours per day', 'qualifications': 'Age 18+ 2025'},
@@ -79,6 +82,56 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       if (mounted) setState(() => _showRegionPanel = false);
       widget.onRegionPanelChanged?.call(false);
     });
+  }
+
+  Future<void> _searchAndMoveToPlace(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return;
+    if (!mounted) return;
+    setState(() => _isSearching = true);
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/search'
+        '?q=${Uri.encodeComponent(q)}&format=json&limit=1',
+      );
+      final response = await http.get(
+        uri,
+        headers: {'User-Agent': 'GrowvyClient/1.0'},
+      ).timeout(const Duration(seconds: 10));
+      if (!mounted) return;
+      if (response.statusCode != 200) {
+        setState(() => _isSearching = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('장소를 찾을 수 없습니다.')),
+          );
+        }
+        return;
+      }
+      final list = jsonDecode(response.body) as List;
+      if (list.isEmpty) {
+        setState(() => _isSearching = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('장소를 찾을 수 없습니다.')),
+          );
+        }
+        return;
+      }
+      final first = list.first as Map<String, dynamic>;
+      final lat = double.tryParse(first['lat']?.toString() ?? '') ?? 0.0;
+      final lon = double.tryParse(first['lon']?.toString() ?? '') ?? 0.0;
+      final latLng = LatLng(lat, lon);
+      _mapController.move(latLng, 15.0);
+      if (mounted) setState(() => _isSearching = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSearching = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('검색 중 오류가 발생했습니다.')),
+        );
+      }
+    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -340,18 +393,30 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       child: Row(
         children: [
           const SizedBox(width: 14),
-          SvgPicture.asset(
-            'assets/icon/search_icon.svg',
-            width: 18,
-            height: 18,
+          GestureDetector(
+            onTap: () => _searchAndMoveToPlace(_searchController.text),
+            child: _isSearching
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.mainColor,
+                    ),
+                  )
+                : SvgPicture.asset(
+                    'assets/icon/search_icon.svg',
+                    width: 18,
+                    height: 18,
+                  ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: _searchController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'search for jobs',
-                hintStyle: TextStyle(
+                hintStyle: const TextStyle(
                   fontSize: 14,
                   color: Color(0xFF9E9E9E),
                   fontWeight: FontWeight.w400,
@@ -361,6 +426,8 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                 contentPadding: EdgeInsets.zero,
               ),
               style: const TextStyle(fontSize: 14),
+              textInputAction: TextInputAction.search,
+              onSubmitted: _searchAndMoveToPlace,
             ),
           ),
           Padding(
@@ -408,7 +475,14 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
         isBookmarked: _isBookmarked,
         onBookmarkTap: () => setState(() => _isBookmarked = !_isBookmarked),
         onClose: () => setState(() => _selectedJobId = null),
-        onAddTap: () {},
+        onAddTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const JobDetailPage(),
+            ),
+          );
+        },
       ),
       ),
     );
@@ -441,7 +515,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   }
 }
 
-/// 보고 있는 방향을 나타내는 반투명 팬(부채꼴) 페인터
 class _DirectionFanPainter extends CustomPainter {
   static const Color _fanColor = Color(0xFFD9534F);
 

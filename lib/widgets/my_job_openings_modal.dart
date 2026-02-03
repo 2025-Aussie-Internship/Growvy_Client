@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../styles/modal_theme.dart';
 
 /// 구인자: 내 공고 선택 모달. 공고 선택 후 Select 시 해당 공고 지원자 목록(JobApplicationListModal)으로 이어짐.
 class MyJobOpeningsModal {
@@ -10,7 +11,10 @@ class MyJobOpeningsModal {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => _MyJobOpeningsContent(jobs: jobs),
+      builder: (context) => Theme(
+        data: modalTheme(context),
+        child: _MyJobOpeningsContent(jobs: jobs),
+      ),
     );
   }
 }
