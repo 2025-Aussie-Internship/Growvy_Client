@@ -21,6 +21,7 @@ class _MyPageState extends State<MyPage> {
   Color _bannerColor = AppColors.mainColor;
   String _userName = 'My Name';
   String _editPronouns = 'She/Her';
+  bool _isEditingProfile = false;
   late final TextEditingController _nameController;
 
   final List<ImageProvider> _profileImages = [
@@ -47,32 +48,20 @@ class _MyPageState extends State<MyPage> {
     super.dispose();
   }
 
-  void _openProfileEdit() async {
-    if (!mounted) return;
-    final result = await Navigator.of(context).push<Map<String, dynamic>>(
-      MaterialPageRoute(
-        builder: (context) => ProfileEditPage(
-          profileImages: _profileImages,
-          initialProfileIndex: _currentProfileIndex,
-          initialBannerColor: _bannerColor,
-          initialUserName: _userName,
-          initialPronouns: _editPronouns,
-        ),
-      ),
-    );
-    if (!mounted) return;
-    if (result != null) {
-      setState(() {
-        _currentProfileIndex =
-            result['profileIndex'] as int? ?? _currentProfileIndex;
-        _bannerColor = result['bannerColor'] as Color? ?? _bannerColor;
-        if (result['userName'] != null)
-          _userName = result['userName'] as String;
-        if (result['pronouns'] != null)
-          _editPronouns = result['pronouns'] as String;
-      });
-      _nameController.text = _userName;
-    }
+  void _openProfileEdit() {
+    setState(() => _isEditingProfile = true);
+  }
+
+  void _applyProfileEdit(Map<String, dynamic> result) {
+    setState(() {
+      _currentProfileIndex =
+          result['profileIndex'] as int? ?? _currentProfileIndex;
+      _bannerColor = result['bannerColor'] as Color? ?? _bannerColor;
+      if (result['userName'] != null) _userName = result['userName'] as String;
+      if (result['pronouns'] != null) _editPronouns = result['pronouns'] as String;
+      _isEditingProfile = false;
+    });
+    _nameController.text = _userName;
   }
 
   @override
@@ -80,23 +69,34 @@ class _MyPageState extends State<MyPage> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          _buildHeader(),
-          const SizedBox(height: 12),
-          Text(
-            _userName,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
+          if (_isEditingProfile)
+            ProfileEditContent(
+              profileImages: _profileImages,
+              initialProfileIndex: _currentProfileIndex,
+              initialBannerColor: _bannerColor,
+              initialUserName: _userName,
+              initialPronouns: _editPronouns,
+              leadingIcon: 'close',
+              onApply: _applyProfileEdit,
+            )
+          else ...[
+            _buildHeader(),
+            const SizedBox(height: 12),
+            Text(
+              _userName,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'She/Her',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-          ),
-          const SizedBox(height: 24),
-          _buildRatingCard(),
+            const SizedBox(height: 4),
+            Text(
+              _editPronouns,
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            ),
+            const SizedBox(height: 24),
+            _buildRatingCard(),
           const SizedBox(height: 24),
           _buildMenuOption('Customer Service Center'),
           _buildDivider(),
@@ -125,6 +125,7 @@ class _MyPageState extends State<MyPage> {
             ),
           ),
           const SizedBox(height: 120), // Bottom padding for nav bar
+          ],
         ],
       ),
     );
