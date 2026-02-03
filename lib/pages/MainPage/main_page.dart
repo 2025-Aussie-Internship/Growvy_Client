@@ -15,6 +15,7 @@ import '../SearchPage/search_page.dart';
 import '../ChatPage/chat_page.dart';
 import '../MainPage/job_detail_page.dart';
 import '../MyPage/my_page.dart';
+import '../MapPage/map_page.dart';
 import '../NotePage/employer_note_write_page.dart';
 import '../NotePage/note_tab_page.dart';
 
@@ -46,14 +47,24 @@ class _FabEndFloatLocation extends FloatingActionButtonLocation {
 
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
+  bool _regionPanelOpen = false;
+  late final List<Widget> _pages;
 
-  final List<Widget> _pages = [
-    HomePageContent(),
-    const Center(child: Text('Map Page')),
-    const ChatListPage(),
-    const NoteTabPage(),
-    MyPage(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      HomePageContent(),
+      MapPage(onRegionPanelChanged: _onRegionPanelChanged),
+      const ChatListPage(),
+      const NoteTabPage(),
+      MyPage(),
+    ];
+  }
+
+  void _onRegionPanelChanged(bool open) {
+    setState(() => _regionPanelOpen = open);
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -116,21 +127,24 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(48),
-        child: AppBar(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0.5,
-          centerTitle: true,
-          title: SvgPicture.asset('assets/icon/logo_orange.svg', height: 36),
-        ),
-      ),
+      appBar: _regionPanelOpen
+          ? null
+          : PreferredSize(
+              preferredSize: const Size.fromHeight(48),
+              child: AppBar(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0.5,
+                centerTitle: true,
+                title: SvgPicture.asset(
+                    'assets/icon/logo_orange.svg', height: 36),
+              ),
+            ),
       body: IndexedStack(
         index: _selectedIndex,
         children: _pages,
       ),
-      bottomNavigationBar: _buildBottomBar(),
+      bottomNavigationBar: _regionPanelOpen ? null : _buildBottomBar(),
       floatingActionButton: Obx(() {
         final isEmployer = AuthController.to.isEmployer.value;
         // 구인자: Note 탭(3)에서만 버튼 표시 (Chat 탭에서는 add_chat_button 없음), 오른쪽 패딩 16, 버튼 간격 10
