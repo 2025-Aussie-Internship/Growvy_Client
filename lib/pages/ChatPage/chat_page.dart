@@ -62,7 +62,13 @@ class ChatListPage extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const ChatDetailPage()),
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const ChatDetailPage(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+                child,
+            transitionDuration: Duration.zero,
+          ),
         );
       },
       child: Stack(
@@ -120,7 +126,7 @@ class ChatListPage extends StatelessWidget {
             ),
           ),
           Positioned(
-            top: 10,
+            top: -5,
             right: -5,
             child: Container(
               padding: const EdgeInsets.all(6),

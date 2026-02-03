@@ -13,21 +13,28 @@ class NotePage extends GetView<NotePageController> {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 16, bottom: 16),
-            child: Row(
+            child: Obx(() => Row(
               children: [
                 Expanded(
-                  child: Obx(() => _buildTab(0, 'Recruitment history')),
+                  child: _buildTab(0, 'Recruitment history'),
                 ),
                 Expanded(
-                  child: Obx(() => _buildTab(1, 'Completion history')),
+                  child: _buildTab(1, 'Completion history'),
                 ),
               ],
-            ),
+            )),
           ),
           Expanded(
-            child: Obx(() => controller.selectedTab.value == 0
-                ? _buildRecruitmentHistory()
-                : _buildCompletionHistory()),
+            child: Obx(() {
+              if (controller.isEmployer) {
+                return controller.selectedTab.value == 0
+                    ? _buildEmployerRecruitmentHistory()
+                    : _buildEmployerCompletionHistory();
+              }
+              return controller.selectedTab.value == 0
+                  ? _buildRecruitmentHistory()
+                  : _buildCompletionHistory();
+            }),
           ),
         ],
       ),
@@ -102,6 +109,90 @@ class NotePage extends GetView<NotePageController> {
             itemCount: controller.recruitmentHistory.length,
             itemBuilder: (context, index) {
               return _buildHistoryCard(controller.recruitmentHistory[index]);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 구인자: Recruitment history (지금 하고 있는 공고만)
+  Widget _buildEmployerRecruitmentHistory() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'My History',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              Text(
+                'most recent',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: const Color(0xFF931515),
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: controller.employerRecruitmentHistory.length,
+            itemBuilder: (context, index) {
+              return _buildHistoryCard(
+                  controller.employerRecruitmentHistory[index]);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 구인자: Completion history (끝난 공고만)
+  Widget _buildEmployerCompletionHistory() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Completed',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              Text(
+                'most recent',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: const Color(0xFF931515),
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: controller.employerCompletionHistory.length,
+            itemBuilder: (context, index) {
+              return _buildHistoryCard(
+                  controller.employerCompletionHistory[index]);
             },
           ),
         ),
@@ -222,10 +313,18 @@ class NotePage extends GetView<NotePageController> {
 
   Widget _buildHistoryCard(Map<String, dynamic> item) {
     final isRecruitmentTab = controller.selectedTab.value == 0;
-    final shouldNavigateToWrite = isRecruitmentTab && (item['hasContent'] != true);
+    // 구인자 recruitment 탭: 모든 카드 탭 시 JobDetailPage. 구직자만 빈 공고 탭 시 write 페이지
+    final shouldNavigateToWrite =
+        isRecruitmentTab && (item['hasContent'] != true) && !controller.isEmployer;
+    final shouldNavigateToDetail =
+        (controller.isEmployer && isRecruitmentTab) || (item['hasContent'] == true);
 
     return GestureDetector(
-      onTap: shouldNavigateToWrite ? () => controller.goToWritePage(item) : null,
+      onTap: shouldNavigateToWrite
+          ? () => controller.goToWritePage(item)
+          : shouldNavigateToDetail
+              ? () => controller.goToDetailPage(item)
+              : null,
       child: Container(
         width: 358,
         height: 111,
@@ -276,7 +375,9 @@ class NotePage extends GetView<NotePageController> {
                 ],
               ),
             ),
-            if (item['photos'] != null &&
+            // 구인자 노트 탭에서는 사진 썸네일 미표시
+            if (!controller.isEmployer &&
+                item['photos'] != null &&
                 (item['photos'] as List).isNotEmpty)
               _buildPhotoThumbnails(item['photos'] as List<String>),
           ],
