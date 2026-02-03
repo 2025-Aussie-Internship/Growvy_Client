@@ -8,11 +8,14 @@ import '../../widgets/nearby_job_card.dart';
 import '../../widgets/popular_job_card.dart';
 import '../../widgets/calendar_modal.dart';
 import '../../widgets/notification_modal.dart';
+import '../../controllers/note_page_controller.dart';
 import '../../widgets/job_application_list_modal.dart';
+import '../../widgets/my_job_openings_modal.dart';
 import '../SearchPage/search_page.dart';
 import '../ChatPage/chat_page.dart';
 import '../MainPage/job_detail_page.dart';
 import '../MyPage/my_page.dart';
+import '../NotePage/employer_note_write_page.dart';
 import '../NotePage/note_tab_page.dart';
 
 class MainPage extends StatefulWidget {
@@ -20,6 +23,25 @@ class MainPage extends StatefulWidget {
 
   @override
   State<MainPage> createState() => _MainPageState();
+}
+
+/// FAB을 화면 오른쪽 끝에 붙이기 (우측 여백 0, nav바와 16px 간격)
+class _FabEndFloatLocation extends FloatingActionButtonLocation {
+  final double right;
+  final double bottomGap;
+
+  _FabEndFloatLocation({this.right = 0, this.bottomGap = 16});
+
+  @override
+  Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
+    final double x = scaffoldGeometry.scaffoldSize.width -
+        scaffoldGeometry.floatingActionButtonSize.width -
+        right;
+    final double y = scaffoldGeometry.contentBottom -
+        scaffoldGeometry.floatingActionButtonSize.height -
+        bottomGap;
+    return Offset(x, y);
+  }
 }
 
 class _MainPageState extends State<MainPage> {
@@ -111,20 +133,50 @@ class _MainPageState extends State<MainPage> {
       bottomNavigationBar: _buildBottomBar(),
       floatingActionButton: Obx(() {
         final isEmployer = AuthController.to.isEmployer.value;
-        if (_selectedIndex != 2 || !isEmployer) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 1),
-          child: GestureDetector(
-            onTap: () => JobApplicationListModal.show(context),
-            child: SvgPicture.asset(
-              'assets/icon/chat_button.svg',
-              width: 66,
-              height: 66,
+        // 구인자: Note 탭(3)에서만 버튼 표시 (Chat 탭에서는 add_chat_button 없음), 오른쪽 패딩 16, 버튼 간격 10
+        if (_selectedIndex != 3 || !isEmployer) {
+          return const SizedBox.shrink();
+        }
+        const buttonGap = 10.0;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            GestureDetector(
+              onTap: () => Get.to(() => const EmployerNoteWritePage()),
+              child: SvgPicture.asset(
+                'assets/icon/write_button.svg',
+                width: 66,
+                height: 66,
+              ),
             ),
-          ),
+            const SizedBox(height: buttonGap),
+            GestureDetector(
+              onTap: () async {
+                if (!Get.isRegistered<NotePageController>()) {
+                  Get.put(NotePageController());
+                }
+                final jobs = Get.find<NotePageController>().employerJobOpenings;
+                final selected = await MyJobOpeningsModal.show(context, jobs: jobs);
+                if (!context.mounted) return;
+                if (selected != null) {
+                  JobApplicationListModal.show(context);
+                }
+              },
+              child: SvgPicture.asset(
+                'assets/icon/add_chat_button.svg',
+                width: 66,
+                height: 66,
+              ),
+            ),
+          ],
         );
       }),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButtonLocation: _FabEndFloatLocation(
+        right: 16,
+        bottomGap: 16,
+      ),
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
     );
   }
 }

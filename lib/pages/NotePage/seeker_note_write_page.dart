@@ -17,7 +17,6 @@ class DashedBorderPainter extends CustomPainter {
     const double dashSpace = 4;
     final radius = 8.0;
 
-    // Draw dashed rectangle
     final rect = Rect.fromLTWH(0, 0, size.width, size.height);
     _drawDashedRRect(canvas, rect, radius, paint, dashWidth, dashSpace);
   }
@@ -44,15 +43,27 @@ class DashedBorderPainter extends CustomPainter {
 }
 
 class SeekerNoteWritePage extends StatefulWidget {
-  const SeekerNoteWritePage({super.key});
+  const SeekerNoteWritePage({
+    super.key,
+    this.initialTitle,
+    this.initialBody,
+    this.initialPhotos,
+  });
+
+  /// 수정 모드일 때 기존 제목
+  final String? initialTitle;
+  /// 수정 모드일 때 기존 본문
+  final String? initialBody;
+  /// 수정 모드일 때 기존 사진 URL 목록
+  final List<String>? initialPhotos;
 
   @override
   State<SeekerNoteWritePage> createState() => _SeekerNoteWritePageState();
 }
 
 class _SeekerNoteWritePageState extends State<SeekerNoteWritePage> {
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
+  late final TextEditingController _titleController;
+  late final TextEditingController _descriptionController;
   final List<String> _photos = [];
   bool _isSeeker = false;
   bool _isLoading = true;
@@ -60,6 +71,11 @@ class _SeekerNoteWritePageState extends State<SeekerNoteWritePage> {
   @override
   void initState() {
     super.initState();
+    _titleController = TextEditingController(text: widget.initialTitle ?? '');
+    _descriptionController = TextEditingController(text: widget.initialBody ?? '');
+    if (widget.initialPhotos != null) {
+      _photos.addAll(widget.initialPhotos!);
+    }
     _checkUserType();
   }
 
@@ -84,7 +100,6 @@ class _SeekerNoteWritePageState extends State<SeekerNoteWritePage> {
     }
   }
 
-  // 내용이 입력되어 있는지 확인하는 메서드
   bool _hasContent() {
     return _titleController.text.isNotEmpty ||
         _descriptionController.text.isNotEmpty ||
@@ -154,7 +169,6 @@ class _SeekerNoteWritePageState extends State<SeekerNoteWritePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 상단 텍스트
               const Text(
                 'We are looking workers for my flower shop',
                 style: TextStyle(
@@ -174,7 +188,6 @@ class _SeekerNoteWritePageState extends State<SeekerNoteWritePage> {
               ),
               const SizedBox(height: 24),
 
-              // 제목 입력 필드와 Save Draft 버튼
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -232,7 +245,7 @@ class _SeekerNoteWritePageState extends State<SeekerNoteWritePage> {
 
               // 상세 내용 입력 필드
               Container(
-                height: 220,
+                height: 344,
                 decoration: BoxDecoration(
                   border: Border.all(color: const Color(0xFFBDBDBD), width: 1),
                   borderRadius: BorderRadius.circular(8),

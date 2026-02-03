@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../styles/colors.dart';
 import '../../widgets/confirm_modal.dart';
+import '../../widgets/completion_modal.dart';
 
 /// My Review 수정 페이지. 티켓 배경 위에 별점·리뷰 내용 표시·수정.
 /// [isEditable] false면 Received Reviews용 읽기 전용.
@@ -53,11 +54,16 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
 
   void _onSaveChanges() {
     if (!widget.isEditable || _bodyController == null) return;
-    Navigator.of(context).pop(<String, dynamic>{
+    final result = <String, dynamic>{
       if (widget.index != null) 'index': widget.index,
       'body': _bodyController!.text,
       'rating': _rating,
-    });
+    };
+    CompletionModal.show(
+      context,
+      message: 'Change Saved!',
+      onDismiss: () => Navigator.of(context).pop(result),
+    );
   }
 
   void _onClose() {
