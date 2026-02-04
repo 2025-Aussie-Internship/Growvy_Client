@@ -41,10 +41,12 @@ void showApplicantProfileModal(BuildContext context, _ApplicantItem applicant) {
 class _ApplicantItem {
   final String name;
   final String profileImagePath;
+  final int rating;
 
   _ApplicantItem({
     required this.name,
     required this.profileImagePath,
+    this.rating = 5,
   });
 }
 
@@ -67,19 +69,25 @@ class _ApplicantProfileSheetContentState
       'title': 'Event Staff',
       'rating': 5,
       'body':
-          'Lorem ipsum dolor sit amet consectetur. At id varius facilisis morbi tortor elementum lectus. Nisi adipiscing in hac leo. Ut phasellus tristique lorem porttitor vitae ac. Id pellentesque fermentum in egestas a tortor diam.',
+          'Really well organized event. The team lead was clear with instructions and the hours were as posted. Would work here again.',
     },
     {
-      'title': 'Event Staff',
-      'rating': 5,
+      'title': 'Café Crew',
+      'rating': 4,
       'body':
-          'Lorem ipsum dolor sit amet consectetur. At id varius facilisis morbi tortor elementum lectus. Nisi adipiscing in hac leo. Ut phasellus tristique lorem porttitor vitae ac. Id pellentesque fermentum in egestas a tortor diam.',
+          'Busy shift but the manager was supportive. Only downside was the break room was a bit cramped. Good pay for the day.',
     },
     {
-      'title': 'Event Staff',
+      'title': 'Retail Assistant',
       'rating': 5,
       'body':
-          'Lorem ipsum dolor sit amet consectetur. At id varius facilisis morbi tortor elementum lectus. Nisi adipiscing in hac leo. Ut phasellus tristique lorem porttitor vitae ac. Id pellentesque fermentum in egestas a tortor diam.',
+          'Best gig I\'ve done through the app. On-time payment, friendly staff, and the venue was easy to get to. Highly recommend.',
+    },
+    {
+      'title': 'Promotional Staff',
+      'rating': 4,
+      'body':
+          'Fun atmosphere and the brand team was nice. Long standing hours but they provided snacks and water. Would do again.',
     },
   ];
 
@@ -296,7 +304,7 @@ class _ApplicantProfileSheetContentState
               child: const Text(
                 'See More',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF931515),
                   decoration: TextDecoration.underline,
@@ -339,7 +347,7 @@ class _ApplicantProfileSheetContentState
                 child: Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF931515),
                   ),
@@ -348,11 +356,11 @@ class _ApplicantProfileSheetContentState
               _buildCardStarRating(rating),
             ],
           ),
-          const SizedBox(height: 7.5),
+          const SizedBox(height: 5),
           Text(
             body,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: Color(0xFF4E2121),
               fontWeight: FontWeight.w400,
             ),
@@ -375,8 +383,8 @@ class _ApplicantProfileSheetContentState
             filled
                 ? 'assets/icon/score_filled_icon.svg'
                 : 'assets/icon/score_not_icon.svg',
-            width: 20,
-            height: 20,
+            width: 14,
+            height: 14,
             colorFilter: ColorFilter.mode(
               filled ? AppColors.mainColor : const Color(0xFFBDBDBD),
               BlendMode.srcIn,
@@ -398,12 +406,12 @@ class _JobApplicationListContent extends StatefulWidget {
 
 class _JobApplicationListContentState extends State<_JobApplicationListContent> {
   static final List<_ApplicantItem> _dummyApplicants = [
-    _ApplicantItem(name: 'User Name', profileImagePath: 'assets/image/test_profile1.png'),
-    _ApplicantItem(name: 'User Name', profileImagePath: 'assets/image/test_profile2.png'),
-    _ApplicantItem(name: 'User Name', profileImagePath: 'assets/image/test_profile3.png'),
-    _ApplicantItem(name: 'User Name', profileImagePath: 'assets/image/test_profile4.png'),
-    _ApplicantItem(name: 'User Name', profileImagePath: 'assets/image/test_profile5.png'),
-    _ApplicantItem(name: 'User Name', profileImagePath: 'assets/image/test_profile6.png'),
+    _ApplicantItem(name: 'Joy', profileImagePath: 'assets/image/test_profile1.png', rating: 5),
+    _ApplicantItem(name: 'Sadie', profileImagePath: 'assets/image/test_profile2.png', rating: 4),
+    _ApplicantItem(name: 'Nia', profileImagePath: 'assets/image/test_profile3.png', rating: 3),
+    _ApplicantItem(name: 'Rio', profileImagePath: 'assets/image/test_profile4.png', rating: 5),
+    _ApplicantItem(name: 'Seongyun', profileImagePath: 'assets/image/test_profile5.png', rating: 2),
+    _ApplicantItem(name: 'Julee', profileImagePath: 'assets/image/test_profile6.png', rating: 4),
   ];
 
   int? _selectedIndex;
@@ -526,7 +534,7 @@ class _JobApplicationListContentState extends State<_JobApplicationListContent> 
                       const SizedBox(height: 6),
                       Row(
                         children: List.generate(5, (i) {
-                          final filled = i < 3;
+                          final filled = i < applicant.rating;
                           return Padding(
                             padding: const EdgeInsets.only(right: 2),
                             child: SvgPicture.asset(

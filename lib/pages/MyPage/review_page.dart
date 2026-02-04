@@ -20,52 +20,64 @@ class _ReviewPageState extends State<ReviewPage> {
       'title': 'Event Staff',
       'rating': 5,
       'body':
-          'Lorem ipsum dolor sit amet consectetur. At id varius facilisis morbi tortor elementum lectus. Nisi adipiscing in hac leo. Ut phasellus tristique lorem porttitor vitae ac. Id pellentesque fermentum in egestas a tortor diam.',
+          'Really well organized event. The team lead was clear with instructions and the hours were as posted. Would work here again.',
     },
     {
-      'title': 'Event Staff',
-      'rating': 5,
+      'title': 'Café Crew',
+      'rating': 4,
       'body':
-          'Lorem ipsum dolor sit amet consectetur. At id varius facilisis morbi tortor elementum lectus. Nisi adipiscing in hac leo. Ut phasellus tristique lorem porttitor vitae ac. Id pellentesque fermentum in egestas a tortor diam.',
+          'Busy shift but the manager was supportive. Only downside was the break room was a bit cramped. Good pay for the day.',
     },
     {
-      'title': 'Event Staff',
-      'rating': 5,
+      'title': 'Retail Assistant',
+      'rating': 3,
       'body':
-          'Lorem ipsum dolor sit amet consectetur. At id varius facilisis morbi tortor elementum lectus. Nisi adipiscing in hac leo. Ut phasellus tristique lorem porttitor vitae ac. Id pellentesque fermentum in egestas a tortor diam.',
+          'Decent experience. Training was quick so I had to ask a lot of questions. Could have used one more person on the floor during peak hours.',
     },
     {
-      'title': 'Event Staff',
+      'title': 'Festival Staff',
       'rating': 5,
       'body':
-          'Lorem ipsum dolor sit amet consectetur. At id varius facilisis morbi tortor elementum lectus. Nisi adipiscing in hac leo. Ut phasellus tristique lorem porttitor vitae ac. Id pellentesque fermentum in egestas a tortor diam.',
+          'Best gig I\'ve done through the app. On-time payment, friendly staff, and the venue was easy to get to. Highly recommend.',
     },
     {
-      'title': 'Event Staff',
-      'rating': 5,
+      'title': 'Warehouse Helper',
+      'rating': 2,
       'body':
-          'Lorem ipsum dolor sit amet consectetur. At id varius facilisis morbi tortor elementum lectus. Nisi adipiscing in hac leo. Ut phasellus tristique lorem porttitor vitae ac. Id pellentesque fermentum in egestas a tortor diam.',
+          'Schedule changed last minute and the site was farther than expected. The work itself was okay but communication could be better.',
     },
     {
-      'title': 'Event Staff',
-      'rating': 5,
+      'title': 'Promotional Staff',
+      'rating': 4,
       'body':
-          'Lorem ipsum dolor sit amet consectetur. At id varius facilisis morbi tortor elementum lectus. Nisi adipiscing in hac leo. Ut phasellus tristique lorem porttitor vitae ac. Id pellentesque fermentum in egestas a tortor diam.',
+          'Fun atmosphere and the brand team was nice. Long standing hours but they provided snacks and water. Would do again.',
     },
   ];
 
   final List<Map<String, dynamic>> _receivedReviews = [
     {
-      'title': 'Café Crew',
-      'rating': 4,
-      'body':
-          'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
-    },
-    {
-      'title': 'Retail Assistant',
+      'title': 'Concierge',
       'rating': 5,
       'body':
-          'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
+          'Showed up on time and picked up tasks quickly. Handled the rush hour well. We\'d love to have them back next time.',
+    },
+    {
+      'title': 'Store Associate',
+      'rating': 4,
+      'body':
+          'Reliable and polite with customers. Only small note: a bit more product training would help, but overall great help for the day.',
+    },
+    {
+      'title': 'Conference Helper',
+      'rating': 5,
+      'body':
+          'Outstanding. Took initiative, stayed until breakdown was done, and the guests had good things to say. Will definitely request again.',
+    },
+    {
+      'title': 'Inventory Assistant',
+      'rating': 3,
+      'body':
+          'Got the job done. A few mix-ups with the packing list but they fixed it when we pointed it out. Would consider for future shifts.',
     },
   ];
 
