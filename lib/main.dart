@@ -6,7 +6,7 @@ import 'firebase_options.dart';
 import 'services/user_service.dart';
 import 'bindings/initial_binding.dart';
 import 'routes/app_pages.dart';
-import 'pages/SignUpPage/signup_page.dart';
+import 'pages/SignUpPage/splash_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,7 +37,7 @@ class MyApp extends StatelessWidget {
       ),
       initialBinding: InitialBinding(),
       getPages: AppPages.routes,
-      home: const SignUpPage(),
+      home: const SplashPage(),
     );
   }
 }

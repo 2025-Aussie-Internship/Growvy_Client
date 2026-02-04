@@ -34,6 +34,26 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.3
+
+# 앱 아이콘: assets/image/app_icon.png 사용. 배경색·패딩 조정으로 모서리 선 제거.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/image/app_icon.png"
+  # Android adaptive icon: 배경색 맞춰 모서리 선 제거, 패딩 없이 꽉 채움
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/image/app_icon.png"
+  adaptive_icon_padding: false
+  # iOS 알파 채널 제거(스토어 제출 시 경고 방지)
+  remove_alpha_ios: true
+
+# 네이티브 스플레시: 구글 로그인 화면과 동일한 배경색 (버튼 없음)
+flutter_native_splash:
+  color: "#FC6340"
+  android_12:
+    color: "#FC6340"
 
 flutter:
   uses-material-design: true

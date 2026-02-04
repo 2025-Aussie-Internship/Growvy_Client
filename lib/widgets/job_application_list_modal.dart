@@ -86,7 +86,7 @@ class _ApplicantProfileSheetContentState
   static const double _modalHeight = 337;
   static const double _modalHeightExpanded = 664;
   static const double _profileSize = 80;
-  static const double _profileOverlap = 40; // 절반이 배너와 겹침
+  static const double _profileOverlap = 40;
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +147,6 @@ class _ApplicantProfileSheetContentState
     );
   }
 
-  /// 오렌지 배너 + 우상단 X(다른 모달과 동일 스타일) + 프로필 원형이 배너와 반쯤 겹침(스트로크 없음)
   Widget _buildProfileHeader(BuildContext context) {
     return Stack(
       alignment: Alignment.topCenter,
