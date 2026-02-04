@@ -53,7 +53,8 @@ class EmployerNoteWritePage extends StatefulWidget {
 class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _scheduleController = TextEditingController();
+  final TextEditingController _scheduleDateController = TextEditingController();
+  final TextEditingController _scheduleTimeController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _payController = TextEditingController();
   
@@ -94,7 +95,8 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
   bool _hasContent() {
     return _titleController.text.isNotEmpty ||
         _descriptionController.text.isNotEmpty ||
-        _scheduleController.text.isNotEmpty ||
+        _scheduleDateController.text.isNotEmpty ||
+        _scheduleTimeController.text.isNotEmpty ||
         _locationController.text.isNotEmpty ||
         _payController.text.isNotEmpty ||
         _selectedTags.isNotEmpty ||
@@ -113,7 +115,8 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _scheduleController.dispose();
+    _scheduleDateController.dispose();
+    _scheduleTimeController.dispose();
     _locationController.dispose();
     _payController.dispose();
     super.dispose();
@@ -158,7 +161,7 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
             },
           ),
           title: const Text(
-            'Note',
+            'Post a Job',
             style: TextStyle(
               color: Colors.black,
               fontSize: 18,
@@ -181,7 +184,7 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
               children: [
                 Expanded(
                   child: Container(
-                    height: 37,
+                    height: 34,
                     decoration: BoxDecoration(
                       border: Border.all(color: AppColors.mainColor, width: 1),
                       borderRadius: BorderRadius.circular(8),
@@ -209,7 +212,7 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
                     }
                   },
                   child: Container(
-                    height: 37,
+                    height: 34,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
                       color: AppColors.mainColor,
@@ -256,12 +259,17 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
             ),
             const SizedBox(height: 26),
 
-            // Schedule
+            // Schedule (날짜, 시간 두 필드)
             _buildSectionLabel('Schedule'),
             const SizedBox(height: 6),
             _buildTextField(
-              controller: _scheduleController,
-              hintText: 'Enter the Schedule',
+              controller: _scheduleDateController,
+              hintText: 'DD/MM/YYYY - DD/MM/YYYY',
+            ),
+            const SizedBox(height: 8),
+            _buildTextField(
+              controller: _scheduleTimeController,
+              hintText: 'Shift: 00:00 - 00:00',
             ),
             const SizedBox(height: 16),
 
@@ -270,7 +278,7 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
             const SizedBox(height: 6),
             _buildTextField(
               controller: _locationController,
-              hintText: 'Enter the location',
+              hintText: 'Enter the Location',
             ),
             const SizedBox(height: 16),
 
@@ -330,7 +338,7 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // Tags
             _buildSectionLabel('Tags'),
@@ -376,7 +384,7 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
                 }).toList(),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // Photos
             _buildSectionLabel('Photos'),
@@ -475,17 +483,18 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
     required String hintText,
   }) {
     return Container(
-      height: 48,
+      height: 34,
       decoration: BoxDecoration(
         border: Border.all(color: AppColors.mainColor, width: 1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: TextField(
         controller: controller,
+        textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           hintText: hintText,
           hintStyle: const TextStyle(color: Colors.grey),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
