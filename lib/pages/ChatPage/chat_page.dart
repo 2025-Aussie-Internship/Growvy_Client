@@ -10,7 +10,12 @@ class ChatListPage extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            MediaQuery.paddingOf(context).top + 12,
+            20,
+            16,
+          ),
           child: Container(
             height: 48,
             decoration: BoxDecoration(

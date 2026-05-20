@@ -332,19 +332,10 @@ class ProfileEditPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(48),
-        child: AppBar(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0.5,
-          centerTitle: true,
-          title: SvgPicture.asset('assets/icon/logo_orange.svg', height: 36),
-          leadingWidth: 0,
-          leading: const SizedBox.shrink(),
-        ),
-      ),
-      body: ProfileEditContent(
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: ProfileEditContent(
         profileImages: profileImages,
         initialProfileIndex: initialProfileIndex,
         initialBannerColor: initialBannerColor,
@@ -352,6 +343,7 @@ class ProfileEditPage extends StatelessWidget {
         initialPronouns: initialPronouns,
         leadingIcon: 'back',
         onApply: (result) => Navigator.pop(context, result),
+        ),
       ),
     );
   }

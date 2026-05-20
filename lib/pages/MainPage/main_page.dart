@@ -8,9 +8,11 @@ import '../../widgets/nearby_job_card.dart';
 import '../../widgets/popular_job_card.dart';
 import '../../widgets/calendar_modal.dart';
 import '../../widgets/notification_modal.dart';
+import '../../bindings/main_binding.dart';
 import '../../controllers/note_page_controller.dart';
 import '../../widgets/job_application_list_modal.dart';
 import '../../widgets/my_job_openings_modal.dart';
+import '../../widgets/job_search_bar.dart';
 import '../SearchPage/search_page.dart';
 import '../ChatPage/chat_page.dart';
 import '../ChatPage/chat_detail_page.dart';
@@ -19,6 +21,8 @@ import '../MyPage/my_page.dart';
 import '../MapPage/map_page.dart';
 import '../NotePage/employer_note_write_page.dart';
 import '../NotePage/note_tab_page.dart';
+import '../../widgets/main_logo_header.dart';
+import '../../widgets/search_overlay.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -49,14 +53,21 @@ class _FabEndFloatLocation extends FloatingActionButtonLocation {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
   bool _regionPanelOpen = false;
+  bool _isSearchActive = false;
+  final GlobalKey<SearchOverlayState> _searchOverlayKey =
+      GlobalKey<SearchOverlayState>();
   late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
+    MainBinding().dependencies();
     _pages = [
-      HomePageContent(),
-      MapPage(onRegionPanelChanged: _onRegionPanelChanged),
+      HomePageContent(onSearchTap: _openSearch),
+      MapPage(
+        onRegionPanelChanged: _onRegionPanelChanged,
+        onSearchTap: _openSearch,
+      ),
       const ChatListPage(),
       const NoteTabPage(),
       MyPage(),
@@ -67,10 +78,28 @@ class _MainPageState extends State<MainPage> {
     setState(() => _regionPanelOpen = open);
   }
 
+  void _openSearch() {
+    if (_isSearchActive) return;
+    setState(() => _isSearchActive = true);
+  }
+
+  void _closeSearch() {
+    if (!_isSearchActive) return;
+    setState(() => _isSearchActive = false);
+  }
+
+  /// 홈 탭이거나 검색 오버레이가 떠 있을 때 로고 표시
+  bool get _showLogoHeader =>
+      (_selectedIndex == 0 || _isSearchActive) && !_regionPanelOpen;
+
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    if (_isSearchActive) {
+      // 오버레이의 reverse 애니메이션이 끝나면 onClose가 _isSearchActive를 풀어준다.
+      _searchOverlayKey.currentState?.close();
+    }
+    if (_selectedIndex != index) {
+      setState(() => _selectedIndex = index);
+    }
   }
 
   Widget _buildBottomBar() {
@@ -128,22 +157,27 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
-      appBar: _regionPanelOpen
-          ? null
-          : PreferredSize(
-              preferredSize: const Size.fromHeight(48),
-              child: AppBar(
-                backgroundColor: Colors.white,
-                surfaceTintColor: Colors.transparent,
-                elevation: 0.5,
-                centerTitle: true,
-                title: SvgPicture.asset(
-                    'assets/icon/logo_orange.svg', height: 36),
-              ),
+      body: Column(
+        children: [
+          MainLogoHeader(visible: _showLogoHeader),
+          Expanded(
+            child: Stack(
+              children: [
+                IndexedStack(
+                  index: _selectedIndex,
+                  children: _pages,
+                ),
+                if (_isSearchActive)
+                  Positioned.fill(
+                    child: SearchOverlay(
+                      key: _searchOverlayKey,
+                      onClose: _closeSearch,
+                    ),
+                  ),
+              ],
             ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
+          ),
+        ],
       ),
       bottomNavigationBar: _regionPanelOpen ? null : _buildBottomBar(),
       floatingActionButton: Obx(() {
@@ -168,10 +202,11 @@ class _MainPageState extends State<MainPage> {
             const SizedBox(height: buttonGap),
             GestureDetector(
               onTap: () async {
-                if (!Get.isRegistered<NotePageController>()) {
-                  Get.put(NotePageController());
-                }
-                final jobs = Get.find<NotePageController>().employerJobOpenings;
+                MainBinding().dependencies();
+                final noteController = Get.find<NotePageController>();
+                noteController.isEmployer = isEmployer;
+                noteController.isEmployerObs.value = isEmployer;
+                final jobs = noteController.employerJobOpenings;
                 final selected = await MyJobOpeningsModal.show(context, jobs: jobs);
                 if (!context.mounted) return;
                 if (selected != null) {
@@ -211,7 +246,9 @@ class _MainPageState extends State<MainPage> {
 }
 
 class HomePageContent extends StatefulWidget {
-  const HomePageContent({super.key});
+  const HomePageContent({super.key, this.onSearchTap});
+
+  final VoidCallback? onSearchTap;
 
   @override
   State<HomePageContent> createState() => _HomePageContentState();
@@ -344,57 +381,11 @@ class _HomePageContentState extends State<HomePageContent> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 12),
+            const SizedBox(height: 24),
 
-            // 검색창 (mapPage와 스타일 통일)
             Center(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const SearchPage()),
-                  );
-                },
-                child: SizedBox(
-                  width: 290,
-                  height: 48,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: const Color(0xFFEEEEEE)),
-                    ),
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 14),
-                        SvgPicture.asset(
-                          'assets/icon/search_icon.svg',
-                          width: 18,
-                          height: 18,
-                        ),
-                        const SizedBox(width: 10),
-                        const Expanded(
-                          child: Text(
-                            'search for jobs',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF9E9E9E),
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: SvgPicture.asset(
-                            'assets/icon/mike_icon.svg',
-                            width: 32,
-                            height: 32,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              child: JobSearchBar.tappable(
+                onTap: widget.onSearchTap ?? () => SearchPage.open(context),
               ),
             ),
 

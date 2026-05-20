@@ -90,9 +90,9 @@ class NoteDetailPage extends StatelessWidget {
                     border: Border.all(color: const Color(0xFFBDBDBD), width: 1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    body,
-                    style: const TextStyle(
+                  child: const Text(
+                    "Sadie's malatang is really not tasty.",
+                    style: TextStyle(
                       fontSize: 12,
                       height: 1.5,
                       color: Color(0xFF000000),

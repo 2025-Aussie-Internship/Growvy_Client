@@ -1,23 +1,28 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' hide Path;
 
 import '../../styles/colors.dart';
+import '../../widgets/job_search_bar.dart';
 import '../../widgets/map_job_info_sheet.dart';
 import '../../widgets/region_filter_panel.dart';
 import '../MainPage/job_detail_page.dart';
+import '../SearchPage/search_page.dart';
 
 
 class MapPage extends StatefulWidget {
-  const MapPage({super.key, this.onRegionPanelChanged});
+  const MapPage({
+    super.key,
+    this.onRegionPanelChanged,
+    this.onSearchTap,
+  });
 
   final void Function(bool open)? onRegionPanelChanged;
+  final VoidCallback? onSearchTap;
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -30,8 +35,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   int? _selectedJobId;
   bool _showRegionPanel = false;
   bool _isBookmarked = false;
-  final TextEditingController _searchController = TextEditingController();
-  bool _isSearching = false;
   late AnimationController _regionSlideController;
   late Animation<Offset> _regionSlideAnimation;
 
@@ -67,7 +70,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
   @override
   void dispose() {
     _regionSlideController.dispose();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -82,56 +84,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
       if (mounted) setState(() => _showRegionPanel = false);
       widget.onRegionPanelChanged?.call(false);
     });
-  }
-
-  Future<void> _searchAndMoveToPlace(String query) async {
-    final q = query.trim();
-    if (q.isEmpty) return;
-    if (!mounted) return;
-    setState(() => _isSearching = true);
-    try {
-      final uri = Uri.parse(
-        'https://nominatim.openstreetmap.org/search'
-        '?q=${Uri.encodeComponent(q)}&format=json&limit=1',
-      );
-      final response = await http.get(
-        uri,
-        headers: {'User-Agent': 'GrowvyClient/1.0'},
-      ).timeout(const Duration(seconds: 10));
-      if (!mounted) return;
-      if (response.statusCode != 200) {
-        setState(() => _isSearching = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('장소를 찾을 수 없습니다.')),
-          );
-        }
-        return;
-      }
-      final list = jsonDecode(response.body) as List;
-      if (list.isEmpty) {
-        setState(() => _isSearching = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('장소를 찾을 수 없습니다.')),
-          );
-        }
-        return;
-      }
-      final first = list.first as Map<String, dynamic>;
-      final lat = double.tryParse(first['lat']?.toString() ?? '') ?? 0.0;
-      final lon = double.tryParse(first['lon']?.toString() ?? '') ?? 0.0;
-      final latLng = LatLng(lat, lon);
-      _mapController.move(latLng, 15.0);
-      if (mounted) setState(() => _isSearching = false);
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isSearching = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('검색 중 오류가 발생했습니다.')),
-        );
-      }
-    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -219,12 +171,22 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
+                padding: const EdgeInsets.fromLTRB(
+                  20,
+                  JobSearchBar.topSpacing,
+                  20,
+                  0,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Center(child: _buildSearchBar()),
+                    Center(
+                      child: JobSearchBar.tappable(
+                        onTap: widget.onSearchTap ??
+                            () => SearchPage.open(context),
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerRight,
@@ -377,73 +339,6 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return SizedBox(
-      width: 290,
-      height: 48,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFEEEEEE)),
-        ),
-      child: Row(
-        children: [
-          const SizedBox(width: 14),
-          GestureDetector(
-            onTap: () => _searchAndMoveToPlace(_searchController.text),
-            child: _isSearching
-                ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.mainColor,
-                    ),
-                  )
-                : SvgPicture.asset(
-                    'assets/icon/search_icon.svg',
-                    width: 18,
-                    height: 18,
-                  ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'search for jobs',
-                hintStyle: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF9E9E9E),
-                  fontWeight: FontWeight.w400,
-                ),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-              style: const TextStyle(fontSize: 14),
-              textInputAction: TextInputAction.search,
-              onSubmitted: _searchAndMoveToPlace,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: GestureDetector(
-              onTap: () {},
-              child: SvgPicture.asset(
-                'assets/icon/mike_icon.svg',
-                width: 32,
-                height: 32,
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
     );
   }
 

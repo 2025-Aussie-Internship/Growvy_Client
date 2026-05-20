@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../styles/colors.dart';
+import '../../widgets/safe_back_app_bar.dart';
 import 'review_detail_page.dart';
 
 class ReviewPage extends StatefulWidget {
@@ -88,20 +89,7 @@ class _ReviewPageState extends State<ReviewPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(48),
-        child: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: SvgPicture.asset('assets/icon/logo_orange.svg', height: 36),
-          centerTitle: true,
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0.5,
-        ),
-      ),
+      appBar: const SafeBackAppBar(),
       body: Column(
         children: [
           Padding(

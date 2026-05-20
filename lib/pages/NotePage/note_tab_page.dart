@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../bindings/main_binding.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/note_page_controller.dart';
 import 'note_page.dart';
@@ -17,9 +18,12 @@ class NoteTabPage extends GetView<AuthController> {
           body: Center(child: CircularProgressIndicator()),
         );
       }
-      if (!Get.isRegistered<NotePageController>()) {
-        Get.put(NotePageController());
-      }
+
+      MainBinding().dependencies();
+      Get.find<NotePageController>().isEmployer = controller.isEmployer.value;
+      Get.find<NotePageController>().isEmployerObs.value =
+          controller.isEmployer.value;
+
       return const NotePage();
     });
   }

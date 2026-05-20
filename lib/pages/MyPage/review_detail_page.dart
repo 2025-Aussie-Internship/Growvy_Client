@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../styles/colors.dart';
 import '../../widgets/confirm_modal.dart';
 import '../../widgets/completion_modal.dart';
+import '../../widgets/safe_back_app_bar.dart';
 
 /// My Review 수정 페이지. 티켓 배경 위에 별점·리뷰 내용 표시·수정.
 /// [isEditable] false면 Received Reviews용 읽기 전용.
@@ -96,23 +97,12 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFFC6340),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(48),
-        child: AppBar(
-          automaticallyImplyLeading: false,
-          title: SvgPicture.asset('assets/icon/logo_orange.svg', height: 36),
-          centerTitle: true,
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0.5,
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 78),
+      appBar: const SafeBackAppBar(),
+      body: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 24),
               Center(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
@@ -237,7 +227,6 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
             ],
           ),
         ),
-      ),
     );
   }
 

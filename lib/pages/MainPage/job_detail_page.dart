@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../controllers/auth_controller.dart';
 import '../../styles/colors.dart';
 import '../../widgets/confirm_modal.dart';
+import '../../widgets/completion_modal.dart';
 
 class JobDetailPage extends StatefulWidget {
-  const JobDetailPage({super.key});
+  const JobDetailPage({super.key, this.postId});
+
+  /// 공고 ID. Apply 성공 시 이 값을 pop하여 호출측에서 리스트에서 제거할 수 있음.
+  final dynamic postId;
 
   @override
   State<JobDetailPage> createState() => _JobDetailPageState();
@@ -20,9 +25,10 @@ class _JobDetailPageState extends State<JobDetailPage> {
   int _imageCurrentPage = 1000;
 
   final List<String> _imageUrls = [
-    'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+    "https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=400",
+    "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400",
+    "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=400",
+    "https://images.unsplash.com/photo-1519750783826-e2420f4d687f?w=400",
   ];
 
   @override
@@ -54,14 +60,6 @@ class _JobDetailPageState extends State<JobDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: SvgPicture.asset('assets/icon/logo_orange.svg', height: 36),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        surfaceTintColor: Colors.white,
-      ),
       body: Stack(
         children: [
           Positioned(
@@ -83,9 +81,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
                   ),
                 ),
                 Positioned.fill(
-                  child: Container(
-                    color: Colors.black.withOpacity(0.11),
-                  ),
+                  child: Container(color: Colors.black.withOpacity(0.11)),
                 ),
               ],
             ),
@@ -114,7 +110,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Record Shop Employee',
+                          "Sadie's HotPot",
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -127,7 +123,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'People needs Rabbit!',
+                              'My Awesome Company',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.grey[600],
@@ -146,9 +142,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
 
                         Row(
                           children: [
-                            _buildTag('D-24'),
-                            const SizedBox(width: 8),
-                            _buildTag('Veteran'),
+                            _buildTag('D-10'),
                             const SizedBox(width: 8),
                             _buildTag('Veteran'),
                           ],
@@ -156,7 +150,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
                         const SizedBox(height: 24),
 
                         Text(
-                          'People Needs Rabbit! is looking for a friendly, reliable team member who loves music, enjoys talking with customers, and has a positive, responsible attitude.\nThis is a part-time position with flexible shifts (around 3–5 days a week, 4–6 hours per shift), perfect for someone who wants to work in a relaxed, community-focused record shop.',
+                          "Looking for someone to try my Malatang.",
                           style: TextStyle(
                             fontSize: 14,
                             height: 1.6,
@@ -173,23 +167,23 @@ class _JobDetailPageState extends State<JobDetailPage> {
 
                         _buildInfoRow(
                           'assets/icon/calendar_icon.svg',
-                          '3–5 days a week',
+                          'Feb 15, 2026 - Feb 16, 2026',
                         ),
                         _buildInfoRow(
                           'assets/icon/time_icon.svg',
-                          '4–6 hours per shift (flexible schedule)',
+                          '10:00 AM - 11:00 AM (1-hour)',
                         ),
                         _buildInfoRow(
                           'assets/icon/address_icon.svg',
-                          '27 Willow Street, Newtown NSW 2042, Australia',
+                          '123 Swanston St, Melbourne, VIC, Australia',
                         ),
                         _buildInfoRow(
                           'assets/icon/salary_icon.svg',
-                          '\$600 per week',
+                          '\$1000 per day',
                         ),
                         _buildInfoRow(
                           'assets/icon/people_icon.svg',
-                          '3 openings.',
+                          '1 openings.',
                         ),
 
                         const SizedBox(height: 80),
@@ -202,58 +196,62 @@ class _JobDetailPageState extends State<JobDetailPage> {
           ),
 
           Positioned(
-            top: 10,
+            top: 0,
             left: 0,
             right: 0,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new,
-                      color: Colors.white,
-                      size: 24,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      onPressed: () => Navigator.pop(context),
                     ),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  Row(
-                    children: [
-                      // Share Icon
-                      IconButton(
-                        icon: SvgPicture.asset(
-                          'assets/icon/share_icon.svg',
-                          colorFilter: const ColorFilter.mode(
-                            AppColors.mainColor,
-                            BlendMode.srcIn,
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: SvgPicture.asset(
+                            'assets/icon/share_icon.svg',
+                            colorFilter: const ColorFilter.mode(
+                              AppColors.mainColor,
+                              BlendMode.srcIn,
+                            ),
+                            width: 24,
+                            height: 24,
                           ),
-                          width: 24,
-                          height: 24,
+                          onPressed: () {},
                         ),
-                        onPressed: () {},
-                      ),
-                      // Bookmark Icon
-                      IconButton(
-                        icon: SvgPicture.asset(
-                          'assets/icon/bookmark_icon.svg',
-                          colorFilter: const ColorFilter.mode(
-                            AppColors.mainColor,
-                            BlendMode.srcIn,
+                        IconButton(
+                          icon: SvgPicture.asset(
+                            'assets/icon/bookmark_icon.svg',
+                            colorFilter: const ColorFilter.mode(
+                              AppColors.mainColor,
+                              BlendMode.srcIn,
+                            ),
+                            width: 24,
+                            height: 24,
                           ),
-                          width: 24,
-                          height: 24,
+                          onPressed: () {},
                         ),
-                        onPressed: () {},
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
 
-          Align(alignment: Alignment.bottomCenter, child: _buildBottomButton(context)),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: _buildBottomButton(context),
+          ),
         ],
       ),
     );
@@ -312,6 +310,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
   }
 
   Widget _buildBottomButton(BuildContext context) {
+    final isEmployer = AuthController.to.isEmployer.value;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -330,21 +329,34 @@ class _JobDetailPageState extends State<JobDetailPage> {
           width: double.infinity,
           height: 56,
           child: ElevatedButton(
-            onPressed: () {
-              ConfirmModal.show(
-                context: context,
-                message: 'Submit Application?',
-                cancelLabel: 'Cancel',
-                acceptLabel: 'Apply',
-                onAccept: () {
-                  Navigator.pop(context);
-                  // TODO: 지원 제출 로직
-                },
-              );
-            },
+            onPressed: isEmployer
+                ? null
+                : () {
+                    ConfirmModal.show(
+                      context: context,
+                      message: 'Submit Application?',
+                      cancelLabel: 'Cancel',
+                      acceptLabel: 'Apply',
+                      onAccept: () {
+                        Navigator.pop(context);
+                        if (!context.mounted) return;
+                        CompletionModal.show(
+                          context,
+                          message: 'Application submitted successfully!',
+                          onDismiss: () {
+                            if (context.mounted) {
+                              Navigator.pop(context, widget.postId);
+                            }
+                          },
+                        );
+                      },
+                    );
+                  },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.mainColor,
+              backgroundColor: isEmployer ? Colors.grey : AppColors.mainColor,
               foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey,
+              disabledForegroundColor: Colors.white70,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),

@@ -3,6 +3,7 @@ import '../pages/SignUpPage/signup_page.dart';
 import '../pages/MainPage/main_page.dart';
 import '../widgets/custom_bottom_nav_bar.dart';
 import '../pages/NotePage/note_tab_page.dart';
+import '../bindings/main_binding.dart';
 import '../bindings/note_binding.dart';
 
 abstract class Routes {
@@ -21,6 +22,7 @@ abstract class AppPages {
     GetPage(
       name: Routes.main,
       page: () => const MainPage(),
+      binding: MainBinding(),
     ),
     GetPage(
       name: Routes.mainNav,

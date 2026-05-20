@@ -66,9 +66,12 @@ class _MyPageState extends State<MyPage> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
+    return SafeArea(
+      top: true,
+      bottom: false,
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
           if (_isEditingProfile)
             ProfileEditContent(
               profileImages: _profileImages,
@@ -127,6 +130,7 @@ class _MyPageState extends State<MyPage> {
           const SizedBox(height: 120), // Bottom padding for nav bar
           ],
         ],
+      ),
       ),
     );
   }

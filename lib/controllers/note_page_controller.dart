@@ -1,258 +1,401 @@
 import 'package:get/get.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../config/env.dart';
 import '../controllers/auth_controller.dart';
 import '../pages/MainPage/job_detail_page.dart';
 import '../pages/NotePage/employer_note_write_page.dart';
 import '../pages/NotePage/seeker_note_detail_page.dart';
 import '../pages/NotePage/seeker_note_write_page.dart';
 
-/// Note 목록 화면 ViewModel (GetX MVVM)
 class NotePageController extends GetxController {
   final selectedTab = 0.obs;
-  final volunteerFilter = 1.obs; // 0: Draft, 1: most recent
+  /// 구인자 Note 상단 탭: 0 Hiring, 1 Filled, 2 Closed, 3 Draft
+  final employerTabIndex = 0.obs;
+  /// 구직자 Note 상단 탭: 0 Applying, 1 Done, 2 Volunteer
+  final seekerTabIndex = 0.obs;
+  final volunteerFilter = 1.obs; // 0: Draft, 1: Most recent
+  final isLoading = false.obs;
 
-  bool get isEmployer => AuthController.to.isEmployer.value;
+  bool isEmployer = false;
+  final RxBool isEmployerObs = false.obs;
 
-  final List<Map<String, dynamic>> recruitmentHistory = [
-    {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'hasContent': false,
-      'photos': [],
-    },
-    {
-      'title': 'Festival Support Staff',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-12',
-      'tag': 'Veteran',
-      'hasContent': true,
-      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-        'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=100',
-      ],
-    },
-    {
-      'title': 'Event Helper',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-5',
-      'tag': 'Rookie',
-      'hasContent': true,
-      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-      ],
-    },
-    {
-      'title': 'Casual Bar Support Staff',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-20',
-      'tag': 'Veteran',
-      'hasContent': false,
-      'photos': [],
-    },
-    {
-      'title': 'Temporary Sales Assistant',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-8',
-      'tag': 'Seasonal',
-      'hasContent': true,
-      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-      ],
-    },
+  Worker? _employerTypeWorker;
+
+  // --- 관찰 가능한 리스트 (RxList) ---
+  // 구직자용 (Job Seeker)
+  final RxList<Map<String, dynamic>> recruitmentHistory =
+      <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> completionHistoryWorks =
+      <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> completionHistoryVolunteer =
+      <Map<String, dynamic>>[].obs;
+
+  // 구인자용 (Employer)
+  final RxList<Map<String, dynamic>> employerRecruitmentHistory =
+      <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> employerCompletionHistory =
+      <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> employerCompletionVolunteer =
+      <Map<String, dynamic>>[].obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _syncEmployerFlag();
+    if (Get.isRegistered<AuthController>()) {
+      _employerTypeWorker?.dispose();
+      _employerTypeWorker = ever(AuthController.to.isEmployer, (_) {
+        _syncEmployerFlag();
+        fetchAllData();
+      });
+    }
+    fetchAllData();
+  }
+
+  @override
+  void onClose() {
+    _employerTypeWorker?.dispose();
+    super.onClose();
+  }
+
+  void _syncEmployerFlag() {
+    if (Get.isRegistered<AuthController>()) {
+      isEmployer = AuthController.to.isEmployer.value;
+      isEmployerObs.value = isEmployer;
+    }
+  }
+
+  /// 모든 탭의 데이터 새로고침
+  Future<void> fetchAllData() async {
+    isLoading.value = true;
+    if (isEmployer) {
+      await fetchEmployerRecruitment();
+      await fetchEmployerCompletion();
+    } else {
+      await fetchSeekerRecruitment();
+      await fetchSeekerCompletion();
+    }
+    isLoading.value = false;
+  }
+
+  // 1. 구직자 - 모집 중 (Recruitment)
+  Future<void> fetchSeekerRecruitment() async {
+    final data = await _fetchFromApi(
+      "${Env.apiBaseUrl}/api/jobseeker/posts",
+    );
+    if (data != null) recruitmentHistory.assignAll(_mapApiData(data));
+  }
+
+  // 2. 구직자 - 완료 (Completion)
+  Future<void> fetchSeekerCompletion() async {
+    final data = await _fetchFromApi(
+      "${Env.apiBaseUrl}/api/jobseeker/posts/done",
+    );
+    if (data != null) {
+      final allDone = _mapApiData(data, isDone: true);
+      completionHistoryWorks.assignAll(
+        allDone.where((e) => e['hourlyWage'] > 0).toList(),
+      );
+      completionHistoryVolunteer.assignAll(
+        allDone.where((e) => e['hourlyWage'] == 0).toList(),
+      );
+    }
+  }
+
+  // 3. 구인자 - 모집 중 (Recruitment)
+  Future<void> fetchEmployerRecruitment() async {
+    final data = await _fetchFromApi(
+      "${Env.apiBaseUrl}/api/employer/posts",
+    );
+    if (data != null) {
+      employerRecruitmentHistory.assignAll(
+        _mapApiData(data, forEmployer: true),
+      );
+    }
+  }
+
+  // 4. 구인자 - 완료 (Completion)
+  Future<void> fetchEmployerCompletion() async {
+    final data = await _fetchFromApi(
+      "${Env.apiBaseUrl}/api/employer/posts/done",
+    );
+    if (data != null) {
+      final allDone = _mapApiData(data, isDone: true, forEmployer: true);
+      employerCompletionHistory.assignAll(
+        allDone.where((e) => e['hourlyWage'] > 0).toList(),
+      );
+      employerCompletionVolunteer.assignAll(
+        allDone.where((e) => e['hourlyWage'] == 0).toList(),
+      );
+    }
+  }
+
+  // --- 공통 API 호출 로직 ---
+  Future<List<dynamic>?> _fetchFromApi(String url) async {
+    final storage = FlutterSecureStorage();
+    final String? accessToken = await storage.read(key: 'accessToken');
+    if (accessToken == null) return null;
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          "Authorization": "Bearer $accessToken",
+          "Content-Type": "application/json",
+        },
+      );
+      if (response.statusCode == 200) {
+        return json.decode(utf8.decode(response.bodyBytes));
+      }
+    } catch (e) {
+      print("API Error ($url): $e");
+    }
+    return null;
+  }
+
+  // --- API 데이터를 UI용 Map으로 변환 ---
+  List<Map<String, dynamic>> _mapApiData(
+    List<dynamic> data, {
+    bool isDone = false,
+    bool forEmployer = false,
+  }) {
+    return data.map((raw) {
+      final item = raw is Map<String, dynamic>
+          ? raw
+          : Map<String, dynamic>.from(raw as Map);
+      final wage = item['hourlyWage'] ?? 0;
+      final applicantsCurrent = _applicantsCurrent(item);
+      final applicantsTotal = _applicantsTotal(item);
+      final isDraft = _isDraftItem(item);
+
+      // [중요 수정] imageUrls를 안전하게 List<String>으로 변환
+      // List<dynamic>을 바로 cast하지 않고, map을 통해 String으로 변환합니다.
+      final List<String> safePhotos =
+          (item['imageUrls'] as List?)?.map((e) => e.toString()).toList() ?? [];
+
+      final map = <String, dynamic>{
+        'id': item['id'],
+        'title': item['title'] ?? '',
+        'employer': item['companyName'] ?? '',
+        'dDay': isDone ? 'Completed' : _calculateDDay(item['endDate']),
+        'tag': (item['tags'] != null && (item['tags'] as List).isNotEmpty)
+            ? item['tags'][0]
+            : (wage == 0 ? 'Volunteer' : 'Rookie'),
+        'hasContent':
+            item['description'] != null && item['description'].toString().isNotEmpty,
+        'body': item['description'] ?? '',
+        'photos': safePhotos, // 이제 확실한 List<String>이 저장됩니다.
+        'hourlyWage': wage,
+        'isDraft': isDraft,
+      };
+
+      if (forEmployer) {
+        map.addAll({
+          'applicantsCurrent': applicantsCurrent,
+          'applicantsTotal': applicantsTotal,
+          'employerStatus': _resolveEmployerStatus(
+            item,
+            isDone: isDone,
+            isDraft: isDraft,
+            applicantsCurrent: applicantsCurrent,
+            applicantsTotal: applicantsTotal,
+          ),
+        });
+      }
+
+      return map;
+    }).toList();
+  }
+
+  int _applicantsCurrent(Map<String, dynamic> item) {
+    final value = item['acceptedCount'] ??
+        item['applicantCount'] ??
+        item['currentApplicants'] ??
+        item['filledCount'];
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  int _applicantsTotal(Map<String, dynamic> item) {
+    final value = item['headcount'] ??
+        item['maxApplicants'] ??
+        item['openings'] ??
+        item['recruitmentCount'] ??
+        item['totalOpenings'];
+    if (value is int && value > 0) return value;
+    final parsed = int.tryParse(value?.toString() ?? '');
+    return (parsed != null && parsed > 0) ? parsed : 1;
+  }
+
+  bool _isDraftItem(Map<String, dynamic> item) {
+    if (item['isDraft'] == true) return true;
+    final status = (item['status'] ?? item['postStatus'] ?? '')
+        .toString()
+        .toLowerCase();
+    return status == 'draft';
+  }
+
+  String _resolveEmployerStatus(
+    Map<String, dynamic> item, {
+    required bool isDone,
+    required bool isDraft,
+    required int applicantsCurrent,
+    required int applicantsTotal,
+  }) {
+    final status = (item['status'] ?? item['postStatus'] ?? '')
+        .toString()
+        .toLowerCase();
+    if (isDraft || status == 'draft') return 'draft';
+    if (isDone || status == 'closed' || status == 'completed') return 'closed';
+    if (status == 'filled') return 'filled';
+    if (status == 'hiring' || status == 'open' || status == 'active') {
+      return 'hiring';
+    }
+    if (applicantsTotal > 0 && applicantsCurrent >= applicantsTotal) {
+      return 'filled';
+    }
+    return 'hiring';
+  }
+
+  String _calculateDDay(String? endDateStr) {
+    if (endDateStr == null) return "D-?";
+    try {
+      final endDate = DateTime.parse(endDateStr);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final target = DateTime(endDate.year, endDate.month, endDate.day);
+      final diff = target.difference(today).inDays;
+      if (diff == 0) return "D-Day";
+      return diff < 0 ? "Expired" : "D-$diff";
+    } catch (e) {
+      return "D-?";
+    }
+  }
+
+  // --- UI 구조 통일화를 위한 Getter ---
+
+  /// UI에서 모집 중 리스트를 부를 때 사용 (Recruitment 탭)
+  List<Map<String, dynamic>> get currentRecruitmentHistory {
+    return isEmployer ? employerRecruitmentHistory : recruitmentHistory;
+  }
+
+  /// UI에서 완료된 유급 업무 리스트를 부를 때 사용 (Completion 탭 - Works 섹션)
+  List<Map<String, dynamic>> get currentCompletionWorks {
+    return isEmployer ? employerCompletionHistory : completionHistoryWorks;
+  }
+
+  /// UI에서 자원봉사 리스트를 부를 때 사용 (Completion 탭 - Volunteer 섹션)
+  List<Map<String, dynamic>> get filteredVolunteerList {
+    final sourceList = isEmployer
+        ? employerCompletionVolunteer
+        : completionHistoryVolunteer;
+
+    if (volunteerFilter.value == 0) {
+      return sourceList.where((item) => item['isDraft'] == true).toList();
+    } else {
+      return sourceList.where((item) => item['isDraft'] == false).toList();
+    }
+  }
+
+  /// 구인자 전용: 내 모든 공고 (모달 등에서 사용)
+  List<Map<String, dynamic>> get employerJobOpenings => [
+    ...employerRecruitmentHistory,
+    ...employerCompletionHistory,
+    ...employerCompletionVolunteer,
   ];
 
-  final List<Map<String, dynamic>> completionHistoryWorks = [
-    {
-      'title': 'Weekend Market Assistant',
-      'employer': 'Freshyyy',
-      'dDay': 'Completed',
-      'tag': 'Veteran',
-      'hasContent': true,
-      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-        'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=100',
-      ],
-    },
-    {
-      'title': 'Casual Event Assistant',
-      'employer': 'Central Art Concert Hall',
-      'dDay': 'Completed',
-      'tag': 'Rookie',
-      'hasContent': true,
-      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-      ],
-    },
-    {
-      'title': 'Festival Support Staff',
-      'employer': 'IngA Music Festival',
-      'dDay': 'Completed',
-      'tag': 'Rookie',
-      'hasContent': true,
-      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt.',
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-      ],
-    },
-  ];
+  static const _employerStatusByTab = ['hiring', 'filled', 'closed', 'draft'];
 
-  /// 구인자: 지금 하고 있는 공고만 (Recruitment history 탭)
-  final List<Map<String, dynamic>> employerRecruitmentHistory = [
-    {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'hasContent': false,
-      'photos': [],
-    },
-    {
-      'title': 'Festival Support Staff',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-12',
-      'tag': 'Veteran',
-      'hasContent': true,
-      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-      ],
-    },
-    {
-      'title': 'Casual Bar Support Staff',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-20',
-      'tag': 'Veteran',
-      'hasContent': false,
-      'photos': [],
-    },
-  ];
+  /// 현재 구인자 탭에 해당하는 공고 목록
+  List<Map<String, dynamic>> get employerJobsForCurrentTab {
+    final status = _employerStatusByTab[employerTabIndex.value.clamp(0, 3)];
+    return employerJobOpenings
+        .where((job) => job['employerStatus'] == status)
+        .toList();
+  }
 
-  /// 구인자: 끝난 공고만 (Completion history 탭)
-  final List<Map<String, dynamic>> employerCompletionHistory = [
-    {
-      'title': 'Weekend Market Assistant',
-      'employer': 'Freshyyy',
-      'dDay': 'Completed',
-      'tag': 'Veteran',
-      'hasContent': true,
-      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-      ],
-    },
-    {
-      'title': 'Festival Support Staff',
-      'employer': 'IngA Music Festival',
-      'dDay': 'Completed',
-      'tag': 'Rookie',
-      'hasContent': true,
-      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-      ],
-    },
-  ];
-
-  final List<Map<String, dynamic>> completionHistoryVolunteer = [
-    {
-      'title': 'Youth Program Support Assistant',
-      'employer': 'You and Us',
-      'dDay': 'Completed',
-      'tag': 'Rookie',
-      'hasContent': true,
-      'isDraft': false,
-      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-      ],
-    },
-    {
-      'title': 'Animal Care Volunteer Assistant',
-      'employer': 'W.H.A (Animal Care Center)',
-      'dDay': 'Completed',
-      'tag': 'Veteran',
-      'hasContent': true,
-      'isDraft': false,
-      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=100',
-        'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=100',
-      ],
-    },
-    {
-      'title': 'Horse Care Volunteer Assistant',
-      'employer': 'Hehe Farm',
-      'dDay': 'Completed',
-      'tag': 'Rookie',
-      'hasContent': true,
-      'isDraft': false,
-      'body': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-      'photos': [
-        'https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=100',
-      ],
-    },
-  ];
+  bool get showEmployerApplicantBadge {
+    final tab = employerTabIndex.value;
+    return tab == 0 || tab == 1;
+  }
 
   void setSelectedTab(int index) => selectedTab.value = index;
+  void setEmployerTab(int index) => employerTabIndex.value = index;
+  void setSeekerTab(int index) {
+    seekerTabIndex.value = index;
+    // 기존 로직(goToWritePage/goToDetailPage)에서 selectedTab을 사용하므로 동기화한다.
+    // 0: Applying → 작성 페이지 분기, 1·2 → 상세 페이지 분기
+    selectedTab.value = index == 0 ? 0 : 1;
+  }
+
+  /// 구직자 탭별 데이터 (0 Applying / 1 Done / 2 Volunteer)
+  List<Map<String, dynamic>> get seekerJobsForCurrentTab {
+    switch (seekerTabIndex.value) {
+      case 1:
+        return completionHistoryWorks;
+      case 2:
+        return completionHistoryVolunteer;
+      case 0:
+      default:
+        return recruitmentHistory;
+    }
+  }
+
+  /// 구직자 현재 탭이 카드 우측에 사진 썸네일을 보여줄지 여부.
+  bool get showSeekerPhotos => seekerTabIndex.value != 0;
+
   void setVolunteerFilter(int value) => volunteerFilter.value = value;
 
-  /// 구인자: 내가 올린 공고 전체 (My Job Openings 모달용)
-  List<Map<String, dynamic>> get employerJobOpenings => [
-        ...employerRecruitmentHistory,
-        ...employerCompletionHistory,
-      ];
+  Future<void> goToEmployerWritePage() async {
+    final result = await Get.to(() => const EmployerNoteWritePage());
+    if (result == true) await fetchAllData();
+  }
 
-  List<Map<String, dynamic>> get filteredVolunteerList =>
-      volunteerFilter.value == 0
-          ? completionHistoryVolunteer
-              .where((item) => item['isDraft'] == true)
-              .toList()
-          : completionHistoryVolunteer
-              .where((item) => item['isDraft'] == false)
-              .toList();
-
-  void goToWritePage(Map<String, dynamic> item) {
+  Future<void> goToWritePage(Map<String, dynamic> item) async {
     final isRecruitmentTab = selectedTab.value == 0;
-    final shouldNavigate = isRecruitmentTab && (item['hasContent'] != true);
-    if (!shouldNavigate) return;
+    if (!(isRecruitmentTab && item['hasContent'] != true)) return;
 
-    if (isEmployer) {
-      Get.to(() => const EmployerNoteWritePage());
-    } else {
-      Get.to(() => const SeekerNoteWritePage());
+    final result = isEmployer
+        ? await Get.to(() => const EmployerNoteWritePage())
+        : await Get.to(() => const SeekerNoteWritePage());
+
+    // 글 작성 성공 시 (result == true) 데이터 새로고침
+    if (result == true) {
+      await fetchAllData();
     }
   }
 
   void goToDetailPage(Map<String, dynamic> item) {
-    // 구인자 recruitment 탭: 리스트 눌러도 항상 JobDetailPage
+    // 1. 구인자(Employer)인 경우
     if (isEmployer) {
+      if (item['employerStatus'] == 'draft') {
+        goToEmployerWritePage();
+        return;
+      }
       Get.to(() => const JobDetailPage());
       return;
     }
-    if (item['hasContent'] != true) return;
-    final photos = item['photos'] != null
-        ? List<String>.from(item['photos'] as List)
-        : <String>[];
-    final body = item['body'] as String? ?? '';
-    Get.to(() => NoteDetailPage(
+
+    // 2. 구직자(Seeker)인 경우
+    // 현재 선택된 탭이 '모집 중(Recruitment)' 탭(index 0)인지 확인
+    if (selectedTab.value == 0) {
+      // 모집 중인 공고를 누르면 작성 페이지로 이동
+      Get.to(() => const SeekerNoteWritePage())?.then((result) {
+        if (result == true) fetchAllData(); // 작성 후 돌아오면 새로고침
+      });
+    } else {
+      // 완료(Completion) 탭 등에서 내용이 있는 경우 상세 페이지로 이동
+      if (item['hasContent'] != true) return;
+      Get.to(
+        () => NoteDetailPage(
           title: item['title'] as String,
           employer: item['employer'] as String,
-          body: body,
-          photos: photos,
-        ));
+          body: item['body'] as String? ?? '',
+          photos: List<String>.from(item['photos'] ?? []),
+        ),
+      );
+    }
   }
 }

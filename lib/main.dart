@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
@@ -10,6 +11,8 @@ import 'pages/SignUpPage/splash_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // .env 를 가장 먼저 로드해야 Firebase 옵션이 키를 읽을 수 있다.
+  await dotenv.load(fileName: '.env');
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await initializeDateFormatting('ko_KR', null);
   await UserService.init();

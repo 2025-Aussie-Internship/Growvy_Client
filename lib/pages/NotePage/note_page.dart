@@ -1,333 +1,103 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import '../../controllers/note_page_controller.dart';
+import '../../widgets/employer_note_tab_bar.dart';
 
 /// Note 목록 View (GetX MVVM). write만 직업별(employer_note_write / seeker_note_write)로 분리.
+/// employer/seeker 모두 동일한 NoteTabBar + My History + 카드 스타일을 공유한다.
 class NotePage extends GetView<NotePageController> {
   const NotePage({super.key});
+
+  static const _employerTabs = ['Hiring', 'Filled', 'Closed', 'Draft'];
+  static const _seekerTabs = ['Applying', 'Done', 'Volunteer'];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 16, bottom: 16),
-            child: Obx(() => Row(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: Obx(() {
+          final isEmployer = controller.isEmployerObs.value;
+          return isEmployer ? _buildBody(isEmployer: true) : _buildBody(isEmployer: false);
+        }),
+      ),
+    );
+  }
+
+  Widget _buildBody({required bool isEmployer}) {
+    return Column(
+      children: [
+        Obx(
+          () => NoteTabBar(
+            selectedIndex: isEmployer
+                ? controller.employerTabIndex.value
+                : controller.seekerTabIndex.value,
+            onTabSelected: isEmployer
+                ? controller.setEmployerTab
+                : controller.setSeekerTab,
+            tabs: isEmployer ? _employerTabs : _seekerTabs,
+          ),
+        ),
+        Expanded(
+          child: Obx(() {
+            final jobs = isEmployer
+                ? controller.employerJobsForCurrentTab
+                : controller.seekerJobsForCurrentTab;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _buildTab(0, 'Recruitment history'),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  child: Text(
+                    'My History',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
                 ),
                 Expanded(
-                  child: _buildTab(1, 'Completion history'),
+                  child: jobs.isEmpty
+                      ? Center(
+                          child: Text(
+                            isEmployer ? 'No postings yet' : 'No history yet',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: jobs.length,
+                          itemBuilder: (context, index) {
+                            return _buildHistoryCard(
+                              jobs[index],
+                              isEmployer: isEmployer,
+                            );
+                          },
+                        ),
                 ),
               ],
-            )),
-          ),
-          Expanded(
-            child: Obx(() {
-              if (controller.isEmployer) {
-                return controller.selectedTab.value == 0
-                    ? _buildEmployerRecruitmentHistory()
-                    : _buildEmployerCompletionHistory();
-              }
-              return controller.selectedTab.value == 0
-                  ? _buildRecruitmentHistory()
-                  : _buildCompletionHistory();
-            }),
-          ),
-        ],
-      ),
+            );
+          }),
+        ),
+      ],
     );
   }
 
-  Widget _buildTab(int index, String label) {
-    final isSelected = controller.selectedTab.value == index;
+  Widget _buildHistoryCard(
+    Map<String, dynamic> item, {
+    required bool isEmployer,
+  }) {
     return GestureDetector(
-      onTap: () => controller.setSelectedTab(index),
+      onTap: () => _onCardTap(item, isEmployer: isEmployer),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10.5),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : const Color(0xFFF5F5F5),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(12),
-            topRight: Radius.circular(12),
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    offset: const Offset(0, -3),
-                    blurRadius: 4,
-                  ),
-                ]
-              : null,
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? const Color(0xFF931515) : const Color(0xFF747474),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecruitmentHistory() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'My History',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-              Text(
-                'most recent',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: const Color(0xFF931515),
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: controller.recruitmentHistory.length,
-            itemBuilder: (context, index) {
-              return _buildHistoryCard(controller.recruitmentHistory[index]);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 구인자: Recruitment history (지금 하고 있는 공고만)
-  Widget _buildEmployerRecruitmentHistory() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'My History',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-              Text(
-                'most recent',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: const Color(0xFF931515),
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: controller.employerRecruitmentHistory.length,
-            itemBuilder: (context, index) {
-              return _buildHistoryCard(
-                  controller.employerRecruitmentHistory[index]);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 구인자: Completion history (끝난 공고만)
-  Widget _buildEmployerCompletionHistory() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Completed',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-              Text(
-                'most recent',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: const Color(0xFF931515),
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: controller.employerCompletionHistory.length,
-            itemBuilder: (context, index) {
-              return _buildHistoryCard(
-                  controller.employerCompletionHistory[index]);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCompletionHistory() {
-    return Obx(() {
-      final filteredVolunteerList = controller.filteredVolunteerList;
-      return SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Works',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-                  Text(
-                    'most recent',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: const Color(0xFF931515),
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: controller.completionHistoryWorks.length,
-              itemBuilder: (context, index) {
-                return _buildHistoryCard(
-                    controller.completionHistoryWorks[index]);
-              },
-            ),
-            const SizedBox(height: 24),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Volunteer',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => controller.setVolunteerFilter(0),
-                        child: Text(
-                          'Draft',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: controller.volunteerFilter.value == 0
-                                ? const Color(0xFF931515)
-                                : const Color(0xFF931515),
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Container(
-                          width: 1,
-                          height: 14,
-                          color: const Color(0xFF931515),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => controller.setVolunteerFilter(1),
-                        child: Text(
-                          'most recent',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: controller.volunteerFilter.value == 1
-                                ? const Color(0xFF931515)
-                                : const Color(0xFF931515),
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: filteredVolunteerList.length,
-              itemBuilder: (context, index) {
-                return _buildHistoryCard(filteredVolunteerList[index]);
-              },
-            ),
-          ],
-        ),
-      );
-    });
-  }
-
-  Widget _buildHistoryCard(Map<String, dynamic> item) {
-    final isRecruitmentTab = controller.selectedTab.value == 0;
-    // 구인자 recruitment 탭: 모든 카드 탭 시 JobDetailPage. 구직자만 빈 공고 탭 시 write 페이지
-    final shouldNavigateToWrite =
-        isRecruitmentTab && (item['hasContent'] != true) && !controller.isEmployer;
-    final shouldNavigateToDetail =
-        (controller.isEmployer && isRecruitmentTab) || (item['hasContent'] == true);
-
-    return GestureDetector(
-      onTap: shouldNavigateToWrite
-          ? () => controller.goToWritePage(item)
-          : shouldNavigateToDetail
-              ? () => controller.goToDetailPage(item)
-              : null,
-      child: Container(
-        width: 358,
-        height: 111,
+        width: double.infinity,
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -335,53 +105,103 @@ class NotePage extends GetView<NotePageController> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: const Color(0xFFF5F5F5)),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item['title'] as String,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item['employer'] as String,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: const Color(0xFF747474),
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      _buildTag(item['dDay'] as String),
-                      const SizedBox(width: 10),
-                      _buildTag(item['tag'] as String),
-                    ],
-                  ),
-                ],
+            Text(
+              item['title'] as String,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
               ),
             ),
-            // 구인자 노트 탭에서는 사진 썸네일 미표시
-            if (!controller.isEmployer &&
-                item['photos'] != null &&
-                (item['photos'] as List).isNotEmpty)
-              _buildPhotoThumbnails(item['photos'] as List<String>),
+            const SizedBox(height: 2),
+            Text(
+              item['employer'] as String,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF747474),
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _buildTag(item['dDay'] as String),
+                const SizedBox(width: 10),
+                _buildTag(item['tag'] as String),
+                const Spacer(),
+                _buildTrailing(item, isEmployer: isEmployer),
+              ],
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _onCardTap(Map<String, dynamic> item, {required bool isEmployer}) {
+    if (isEmployer) {
+      controller.goToDetailPage(item);
+      return;
+    }
+    // Seeker: Applying 탭이면 작성/상세 분기, 그 외는 사진/상세
+    final isApplyingTab = controller.seekerTabIndex.value == 0;
+    if (isApplyingTab && (item['hasContent'] != true)) {
+      controller.goToWritePage(item);
+    } else if (item['hasContent'] == true || isApplyingTab) {
+      controller.goToDetailPage(item);
+    }
+  }
+
+  Widget _buildTrailing(
+    Map<String, dynamic> item, {
+    required bool isEmployer,
+  }) {
+    if (isEmployer) {
+      if (!controller.showEmployerApplicantBadge) return const SizedBox.shrink();
+      final current = item['applicantsCurrent'] as int? ?? 0;
+      final total = item['applicantsTotal'] as int? ?? 1;
+      return _buildApplicantBadge(current, total);
+    }
+    // Seeker: Done/Volunteer 탭에서 사진이 있을 때만 썸네일
+    if (!controller.showSeekerPhotos) return const SizedBox.shrink();
+    final photos = item['photos'];
+    if (photos is! List || photos.isEmpty) return const SizedBox.shrink();
+    return _buildPhotoThumbnails(List<String>.from(photos));
+  }
+
+  Widget _buildApplicantBadge(int current, int total) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SvgPicture.asset(
+            'assets/icon/people_icon.svg',
+            width: 16,
+            height: 16,
+            colorFilter: const ColorFilter.mode(
+              Color(0xFF747474),
+              BlendMode.srcIn,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '$current/$total',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF747474),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -427,7 +247,7 @@ class NotePage extends GetView<NotePageController> {
                 border: Border.all(color: Colors.white, width: 1),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 4,
                   ),
                 ],
