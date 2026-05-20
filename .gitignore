@@ -43,3 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Firebase native configs (포함된 키 보호용 - .env 로 분리됨)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+ios/firebase_app_id_file.json
+macos/firebase_app_id_file.json

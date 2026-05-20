@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../config/env.dart';
 import '../controllers/auth_controller.dart';
 import '../pages/MainPage/job_detail_page.dart';
 import '../pages/NotePage/employer_note_write_page.dart';
@@ -82,7 +83,7 @@ class NotePageController extends GetxController {
   // 1. 구직자 - 모집 중 (Recruitment)
   Future<void> fetchSeekerRecruitment() async {
     final data = await _fetchFromApi(
-      "https://growvy.digitalbasis.com/api/jobseeker/posts",
+      "${Env.apiBaseUrl}/api/jobseeker/posts",
     );
     if (data != null) recruitmentHistory.assignAll(_mapApiData(data));
   }
@@ -90,7 +91,7 @@ class NotePageController extends GetxController {
   // 2. 구직자 - 완료 (Completion)
   Future<void> fetchSeekerCompletion() async {
     final data = await _fetchFromApi(
-      "https://growvy.digitalbasis.com/api/jobseeker/posts/done",
+      "${Env.apiBaseUrl}/api/jobseeker/posts/done",
     );
     if (data != null) {
       final allDone = _mapApiData(data, isDone: true);
@@ -106,7 +107,7 @@ class NotePageController extends GetxController {
   // 3. 구인자 - 모집 중 (Recruitment)
   Future<void> fetchEmployerRecruitment() async {
     final data = await _fetchFromApi(
-      "https://growvy.digitalbasis.com/api/employer/posts",
+      "${Env.apiBaseUrl}/api/employer/posts",
     );
     if (data != null) {
       employerRecruitmentHistory.assignAll(
@@ -118,7 +119,7 @@ class NotePageController extends GetxController {
   // 4. 구인자 - 완료 (Completion)
   Future<void> fetchEmployerCompletion() async {
     final data = await _fetchFromApi(
-      "https://growvy.digitalbasis.com/api/employer/posts/done",
+      "${Env.apiBaseUrl}/api/employer/posts/done",
     );
     if (data != null) {
       final allDone = _mapApiData(data, isDone: true, forEmployer: true);

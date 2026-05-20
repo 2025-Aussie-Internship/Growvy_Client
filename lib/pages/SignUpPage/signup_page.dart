@@ -35,9 +35,9 @@ class SignUpPage extends StatelessWidget {
       print('Firebase UID: ${userCredential.user?.uid}');
       print('Firebase Token: $firebaseIdToken');
 
-      // 백엔드 로그인 요청
+      // 백엔드 로그인 요청 (호스트는 .env 의 API_BASE_URL 사용 예정)
       // final response = await http.post(
-      //   Uri.parse('http://43.201.9.192/api/auth/login'),
+      //   Uri.parse('${Env.apiBaseUrl}/api/auth/login'),
       //   headers: {'Authorization': 'Bearer $firebaseIdToken'},
       // );
       // print('Backend status: ${response.statusCode}');
