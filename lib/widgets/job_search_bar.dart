@@ -12,6 +12,8 @@ class JobSearchBar extends StatelessWidget {
   const JobSearchBar.tappable({
     super.key,
     required this.onTap,
+    this.width,
+    this.hintText = 'search for jobs',
   })  : controller = null,
         isSearching = false,
         onSubmitted = null,
@@ -25,6 +27,8 @@ class JobSearchBar extends StatelessWidget {
     this.onSubmitted,
     this.onChanged,
     this.autofocus = false,
+    this.width,
+    this.hintText = 'search for jobs',
   }) : onTap = null;
 
   final VoidCallback? onTap;
@@ -33,6 +37,8 @@ class JobSearchBar extends StatelessWidget {
   final ValueChanged<String>? onSubmitted;
   final ValueChanged<String>? onChanged;
   final bool autofocus;
+  final double? width;
+  final String hintText;
 
   static const TextStyle hintStyle = TextStyle(
     fontSize: 14,
@@ -70,7 +76,7 @@ class JobSearchBar extends StatelessWidget {
     );
 
     return SizedBox(
-      width: barWidth,
+      width: width ?? barWidth,
       height: barHeight,
       child: onTap != null
           ? Material(
@@ -86,9 +92,9 @@ class JobSearchBar extends StatelessWidget {
   }
 
   Widget _fakeHint() {
-    return const Align(
+    return Align(
       alignment: Alignment.centerLeft,
-      child: Text('search for jobs', style: hintStyle),
+      child: Text(hintText, style: hintStyle),
     );
   }
 
@@ -97,8 +103,8 @@ class JobSearchBar extends StatelessWidget {
       controller: controller,
       autofocus: autofocus,
       textAlignVertical: TextAlignVertical.center,
-      decoration: const InputDecoration(
-        hintText: 'search for jobs',
+      decoration: InputDecoration(
+        hintText: hintText,
         hintStyle: hintStyle,
         border: InputBorder.none,
         isDense: true,

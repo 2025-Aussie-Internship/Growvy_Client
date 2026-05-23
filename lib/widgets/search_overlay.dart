@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../pages/MainPage/job_detail_page.dart';
 import '../styles/colors.dart';
 import 'job_search_bar.dart';
+import 'region_modal.dart';
+import 'search_result_card.dart';
 
 /// 메인/맵의 검색 바를 누르면 그 위에 띄우는 오버레이 화면.
 /// 상단 로고 헤더와 하단 네비게이션은 그대로 두고, 본문 영역만 교체된다.
@@ -22,8 +25,46 @@ class SearchOverlayState extends State<SearchOverlay>
   bool _recentExpanded = false;
   bool _closing = false;
 
+  /// 검색을 제출했을 때 결과 화면으로 전환되는 상태값.
+  bool _showResults = false;
+  String _selectedLocation = 'Sydney';
+
   /// 접힌 상태에서 보여줄 태그 갯수 (두 줄 이내 기준)
   static const int _collapsedTagCount = 5;
+
+  /// 임시 검색 결과 데이터 — 추후 API 연동.
+  final List<Map<String, dynamic>> _results = const [
+    {
+      'title': 'Restaurant staff',
+      'company': 'Aussie Bite',
+      'tags': ['NEW', 'D-32', 'Veteran'],
+    },
+    {
+      'title': 'Farm work',
+      'company': "Will's fram",
+      'tags': ['NEW', 'D-22', 'Veteran'],
+    },
+    {
+      'title': 'Café job',
+      'company': 'This is for you Jane',
+      'tags': ['NEW', 'D-11', 'Rookie'],
+    },
+    {
+      'title': 'Record Shop Employee',
+      'company': 'People needs Rabbit!',
+      'tags': ['HOT', 'D-8', 'Rookie'],
+    },
+    {
+      'title': 'Restaurant Staff',
+      'company': 'Hopkins Night',
+      'tags': ['NEW', 'D-16', 'Veteran'],
+    },
+    {
+      'title': 'Babysitter',
+      'company': 'Dustin Byers',
+      'tags': ['NEW', 'D-13', 'Rookie'],
+    },
+  ];
 
   final List<String> _recentSearches = [
     'Farm work',
@@ -74,6 +115,33 @@ class SearchOverlayState extends State<SearchOverlay>
     if (mounted) widget.onClose();
   }
 
+  void _submitSearch(String query) {
+    final q = query.trim();
+    if (q.isEmpty) return;
+    setState(() {
+      // 최근 검색어 맨 앞에 추가 (중복 제거)
+      _recentSearches.remove(q);
+      _recentSearches.insert(0, q);
+      _showResults = true;
+    });
+  }
+
+  Future<void> _openRegionModal() async {
+    final selected = await RegionModal.show(
+      context,
+      initialRegions: {_selectedLocation},
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedLocation = selected);
+    }
+  }
+
+  void _goToJobDetail() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const JobDetailPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final topSlide = CurvedAnimation(
@@ -118,6 +186,7 @@ class SearchOverlayState extends State<SearchOverlay>
                         controller: _searchController,
                         autofocus: true,
                         onChanged: (_) => setState(() {}),
+                        onSubmitted: _submitSearch,
                       ),
                     ),
                   ),
@@ -139,7 +208,9 @@ class SearchOverlayState extends State<SearchOverlay>
                         child: Container(
                           color: Colors.white,
                           width: double.infinity,
-                          child: _buildContent(),
+                          child: _showResults
+                              ? _buildResults()
+                              : _buildContent(),
                         ),
                       ),
                     ),
@@ -298,6 +369,71 @@ class SearchOverlayState extends State<SearchOverlay>
     );
   }
 
+  Widget _buildResults() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Result of ${_results.length}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFFBDBDBD),
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              _buildLocationButton(),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+            itemCount: _results.length,
+            itemBuilder: (context, index) {
+              final item = _results[index];
+              return SearchResultCard(
+                title: item['title'] as String,
+                company: item['company'] as String,
+                tags: List<String>.from(item['tags'] as List),
+                onTap: _goToJobDetail,
+                onApply: _goToJobDetail,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationButton() {
+    return GestureDetector(
+      onTap: _openRegionModal,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 95,
+        height: 27,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFBDBDBD),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Text(
+          'Location',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTag(String term) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -359,7 +495,7 @@ class SearchOverlayState extends State<SearchOverlay>
           child: InkWell(
             onTap: () {
               _searchController.text = title;
-              setState(() {});
+              _submitSearch(title);
             },
             child: Row(
               children: [
