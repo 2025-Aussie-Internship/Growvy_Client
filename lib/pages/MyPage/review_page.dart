@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../styles/colors.dart';
+import '../../widgets/employer_note_tab_bar.dart';
 import '../../widgets/safe_back_app_bar.dart';
 import 'review_detail_page.dart';
 
@@ -14,7 +15,7 @@ class ReviewPage extends StatefulWidget {
 class _ReviewPageState extends State<ReviewPage> {
   int _selectedTab = 0;
 
-  static const Color _bgColor = Color(0xFFFF7252);
+  static const List<String> _tabs = ['My Reviews', 'Received'];
 
   final List<Map<String, dynamic>> _myReviews = [
     {
@@ -92,63 +93,22 @@ class _ReviewPageState extends State<ReviewPage> {
       appBar: const SafeBackAppBar(),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: Row(
-              children: [
-                Expanded(child: _buildTab(0, 'My Reviews')),
-                Expanded(child: _buildTab(1, 'Received Reviews')),
-              ],
-            ),
+          NoteTabBar(
+            selectedIndex: _selectedTab,
+            onTabSelected: (index) => setState(() => _selectedTab = index),
+            tabs: _tabs,
           ),
+          const SizedBox(height: 16),
           Expanded(
-            child: Container(
-              color: _bgColor,
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                itemCount: _currentList.length,
-                itemBuilder: (context, index) {
-                  return _buildReviewCard(_currentList[index], index);
-                },
-              ),
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              itemCount: _currentList.length,
+              itemBuilder: (context, index) {
+                return _buildReviewCard(_currentList[index], index);
+              },
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTab(int index, String label) {
-    final isSelected = _selectedTab == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedTab = index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10.5),
-        decoration: BoxDecoration(
-          color: isSelected ? _bgColor : const Color(0xFFF5F5F5),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(12),
-            topRight: Radius.circular(12),
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    offset: const Offset(0, -2),
-                    blurRadius: 4,
-                  ),
-                ]
-              : null,
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : const Color(0xFF747474),
-          ),
-        ),
       ),
     );
   }
@@ -160,6 +120,7 @@ class _ReviewPageState extends State<ReviewPage> {
     final isMyReviews = _selectedTab == 0;
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () async {
         final result = await Navigator.of(context).push<Map<String, dynamic>>(
           MaterialPageRoute(
@@ -187,18 +148,18 @@ class _ReviewPageState extends State<ReviewPage> {
         }
       },
       child: Container(
-        width: 358,
-        height: 137,
+        width: double.infinity,
         margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFF5F5F5)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.04),
               offset: const Offset(0, 2),
-              blurRadius: 8.4,
+              blurRadius: 8,
             ),
           ],
         ),
@@ -214,20 +175,21 @@ class _ReviewPageState extends State<ReviewPage> {
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF931515),
+                      color: AppColors.mainColor,
                     ),
                   ),
                 ),
                 _buildStarRating(rating),
               ],
             ),
-            const SizedBox(height: 7.5),
+            const SizedBox(height: 8),
             Text(
               body,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 13,
                 color: Color(0xFF4E2121),
                 fontWeight: FontWeight.w400,
+                height: 1.4,
               ),
             ),
           ],
@@ -242,11 +204,13 @@ class _ReviewPageState extends State<ReviewPage> {
       children: List.generate(5, (index) {
         final filled = index < rating;
         return Padding(
-          padding: const EdgeInsets.only(right: 2),
+          padding: const EdgeInsets.only(left: 2),
           child: SvgPicture.asset(
-            filled ? 'assets/icon/score_filled_icon.svg' : 'assets/icon/score_not_icon.svg',
-            width: 20,
-            height: 20,
+            filled
+                ? 'assets/icon/score_filled_icon.svg'
+                : 'assets/icon/score_not_icon.svg',
+            width: 16,
+            height: 16,
             colorFilter: ColorFilter.mode(
               filled ? AppColors.mainColor : const Color(0xFFBDBDBD),
               BlendMode.srcIn,

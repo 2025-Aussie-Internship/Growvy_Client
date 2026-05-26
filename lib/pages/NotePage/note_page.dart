@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import '../../controllers/note_page_controller.dart';
+import '../../styles/colors.dart';
 import '../../widgets/employer_note_tab_bar.dart';
 
 /// Note 목록 View (GetX MVVM). write만 직업별(employer_note_write / seeker_note_write)로 분리.
@@ -10,7 +11,7 @@ class NotePage extends GetView<NotePageController> {
   const NotePage({super.key});
 
   static const _employerTabs = ['Hiring', 'Filled', 'Closed', 'Draft'];
-  static const _seekerTabs = ['Applying', 'Done', 'Volunteer'];
+  static const _seekerTabs = ['Applied', 'Ongoing', 'Done', 'Saved'];
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +55,7 @@ class NotePage extends GetView<NotePageController> {
                   child: Text(
                     'My History',
                     style: TextStyle(
+                      fontFamily: 'Paperlogy',
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
@@ -94,6 +96,13 @@ class NotePage extends GetView<NotePageController> {
     Map<String, dynamic> item, {
     required bool isEmployer,
   }) {
+    // Closed / Draft (구인자) 또는 Done (구직자) 탭에서는
+    // 카드 배경을 #F9F9F9, 본문(employer)·태그를 회색 톤(#747474)으로 표시.
+    // 제목은 항상 검정색 유지.
+    final status = item['employerStatus'] as String?;
+    final isMuted = item['muted'] == true ||
+        (isEmployer && (status == 'closed' || status == 'draft'));
+
     return GestureDetector(
       onTap: () => _onCardTap(item, isEmployer: isEmployer),
       child: Container(
@@ -101,7 +110,7 @@ class NotePage extends GetView<NotePageController> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isMuted ? const Color(0xFFF9F9F9) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: const Color(0xFFF5F5F5)),
         ),
@@ -129,9 +138,9 @@ class NotePage extends GetView<NotePageController> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _buildTag(item['dDay'] as String),
+                _buildTag(item['dDay'] as String, muted: isMuted),
                 const SizedBox(width: 10),
-                _buildTag(item['tag'] as String),
+                _buildTag(item['tag'] as String, muted: isMuted),
                 const Spacer(),
                 _buildTrailing(item, isEmployer: isEmployer),
               ],
@@ -166,39 +175,45 @@ class NotePage extends GetView<NotePageController> {
       final total = item['applicantsTotal'] as int? ?? 1;
       return _buildApplicantBadge(current, total);
     }
-    // Seeker: Done/Volunteer 탭에서 사진이 있을 때만 썸네일
-    if (!controller.showSeekerPhotos) return const SizedBox.shrink();
-    final photos = item['photos'];
-    if (photos is! List || photos.isEmpty) return const SizedBox.shrink();
-    return _buildPhotoThumbnails(List<String>.from(photos));
+    // Seeker: 구인자 스타일과 동일하게 trailing 없음.
+    return const SizedBox.shrink();
   }
 
   Widget _buildApplicantBadge(int current, int total) {
+    // 지원자가 다 차면 (Filled) 주황색, 그 외(Hiring 중)는 회색.
+    final isFilled = total > 0 && current >= total;
+    final fgColor =
+        isFilled ? AppColors.subColor : const Color(0xFF747474);
+    final bgColor = isFilled
+        ? AppColors.subColor.withValues(alpha: 0.12)
+        : const Color(0xFFF5F5F5);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      width: 64,
+      height: 22,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(20),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(200),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           SvgPicture.asset(
             'assets/icon/people_icon.svg',
-            width: 16,
-            height: 16,
-            colorFilter: const ColorFilter.mode(
-              Color(0xFF747474),
-              BlendMode.srcIn,
-            ),
+            width: 14,
+            height: 14,
+            colorFilter: ColorFilter.mode(fgColor, BlendMode.srcIn),
           ),
           const SizedBox(width: 4),
           Text(
             '$current/$total',
-            style: const TextStyle(
+            style: TextStyle(
+              fontFamily: 'Pretendard',
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF747474),
+              color: fgColor,
+              height: 1,
             ),
           ),
         ],
@@ -206,19 +221,19 @@ class NotePage extends GetView<NotePageController> {
     );
   }
 
-  Widget _buildTag(String text) {
+  Widget _buildTag(String text, {bool muted = false}) {
     return Container(
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFEE9D8),
+        color: muted ? const Color(0xFFF5F5F5) : const Color(0xFFFEE9D8),
         borderRadius: BorderRadius.circular(4),
       ),
       alignment: Alignment.center,
       child: Text(
         text,
-        style: const TextStyle(
-          color: Color(0xFF931515),
+        style: TextStyle(
+          color: muted ? const Color(0xFF747474) : const Color(0xFF931515),
           fontSize: 12,
           fontWeight: FontWeight.w500,
           height: 14 / 12,
@@ -227,48 +242,4 @@ class NotePage extends GetView<NotePageController> {
     );
   }
 
-  Widget _buildPhotoThumbnails(List<String> photos) {
-    final displayPhotos = photos.take(3).toList();
-    const double photoSize = 30;
-    const double overlap = 8;
-
-    return SizedBox(
-      width: photoSize + (displayPhotos.length - 1) * (photoSize - overlap),
-      height: photoSize,
-      child: Stack(
-        children: List.generate(displayPhotos.length, (index) {
-          return Positioned(
-            left: index * (photoSize - overlap),
-            child: Container(
-              width: photoSize,
-              height: photoSize,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.white, width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Image.network(
-                  displayPhotos[index],
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.image, size: 20),
-                    );
-                  },
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
 }
