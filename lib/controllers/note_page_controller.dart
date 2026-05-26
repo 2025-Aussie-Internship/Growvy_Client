@@ -308,13 +308,204 @@ class NotePageController extends GetxController {
 
   static const _employerStatusByTab = ['hiring', 'filled', 'closed', 'draft'];
 
-  /// 현재 구인자 탭에 해당하는 공고 목록
+  /// 현재 구인자 탭에 해당하는 공고 목록.
+  /// API 데이터가 비어 있을 때(디자인/개발용)는 더미를 반환한다.
   List<Map<String, dynamic>> get employerJobsForCurrentTab {
-    final status = _employerStatusByTab[employerTabIndex.value.clamp(0, 3)];
-    return employerJobOpenings
+    final tab = employerTabIndex.value.clamp(0, 3);
+    final status = _employerStatusByTab[tab];
+    final filtered = employerJobOpenings
         .where((job) => job['employerStatus'] == status)
         .toList();
+    if (filtered.isNotEmpty) return filtered;
+    switch (tab) {
+      case 0:
+        return _employerHiringDummy;
+      case 1:
+        return _employerFilledDummy;
+      case 2:
+        return _employerClosedDummy;
+      case 3:
+        return _employerDraftDummy;
+    }
+    return const [];
   }
+
+  /// Hiring 탭 (구인자) - API 데이터 없을 때 사용하는 더미.
+  static const List<Map<String, dynamic>> _employerHiringDummy = [
+    {
+      'title': 'Food Delivery Rider',
+      'employer': 'Hungry Panda',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'applicantsCurrent': 1,
+      'applicantsTotal': 3,
+      'employerStatus': 'hiring',
+    },
+    {
+      'title': 'Temporary Sales Assistant',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'applicantsCurrent': 2,
+      'applicantsTotal': 5,
+      'employerStatus': 'hiring',
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Red Bull Australia',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'applicantsCurrent': 4,
+      'applicantsTotal': 7,
+      'employerStatus': 'hiring',
+    },
+    {
+      'title': 'Festival Support Staff',
+      'employer': 'Boost Juice',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'applicantsCurrent': 2,
+      'applicantsTotal': 5,
+      'employerStatus': 'hiring',
+    },
+    {
+      'title': 'Event Helper',
+      'employer': 'Boost Juice',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'applicantsCurrent': 0,
+      'applicantsTotal': 4,
+      'employerStatus': 'hiring',
+    },
+  ];
+
+  /// Filled 탭 (구인자) - API 데이터 없을 때 사용하는 더미.
+  /// 지원자가 모두 차서 applicantsCurrent == applicantsTotal.
+  static const List<Map<String, dynamic>> _employerFilledDummy = [
+    {
+      'title': 'Cashier',
+      'employer': 'Blue Wattle Coffee',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'applicantsCurrent': 1,
+      'applicantsTotal': 1,
+      'employerStatus': 'filled',
+    },
+    {
+      'title': 'Barista',
+      'employer': 'Blue Wattle Coffee',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'applicantsCurrent': 2,
+      'applicantsTotal': 2,
+      'employerStatus': 'filled',
+    },
+    {
+      'title': 'Brand Ambassador',
+      'employer': 'UGG (AU)',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'applicantsCurrent': 1,
+      'applicantsTotal': 1,
+      'employerStatus': 'filled',
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'UGG (AU)',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'applicantsCurrent': 8,
+      'applicantsTotal': 8,
+      'employerStatus': 'filled',
+    },
+    {
+      'title': 'Office Assistant',
+      'employer': "Browing'",
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'applicantsCurrent': 3,
+      'applicantsTotal': 3,
+      'employerStatus': 'filled',
+    },
+  ];
+
+  /// Closed 탭 (구인자) - 완전히 끝난 공고 더미.
+  static const List<Map<String, dynamic>> _employerClosedDummy = [
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'employerStatus': 'closed',
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'employerStatus': 'closed',
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'employerStatus': 'closed',
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'employerStatus': 'closed',
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'employerStatus': 'closed',
+    },
+  ];
+
+  /// Draft 탭 (구인자) - 임시 저장된 공고 더미.
+  static const List<Map<String, dynamic>> _employerDraftDummy = [
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'employerStatus': 'draft',
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'employerStatus': 'draft',
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'employerStatus': 'draft',
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'employerStatus': 'draft',
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'employerStatus': 'draft',
+    },
+  ];
 
   bool get showEmployerApplicantBadge {
     final tab = employerTabIndex.value;
@@ -330,21 +521,149 @@ class NotePageController extends GetxController {
     selectedTab.value = index == 0 ? 0 : 1;
   }
 
-  /// 구직자 탭별 데이터 (0 Applying / 1 Done / 2 Volunteer)
+  /// 구직자 탭별 데이터 (0 Applied / 1 Ongoing / 2 Done / 3 Saved).
+  /// API 데이터가 비어있을 때(디자인/개발용)는 더미를 반환한다.
   List<Map<String, dynamic>> get seekerJobsForCurrentTab {
-    switch (seekerTabIndex.value) {
-      case 1:
-        return completionHistoryWorks;
-      case 2:
-        return completionHistoryVolunteer;
+    final tab = seekerTabIndex.value.clamp(0, 3);
+    switch (tab) {
       case 0:
-      default:
-        return recruitmentHistory;
+        return recruitmentHistory.isNotEmpty
+            ? recruitmentHistory
+            : _seekerAppliedDummy;
+      case 1:
+        return _seekerOngoingDummy;
+      case 2:
+        return completionHistoryWorks.isNotEmpty
+            ? completionHistoryWorks
+            : _seekerDoneDummy;
+      case 3:
+        return _seekerSavedDummy;
     }
+    return const [];
   }
 
-  /// 구직자 현재 탭이 카드 우측에 사진 썸네일을 보여줄지 여부.
-  bool get showSeekerPhotos => seekerTabIndex.value != 0;
+  /// Applied 탭 (구직자) - 지원한 공고 더미.
+  static const List<Map<String, dynamic>> _seekerAppliedDummy = [
+    {
+      'title': 'Food Delivery Rider',
+      'employer': 'Hungry Panda',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+    },
+    {
+      'title': 'Temporary Sales Assistant',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+    },
+    {
+      'title': 'Café Job',
+      'employer': "Bunny's",
+      'dDay': 'D-15',
+      'tag': 'Rookie',
+    },
+    {
+      'title': 'Restaurant Staff',
+      'employer': 'Aussie Bite',
+      'dDay': 'D-32',
+      'tag': 'Veteran',
+    },
+    {
+      'title': 'Babysitter',
+      'employer': "Jake's mom",
+      'dDay': 'D-8',
+      'tag': 'Rookie',
+    },
+  ];
+
+  /// Ongoing 탭 (구직자) - 진행 중인 일 더미.
+  static const List<Map<String, dynamic>> _seekerOngoingDummy = [
+    {
+      'title': 'Cashier',
+      'employer': 'Blue Wattle Coffee',
+      'dDay': 'D-12',
+      'tag': 'Rookie',
+    },
+    {
+      'title': 'Barista',
+      'employer': 'Blue Wattle Coffee',
+      'dDay': 'D-9',
+      'tag': 'Rookie',
+    },
+    {
+      'title': 'Brand Ambassador',
+      'employer': 'UGG (AU)',
+      'dDay': 'D-6',
+      'tag': 'Veteran',
+    },
+  ];
+
+  /// Done 탭 (구직자) - 완료한 일 더미. 카드 전체 muted 처리.
+  static const List<Map<String, dynamic>> _seekerDoneDummy = [
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'muted': true,
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'muted': true,
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'muted': true,
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'muted': true,
+    },
+    {
+      'title': 'Pop-Up Store Crew',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'muted': true,
+    },
+  ];
+
+  /// Saved 탭 (구직자) - 북마크한 공고 더미.
+  static const List<Map<String, dynamic>> _seekerSavedDummy = [
+    {
+      'title': 'Record Shop Employee',
+      'employer': 'People needs Rabbit!',
+      'dDay': 'D-8',
+      'tag': 'Rookie',
+    },
+    {
+      'title': 'Festival Support Staff',
+      'employer': 'Boost Juice',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+    },
+    {
+      'title': 'Hostel Staff',
+      'employer': 'Ustaing',
+      'dDay': 'D-10',
+      'tag': 'Rookie',
+    },
+    {
+      'title': 'Dog Walker',
+      'employer': 'Pet Lovers',
+      'dDay': 'D-5',
+      'tag': 'Rookie',
+    },
+  ];
 
   void setVolunteerFilter(int value) => volunteerFilter.value = value;
 

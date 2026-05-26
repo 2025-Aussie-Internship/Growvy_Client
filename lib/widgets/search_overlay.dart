@@ -27,7 +27,6 @@ class SearchOverlayState extends State<SearchOverlay>
 
   /// 검색을 제출했을 때 결과 화면으로 전환되는 상태값.
   bool _showResults = false;
-  String _selectedLocation = 'Sydney';
 
   /// 접힌 상태에서 보여줄 태그 갯수 (두 줄 이내 기준)
   static const int _collapsedTagCount = 5;
@@ -127,13 +126,7 @@ class SearchOverlayState extends State<SearchOverlay>
   }
 
   Future<void> _openRegionModal() async {
-    final selected = await RegionModal.show(
-      context,
-      initialRegions: {_selectedLocation},
-    );
-    if (selected != null && mounted) {
-      setState(() => _selectedLocation = selected);
-    }
+    await RegionModal.show(context);
   }
 
   void _goToJobDetail() {
