@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../styles/colors.dart';
+import '../MainPage/job_detail_page.dart';
 
 /// 구인자가 새로운 공고를 작성하기 위한 다단계 입력 페이지.
 ///
@@ -58,15 +60,49 @@ class _StartHiringPageState extends State<StartHiringPage> {
     'SAT',
   ];
 
+  static const List<String> _fullDayNames = [
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+  ];
+
+  static const List<String> _monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  static const List<String> _superannuationOptions = [
+    'Paid separately',
+    'Included in rate',
+  ];
+
   int _currentStep = 0;
   bool _menuOpen = false;
+
+  /// 한 번 자동으로 넘어간 단계는 다시 자동 진행하지 않는다.
+  /// (뒤로 돌아와서 수정하는 동안 또 자동 이동되는 것을 막기 위함)
+  final Set<int> _autoAdvancedSteps = {};
 
   // Basic Info
   final TextEditingController _jobTitleController = TextEditingController();
   final TextEditingController _companyNameController = TextEditingController();
   final TextEditingController _workLocationController = TextEditingController();
   String? _employmentType;
-  final Set<String> _selectedIndustries = {'Events & Festivals'};
+  final Set<String> _selectedIndustries = <String>{};
 
   // Job Details
   final TextEditingController _responsibilitiesController =
@@ -74,9 +110,47 @@ class _StartHiringPageState extends State<StartHiringPage> {
   final TextEditingController _shiftDetailsController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _peopleCountController = TextEditingController();
-  int? _selectedDayIndex = 0;
-  TimeOfDay _fromTime = const TimeOfDay(hour: 9, minute: 0);
-  TimeOfDay _toTime = const TimeOfDay(hour: 12, minute: 0);
+  final Set<int> _selectedDayIndices = {0};
+  // 요일별 시간 저장. 키는 0~6 (Sun~Sat).
+  final Map<int, _TimeRange> _dayTimes = {
+    0: const _TimeRange(
+      from: TimeOfDay(hour: 9, minute: 0),
+      to: TimeOfDay(hour: 12, minute: 0),
+    ),
+  };
+
+  static const _TimeRange _defaultRange = _TimeRange(
+    from: TimeOfDay(hour: 9, minute: 0),
+    to: TimeOfDay(hour: 12, minute: 0),
+  );
+
+  // Pay & Benefits
+  final TextEditingController _hourlyRateController = TextEditingController();
+  final TextEditingController _penaltyRateController = TextEditingController();
+  String? _superannuation;
+
+  // Application Settings
+  DateTime _calendarMonth = DateTime(2026, 2, 1);
+  DateTime? _selectedDate = DateTime(2026, 2, 19);
+
+  @override
+  void initState() {
+    super.initState();
+    // 모든 텍스트 컨트롤러 변경마다 자동 진행 조건을 재평가한다.
+    for (final c in <TextEditingController>[
+      _jobTitleController,
+      _companyNameController,
+      _workLocationController,
+      _responsibilitiesController,
+      _shiftDetailsController,
+      _dateController,
+      _peopleCountController,
+      _hourlyRateController,
+      _penaltyRateController,
+    ]) {
+      c.addListener(_maybeAdvance);
+    }
+  }
 
   @override
   void dispose() {
@@ -87,52 +161,224 @@ class _StartHiringPageState extends State<StartHiringPage> {
     _shiftDetailsController.dispose();
     _dateController.dispose();
     _peopleCountController.dispose();
+    _hourlyRateController.dispose();
+    _penaltyRateController.dispose();
     super.dispose();
+  }
+
+  bool _isStepComplete(int step) {
+    switch (step) {
+      case 0: // Basic Info
+        return _jobTitleController.text.trim().isNotEmpty &&
+            _companyNameController.text.trim().isNotEmpty &&
+            _workLocationController.text.trim().isNotEmpty &&
+            _employmentType != null &&
+            _selectedIndustries.isNotEmpty;
+      case 1: // Job Details
+        return _responsibilitiesController.text.trim().isNotEmpty &&
+            _shiftDetailsController.text.trim().isNotEmpty &&
+            _dateController.text.trim().isNotEmpty &&
+            _peopleCountController.text.trim().isNotEmpty &&
+            _selectedDayIndices.isNotEmpty;
+      case 2: // Pay & Benefits
+        return _hourlyRateController.text.trim().isNotEmpty &&
+            _penaltyRateController.text.trim().isNotEmpty &&
+            _superannuation != null;
+      case 3: // Application Settings
+        return _selectedDate != null;
+      default:
+        return false;
+    }
+  }
+
+  /// 현재 단계가 모두 채워졌고 아직 자동 진행되지 않았다면
+  /// 짧은 딜레이 후 다음 단계로 이동한다.
+  void _maybeAdvance() {
+    if (_currentStep >= _steps.length - 1) return;
+    if (_autoAdvancedSteps.contains(_currentStep)) return;
+    if (!_isStepComplete(_currentStep)) return;
+    _autoAdvancedSteps.add(_currentStep);
+    final stepBeforeDelay = _currentStep;
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      if (_currentStep != stepBeforeDelay) return;
+      setState(() => _currentStep = stepBeforeDelay + 1);
+    });
+  }
+
+  void _onBackPressed() {
+    if (_currentStep > 0) {
+      setState(() => _currentStep--);
+    } else {
+      Navigator.maybePop(context);
+    }
+  }
+
+  /// 현재 단계에 해당하는 본문 위젯을 반환한다. AnimatedSwitcher 의 child 로 사용된다.
+  Widget _buildStepBody() {
+    switch (_currentStep) {
+      case 0:
+        return _buildBasicInfo();
+      case 1:
+        return _buildJobDetails();
+      case 2:
+        return _buildPayBenefits();
+      case 3:
+        return _buildApplicationSettings();
+      case 4:
+        return _buildPublish();
+      default:
+        return _buildBasicInfo();
+    }
+  }
+
+  /// Publish 버튼 핸들러.
+  ///
+  /// - 0~3 단계 중 필수값이 비어있는 첫 단계가 있으면 그 단계로 되돌아간다.
+  /// - 모두 채워졌으면 입력값을 [JobDetailPage] 로 전달하면서 화면을 교체한다.
+  ///   ([Navigator.pushReplacement] 로 작성 페이지를 스택에서 제거하므로,
+  ///   상세 페이지의 뒤로가기 시 곧바로 MainPage 로 돌아간다.)
+  void _onPublishPressed() {
+    for (int i = 0; i < _steps.length - 1; i++) {
+      if (!_isStepComplete(i)) {
+        setState(() {
+          _currentStep = i;
+          _menuOpen = false;
+          _autoAdvancedSteps.remove(i);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 2),
+            backgroundColor: AppColors.mainColor,
+            content: Text(
+              'Please complete "${_steps[i]['label']!.replaceAll('\n', ' ')}" first.',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    final tags = <String>[
+      ?_employmentType,
+      ..._selectedIndustries,
+    ];
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => JobDetailPage(
+          title: _jobTitleController.text.trim(),
+          companyName: _companyNameController.text.trim(),
+          description: _responsibilitiesController.text.trim(),
+          tags: tags,
+          scheduleDate: _dateController.text.trim(),
+          scheduleTime: _buildScheduleTimeText(),
+          location: _workLocationController.text.trim(),
+          payText: _buildPayText(),
+          openingsText: _buildOpeningsText(),
+        ),
+      ),
+    );
+  }
+
+  String _buildScheduleTimeText() {
+    final indices = _selectedDayIndices.toList()..sort();
+    if (indices.isEmpty) return '';
+    return indices.map((i) {
+      final range = _dayTimes[i] ?? _defaultRange;
+      final dayShort = _weekDays[i][0] + _weekDays[i].substring(1).toLowerCase();
+      return '$dayShort ${_formatTime(range.from)} - ${_formatTime(range.to)}';
+    }).join(', ');
+  }
+
+  String _buildPayText() {
+    final rate = _hourlyRateController.text.trim();
+    if (rate.isEmpty) return '';
+    return '\$$rate per hour';
+  }
+
+  String _buildOpeningsText() {
+    final count = _peopleCountController.text.trim();
+    if (count.isEmpty) return '';
+    final isOne = count == '1';
+    return '$count ${isOne ? 'opening' : 'openings'}.';
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return PopScope(
+      canPop: _currentStep == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_currentStep > 0) {
+          setState(() => _currentStep--);
+        }
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.white,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
-          onPressed: () => Navigator.maybePop(context),
-        ),
-        title: const Text(
-          'Start Hiring',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          surfaceTintColor: Colors.white,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              color: Colors.black,
+              size: 20,
+            ),
+            onPressed: _onBackPressed,
           ),
-        ),
-        centerTitle: true,
-      ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: IndexedStack(
-              index: _currentStep,
-              children: [
-                _buildBasicInfo(),
-                _buildJobDetails(),
-                _buildPlaceholder('Pay & Benefits'),
-                _buildPlaceholder('Application Settings'),
-                _buildPlaceholder('Publish'),
-              ],
+          title: const Text(
+            'Start Hiring',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          Positioned(
-            right: 16,
-            bottom: 90,
-            child: _buildStepMenuArea(),
-          ),
-        ],
+          centerTitle: true,
+        ),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 280),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  final slideIn = Tween<Offset>(
+                    begin: const Offset(0, 0.04),
+                    end: Offset.zero,
+                  ).animate(animation);
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(position: slideIn, child: child),
+                  );
+                },
+                layoutBuilder: (current, previous) {
+                  return Stack(
+                    alignment: Alignment.topCenter,
+                    children: [
+                      ...previous,
+                      ?current,
+                    ],
+                  );
+                },
+                child: KeyedSubtree(
+                  key: ValueKey<int>(_currentStep),
+                  child: _buildStepBody(),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 16,
+              bottom: 90,
+              child: _buildStepMenuArea(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -171,7 +417,10 @@ class _StartHiringPageState extends State<StartHiringPage> {
               return _buildChoiceChip(
                 label: type,
                 selected: _employmentType == type,
-                onTap: () => setState(() => _employmentType = type),
+                onTap: () {
+                  setState(() => _employmentType = type);
+                  _maybeAdvance();
+                },
               );
             }).toList(),
           ),
@@ -186,13 +435,16 @@ class _StartHiringPageState extends State<StartHiringPage> {
               return _buildChoiceChip(
                 label: item,
                 selected: isSelected,
-                onTap: () => setState(() {
-                  if (isSelected) {
-                    _selectedIndustries.remove(item);
-                  } else {
-                    _selectedIndustries.add(item);
-                  }
-                }),
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selectedIndustries.remove(item);
+                    } else {
+                      _selectedIndustries.add(item);
+                    }
+                  });
+                  _maybeAdvance();
+                },
               );
             }).toList(),
           ),
@@ -224,6 +476,11 @@ class _StartHiringPageState extends State<StartHiringPage> {
           _buildUnderlineField(
             controller: _dateController,
             hintText: 'DD/MM/YYYY - DD/MM/YYYY',
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              _DateRangeInputFormatter(),
+            ],
           ),
           const SizedBox(height: 16),
           _buildLabel('Number of people'),
@@ -231,6 +488,7 @@ class _StartHiringPageState extends State<StartHiringPage> {
             controller: _peopleCountController,
             hintText: 'At least one person',
             keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           ),
           const SizedBox(height: 16),
           _buildLabel('Day of the Week'),
@@ -238,32 +496,168 @@ class _StartHiringPageState extends State<StartHiringPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(_weekDays.length, (index) {
-              final isSelected = _selectedDayIndex == index;
+              final isSelected = _selectedDayIndices.contains(index);
               return _buildDayChip(
                 label: _weekDays[index],
                 selected: isSelected,
-                onTap: () => setState(() => _selectedDayIndex = index),
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selectedDayIndices.remove(index);
+                      _dayTimes.remove(index);
+                    } else {
+                      _selectedDayIndices.add(index);
+                      _dayTimes.putIfAbsent(index, () => _defaultRange);
+                    }
+                  });
+                  _maybeAdvance();
+                },
               );
             }),
           ),
           const SizedBox(height: 16),
           _buildLabel('Time'),
           const SizedBox(height: 8),
-          _buildTimeCard(),
+          ...(_selectedDayIndices.toList()..sort()).map(
+            (dayIndex) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _buildTimeCard(dayIndex),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // ---------------- 3~5) Placeholder ----------------
-  Widget _buildPlaceholder(String title) {
-    return Center(
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          color: _labelGray,
+  // ---------------- 3) Pay & Benefits ----------------
+  Widget _buildPayBenefits() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 120),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel('Hourly Rate'),
+          _buildUnderlineField(
+            controller: _hourlyRateController,
+            hintText: '0000.00',
+            prefixText: '\$ ',
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [_DecimalAmountFormatter()],
+          ),
+          const SizedBox(height: 16),
+          _buildLabel('Penalty Rates'),
+          _buildUnderlineField(
+            controller: _penaltyRateController,
+            hintText: '0000.00',
+            prefixText: '\$ ',
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [_DecimalAmountFormatter()],
+          ),
+          const SizedBox(height: 16),
+          _buildLabel('Superannuation'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _superannuationOptions.map((option) {
+              return _buildChoiceChip(
+                label: option,
+                selected: _superannuation == option,
+                onTap: () {
+                  setState(() => _superannuation = option);
+                  _maybeAdvance();
+                },
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------- 4) Application Settings ----------------
+  Widget _buildApplicationSettings() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 120),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel('Application Deadline'),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text(
+                'When is the Application Deadline?',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF747474),
+                ),
+              ),
+              const SizedBox(width: 2),
+              const Text(
+                '*',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.mainColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildCalendarIconBox(),
+          const SizedBox(height: 12),
+          _buildCalendarCard(),
+        ],
+      ),
+    );
+  }
+
+  // ---------------- 5) Publish ----------------
+  Widget _buildPublish() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 120),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Ready To Start Hiring?',
+              style: TextStyle(
+                fontFamily: 'Paperlogy',
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppColors.mainColor,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: 294,
+              height: 51,
+              child: ElevatedButton(
+                onPressed: _onPublishPressed,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.mainColor,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(26),
+                  ),
+                ),
+                child: const Text(
+                  'Publish',
+                  style: TextStyle(
+                    fontFamily: 'Paperlogy',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -299,14 +693,19 @@ class _StartHiringPageState extends State<StartHiringPage> {
     required TextEditingController controller,
     required String hintText,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+    String? prefixText,
   }) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       style: const TextStyle(fontSize: 14, color: Colors.black),
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: const TextStyle(color: _labelGray, fontSize: 14),
+        prefixText: prefixText,
+        prefixStyle: const TextStyle(color: Colors.black, fontSize: 14),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(vertical: 8),
         enabledBorder: const UnderlineInputBorder(
@@ -381,13 +780,13 @@ class _StartHiringPageState extends State<StartHiringPage> {
     );
   }
 
-  Widget _buildTimeCard() {
-    final dayLabel = _selectedDayIndex == null
-        ? ''
-        : _fullDayName(_selectedDayIndex!);
+  // ---------------- Time card ----------------
+  Widget _buildTimeCard(int dayIndex) {
+    final dayLabel = _fullDayNames[dayIndex];
+    final range = _dayTimes[dayIndex] ?? _defaultRange;
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      width: 180,
+      width: 238,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -395,6 +794,7 @@ class _StartHiringPageState extends State<StartHiringPage> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             dayLabel,
@@ -406,20 +806,36 @@ class _StartHiringPageState extends State<StartHiringPage> {
           ),
           const SizedBox(height: 10),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'From',
-                style: TextStyle(fontSize: 12, color: _labelGray),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'From',
+                    style: TextStyle(fontSize: 12, color: _labelGray),
+                  ),
+                  const SizedBox(width: 4),
+                  _buildTimePill(
+                    _formatTime(range.from),
+                    onTap: () => _pickTime(dayIndex, true),
+                  ),
+                ],
               ),
-              const SizedBox(width: 6),
-              _buildTimePill(_formatTime(_fromTime), onTap: () => _pickTime(true)),
-              const SizedBox(width: 6),
-              const Text(
-                'To',
-                style: TextStyle(fontSize: 12, color: _labelGray),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'To',
+                    style: TextStyle(fontSize: 12, color: _labelGray),
+                  ),
+                  const SizedBox(width: 4),
+                  _buildTimePill(
+                    _formatTime(range.to),
+                    onTap: () => _pickTime(dayIndex, false),
+                  ),
+                ],
               ),
-              const SizedBox(width: 6),
-              _buildTimePill(_formatTime(_toTime), onTap: () => _pickTime(false)),
             ],
           ),
         ],
@@ -431,34 +847,82 @@ class _StartHiringPageState extends State<StartHiringPage> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        width: 68,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: _underlineGray),
         ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: Colors.black,
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.black,
+            ),
           ),
         ),
       ),
     );
   }
 
-  Future<void> _pickTime(bool isFrom) async {
-    final initial = isFrom ? _fromTime : _toTime;
-    final picked = await showTimePicker(context: context, initialTime: initial);
+  Future<void> _pickTime(int dayIndex, bool isFrom) async {
+    final current = _dayTimes[dayIndex] ?? _defaultRange;
+    final initial = isFrom ? current.from : current.to;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+      builder: (context, child) {
+        final base = Theme.of(context);
+        return Theme(
+          data: base.copyWith(
+            colorScheme: base.colorScheme.copyWith(
+              primary: AppColors.mainColor,
+              onPrimary: Colors.white,
+              secondary: AppColors.mainColor,
+              onSecondary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+            timePickerTheme: TimePickerThemeData(
+              backgroundColor: Colors.white,
+              hourMinuteTextColor: Colors.black,
+              hourMinuteColor: const Color(0xFFF5F5F5),
+              hourMinuteTextStyle: const TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.w600,
+              ),
+              dayPeriodTextColor: Colors.black,
+              dayPeriodColor: const Color(0xFFFFF1ED),
+              dialHandColor: AppColors.mainColor,
+              dialBackgroundColor: const Color(0xFFFFF1ED),
+              dialTextColor: Colors.black,
+              entryModeIconColor: AppColors.mainColor,
+              helpTextStyle: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w600,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.mainColor,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
     if (picked != null) {
       setState(() {
-        if (isFrom) {
-          _fromTime = picked;
-        } else {
-          _toTime = picked;
-        }
+        _dayTimes[dayIndex] = isFrom
+            ? _TimeRange(from: picked, to: current.to)
+            : _TimeRange(from: current.from, to: picked);
       });
     }
   }
@@ -470,43 +934,345 @@ class _StartHiringPageState extends State<StartHiringPage> {
     return '$h:$m $period';
   }
 
-  String _fullDayName(int index) {
-    const names = [
-      'Sunday',
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-    ];
-    return names[index];
+  // ---------------- Calendar (Application Settings) ----------------
+  Widget _buildCalendarIconBox() {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _underlineGray),
+      ),
+      child: const Icon(
+        Icons.calendar_today_outlined,
+        size: 18,
+        color: _labelGray,
+      ),
+    );
+  }
+
+  Widget _buildCalendarCard() {
+    final year = _calendarMonth.year;
+    final month = _calendarMonth.month;
+    final selected = _selectedDate;
+    final selectedHeader = selected != null
+        ? '${_monthNames[selected.month - 1]} ${_ordinal(selected.day)}'
+        : '';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _underlineGray),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            selectedHeader,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildCalendarPill(
+                label: '$year',
+                onTap: _pickYear,
+                withIcon: true,
+              ),
+              const SizedBox(width: 8),
+              _buildCalendarPill(
+                label: _monthNames[month - 1],
+                onTap: _pickMonth,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildWeekHeader(),
+          const SizedBox(height: 4),
+          _buildDayGrid(year, month),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarPill({
+    required String label,
+    required VoidCallback onTap,
+    bool withIcon = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(200),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (withIcon) ...[
+              const Icon(
+                Icons.calendar_today_outlined,
+                size: 14,
+                color: Colors.black,
+              ),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.black),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeekHeader() {
+    const labels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    return Row(
+      children: labels
+          .map(
+            (l) => Expanded(
+              child: Center(
+                child: Text(
+                  l,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _buildDayGrid(int year, int month) {
+    final firstDay = DateTime(year, month, 1);
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final startWeekday = firstDay.weekday % 7; // Sun=0, Mon=1, ... Sat=6
+    final prevMonthLastDay = DateTime(year, month, 0).day;
+
+    final cells = <_DayCell>[];
+    // 이전 달 꼬리
+    for (int i = startWeekday - 1; i >= 0; i--) {
+      cells.add(_DayCell(prevMonthLastDay - i, true));
+    }
+    // 이번 달
+    for (int i = 1; i <= daysInMonth; i++) {
+      cells.add(_DayCell(i, false));
+    }
+    // 다음 달 머리 (한 주 마무리 + 마지막 줄까지 채우기)
+    int next = 1;
+    while (cells.length % 7 != 0) {
+      cells.add(_DayCell(next++, true));
+    }
+
+    final rows = <Widget>[];
+    for (int i = 0; i < cells.length; i += 7) {
+      final week = cells.sublist(i, i + 7);
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: week
+                .map((c) => Expanded(child: _buildDayCell(c, year, month)))
+                .toList(),
+          ),
+        ),
+      );
+    }
+    return Column(children: rows);
+  }
+
+  Widget _buildDayCell(_DayCell cell, int year, int month) {
+    final selected = _selectedDate;
+    final isSelected = !cell.isOtherMonth &&
+        selected != null &&
+        selected.year == year &&
+        selected.month == month &&
+        selected.day == cell.day;
+    final textColor = cell.isOtherMonth
+        ? const Color(0xFFD1D1D1)
+        : Colors.black;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: cell.isOtherMonth
+          ? null
+          : () {
+              setState(() {
+                _selectedDate = DateTime(year, month, cell.day);
+              });
+              _maybeAdvance();
+            },
+      child: SizedBox(
+        height: 32,
+        child: Center(
+          child: Container(
+            width: 28,
+            height: 28,
+            decoration: isSelected
+                ? const BoxDecoration(
+                    color: AppColors.mainColor,
+                    shape: BoxShape.circle,
+                  )
+                : null,
+            alignment: Alignment.center,
+            child: Text(
+              '${cell.day}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? Colors.white : textColor,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickYear() async {
+    final now = DateTime.now();
+    final years = List<int>.generate(11, (i) => now.year - 5 + i);
+    final picked = await _showSimplePicker<int>(
+      items: years,
+      itemBuilder: (y) => '$y',
+      initial: _calendarMonth.year,
+    );
+    if (picked != null) {
+      setState(() {
+        _calendarMonth = DateTime(picked, _calendarMonth.month, 1);
+      });
+    }
+  }
+
+  Future<void> _pickMonth() async {
+    final picked = await _showSimplePicker<int>(
+      items: List<int>.generate(12, (i) => i + 1),
+      itemBuilder: (m) => _monthNames[m - 1],
+      initial: _calendarMonth.month,
+    );
+    if (picked != null) {
+      setState(() {
+        _calendarMonth = DateTime(_calendarMonth.year, picked, 1);
+      });
+    }
+  }
+
+  Future<T?> _showSimplePicker<T>({
+    required List<T> items,
+    required String Function(T) itemBuilder,
+    required T initial,
+  }) async {
+    return showModalBottomSheet<T>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: SizedBox(
+            height: 280,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              itemCount: items.length,
+              separatorBuilder: (_, _) => const Divider(
+                height: 1,
+                color: Color(0xFFF0F0F0),
+              ),
+              itemBuilder: (_, i) {
+                final item = items[i];
+                final isCurrent = item == initial;
+                return ListTile(
+                  title: Text(
+                    itemBuilder(item),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                          isCurrent ? FontWeight.w600 : FontWeight.w400,
+                      color:
+                          isCurrent ? AppColors.mainColor : Colors.black,
+                    ),
+                  ),
+                  onTap: () => Navigator.of(ctx).pop(item),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _ordinal(int day) {
+    if (day >= 11 && day <= 13) return '${day}th';
+    switch (day % 10) {
+      case 1:
+        return '${day}st';
+      case 2:
+        return '${day}nd';
+      case 3:
+        return '${day}rd';
+      default:
+        return '${day}th';
+    }
   }
 
   // ---------------- Step menu toggle ----------------
   Widget _buildStepMenuArea() {
     return AnimatedSize(
-      duration: const Duration(milliseconds: 260),
+      duration: const Duration(milliseconds: 320),
       curve: Curves.easeOutCubic,
-      alignment: Alignment.centerRight,
+      alignment: Alignment.bottomRight,
       child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
+        duration: const Duration(milliseconds: 280),
+        reverseDuration: const Duration(milliseconds: 220),
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (child, animation) {
+          final scaleAnim = Tween<double>(
+            begin: 0.85,
+            end: 1.0,
+          ).animate(animation);
+          final slideAnim = Tween<Offset>(
+            begin: const Offset(0.08, 0),
+            end: Offset.zero,
+          ).animate(animation);
           return FadeTransition(
             opacity: animation,
-            child: SizeTransition(
-              sizeFactor: animation,
-              axis: Axis.horizontal,
-              axisAlignment: 1.0,
-              child: child,
+            child: SlideTransition(
+              position: slideAnim,
+              child: ScaleTransition(
+                scale: scaleAnim,
+                alignment: Alignment.bottomRight,
+                child: child,
+              ),
             ),
           );
         },
         layoutBuilder: (current, previous) {
           return Stack(
-            alignment: Alignment.centerRight,
+            alignment: Alignment.bottomRight,
             children: [
               ...previous,
               ?current,
@@ -619,8 +1385,9 @@ class _StartHiringPageState extends State<StartHiringPage> {
       behavior: HitTestBehavior.opaque,
       onTap: () => setState(() => _currentStep = index),
       child: Container(
-        width: 76,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        width: 48,
+        height: 48,
+        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0x14FC6340) : Colors.white,
           borderRadius: BorderRadius.circular(8),
@@ -630,27 +1397,98 @@ class _StartHiringPageState extends State<StartHiringPage> {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SvgPicture.asset(
               _steps[index]['icon']!,
-              width: 22,
-              height: 22,
+              width: 18,
+              height: 18,
               colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               _steps[index]['label']!,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 7,
                 fontWeight: FontWeight.w500,
                 color: color,
-                height: 1.2,
+                height: 1.15,
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _TimeRange {
+  const _TimeRange({required this.from, required this.to});
+  final TimeOfDay from;
+  final TimeOfDay to;
+}
+
+class _DayCell {
+  const _DayCell(this.day, this.isOtherMonth);
+  final int day;
+  final bool isOtherMonth;
+}
+
+/// 화폐 금액 입력용. 사용자가 숫자만 눌러도 마지막 두 자리를 소수점 이하로
+/// 자동 배치한다. 예: "1" → "0.01", "12" → "0.12", "1234" → "12.34".
+class _DecimalAmountFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) {
+      return const TextEditingValue(text: '');
+    }
+    // 너무 큰 값은 17자리(int 안전 범위)로 자름.
+    final trimmed = digits.length > 17 ? digits.substring(0, 17) : digits;
+    final cents = int.parse(trimmed);
+    final integerPart = cents ~/ 100;
+    final fractionalPart = (cents % 100).toString().padLeft(2, '0');
+    final formatted = '$integerPart.$fractionalPart';
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+/// "DD/MM/YYYY - DD/MM/YYYY" 형식으로 자동 마스킹.
+/// 입력은 숫자만 받고, 위치에 따라 '/', ' - ' 구분자를 자동 삽입한다.
+class _DateRangeInputFormatter extends TextInputFormatter {
+  static const int _maxDigits = 16;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final trimmed = digits.length > _maxDigits
+        ? digits.substring(0, _maxDigits)
+        : digits;
+    final buf = StringBuffer();
+    for (int i = 0; i < trimmed.length; i++) {
+      if (i == 2 || i == 4) {
+        buf.write('/');
+      } else if (i == 8) {
+        buf.write(' - ');
+      } else if (i == 10 || i == 12) {
+        buf.write('/');
+      }
+      buf.write(trimmed[i]);
+    }
+    final formatted = buf.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

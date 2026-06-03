@@ -7,10 +7,33 @@ import '../../widgets/confirm_modal.dart';
 import '../../widgets/completion_modal.dart';
 
 class JobDetailPage extends StatefulWidget {
-  const JobDetailPage({super.key, this.postId});
+  const JobDetailPage({
+    super.key,
+    this.postId,
+    this.title,
+    this.companyName,
+    this.description,
+    this.tags,
+    this.scheduleDate,
+    this.scheduleTime,
+    this.location,
+    this.payText,
+    this.openingsText,
+  });
 
   /// 공고 ID. Apply 성공 시 이 값을 pop하여 호출측에서 리스트에서 제거할 수 있음.
   final dynamic postId;
+
+  /// 공고 작성 페이지에서 전달되는 값들. null일 경우 기본 더미 값을 보여준다.
+  final String? title;
+  final String? companyName;
+  final String? description;
+  final List<String>? tags;
+  final String? scheduleDate;
+  final String? scheduleTime;
+  final String? location;
+  final String? payText;
+  final String? openingsText;
 
   @override
   State<JobDetailPage> createState() => _JobDetailPageState();
@@ -109,9 +132,9 @@ class _JobDetailPageState extends State<JobDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Sadie's HotPot",
-                          style: TextStyle(
+                        Text(
+                          widget.title ?? "Sadie's HotPot",
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.black,
@@ -123,7 +146,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'My Awesome Company',
+                              widget.companyName ?? 'My Awesome Company',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.grey[600],
@@ -140,21 +163,35 @@ class _JobDetailPageState extends State<JobDetailPage> {
                         ),
                         const SizedBox(height: 20),
 
-                        Row(
-                          children: [
-                            _buildTag('D-10'),
-                            const SizedBox(width: 8),
-                            _buildTag('Veteran'),
-                          ],
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: Row(
+                            children: [
+                              for (int i = 0;
+                                  i <
+                                      (widget.tags ??
+                                              const ['D-10', 'Veteran'])
+                                          .length;
+                                  i++) ...[
+                                if (i != 0) const SizedBox(width: 8),
+                                _buildTag(
+                                  (widget.tags ??
+                                      const ['D-10', 'Veteran'])[i],
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 24),
 
                         Text(
-                          "Looking for someone to try my Malatang.",
-                          style: TextStyle(
+                          widget.description ??
+                              "Looking for someone to try my Malatang.",
+                          style: const TextStyle(
                             fontSize: 14,
                             height: 1.6,
-                            color: const Color(0xFF696969),
+                            color: Color(0xFF696969),
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -167,23 +204,26 @@ class _JobDetailPageState extends State<JobDetailPage> {
 
                         _buildInfoRow(
                           'assets/icon/calendar_icon.svg',
-                          'Feb 15, 2026 - Feb 16, 2026',
+                          widget.scheduleDate ??
+                              'Feb 15, 2026 - Feb 16, 2026',
                         ),
                         _buildInfoRow(
                           'assets/icon/time_icon.svg',
-                          '10:00 AM - 11:00 AM (1-hour)',
+                          widget.scheduleTime ??
+                              '10:00 AM - 11:00 AM (1-hour)',
                         ),
                         _buildInfoRow(
                           'assets/icon/address_icon.svg',
-                          '123 Swanston St, Melbourne, VIC, Australia',
+                          widget.location ??
+                              '123 Swanston St, Melbourne, VIC, Australia',
                         ),
                         _buildInfoRow(
                           'assets/icon/salary_icon.svg',
-                          '\$1000 per day',
+                          widget.payText ?? '\$1000 per day',
                         ),
                         _buildInfoRow(
                           'assets/icon/people_icon.svg',
-                          '1 openings.',
+                          widget.openingsText ?? '1 openings.',
                         ),
 
                         const SizedBox(height: 80),
@@ -259,8 +299,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
 
   Widget _buildTag(String text) {
     return Container(
-      height: 24,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 3.5, horizontal: 8),
       decoration: BoxDecoration(
         color: const Color(0xFFFF5F3D),
         borderRadius: BorderRadius.circular(4),
