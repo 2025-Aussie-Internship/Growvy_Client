@@ -19,7 +19,7 @@ import '../ChatPage/chat_detail_page.dart';
 import '../MainPage/job_detail_page.dart';
 import '../MyPage/my_page.dart';
 import '../MapPage/map_page.dart';
-import '../NotePage/employer_note_write_page.dart';
+import '../NotePage/start_hiring_page.dart';
 import '../NotePage/note_tab_page.dart';
 import '../../widgets/main_logo_header.dart';
 import '../../widgets/search_overlay.dart';
@@ -197,7 +197,7 @@ class _MainPageState extends State<MainPage> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             GestureDetector(
-              onTap: () => Get.to(() => const EmployerNoteWritePage()),
+              onTap: () => Get.to(() => const StartHiringPage()),
               child: SvgPicture.asset(
                 'assets/icon/write_button.svg',
                 width: 66,
