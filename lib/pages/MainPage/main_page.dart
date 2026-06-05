@@ -21,6 +21,7 @@ import '../MyPage/my_page.dart';
 import '../MapPage/map_page.dart';
 import '../NotePage/start_hiring_page.dart';
 import '../NotePage/note_tab_page.dart';
+import '../NotePage/seeker_note_write_page.dart';
 import '../../widgets/main_logo_header.dart';
 import '../../widgets/search_overlay.dart';
 
@@ -92,6 +93,55 @@ class _MainPageState extends State<MainPage> {
   /// 홈 탭이거나 검색 오버레이가 떠 있을 때 로고 표시
   bool get _showLogoHeader =>
       (_selectedIndex == 0 || _isSearchActive) && !_regionPanelOpen;
+
+  /// 구인자 add_chat_button 핸들러 (기존 흐름을 유지).
+  Future<void> _onEmployerAddChatTap(bool isEmployer) async {
+    MainBinding().dependencies();
+    final noteController = Get.find<NotePageController>();
+    noteController.isEmployer = isEmployer;
+    noteController.isEmployerObs.value = isEmployer;
+    final jobs = noteController.employerJobOpenings;
+    final selected = await MyJobOpeningsModal.show(context, jobs: jobs);
+    if (!context.mounted) return;
+    if (selected != null) {
+      final accepted = await JobApplicationListModal.show(context);
+      if (!context.mounted) return;
+      if (accepted != null) {
+        setState(() => _selectedIndex = 2);
+        if (!context.mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatDetailPage(
+              peerName: accepted['name'],
+              peerProfileImagePath: accepted['profileImagePath'],
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  /// 구직자 write_button 핸들러.
+  /// 1) MyJobOpeningsModal로 Done 목록(=write 가능 목록) 중 어떤 활동에 대해 쓸지 선택받고
+  /// 2) 선택한 공고 정보를 가지고 SeekerNoteWritePage 로 이동한다.
+  /// 3) Save 가 끝나면 SeekerNoteWritePage 가 controller 를 통해 해당 항목을
+  ///    Done 목록에서 제거하고 Saved 탭으로 보낸다.
+  Future<void> _onSeekerWriteTap() async {
+    MainBinding().dependencies();
+    final noteController = Get.find<NotePageController>();
+    final jobs = noteController.seekerWritableJobs;
+    final selected = await MyJobOpeningsModal.show(context, jobs: jobs);
+    if (!context.mounted) return;
+    if (selected == null) return;
+    await Get.to(
+      () => SeekerNoteWritePage(
+        initialTitle: selected['title'] as String?,
+        jobEmployer: selected['employer'] as String?,
+        sourceJob: selected,
+      ),
+    );
+  }
 
   void _onItemTapped(int index) {
     if (_isSearchActive) {
@@ -186,64 +236,51 @@ class _MainPageState extends State<MainPage> {
       ),
       bottomNavigationBar: _regionPanelOpen ? null : _buildBottomBar(),
       floatingActionButton: Obx(() {
+        // Obx 가 관찰할 대상 — 분기 이전에 반드시 한 번은 .value 를 읽어야
+        // "no observable in Obx" 에러가 발생하지 않는다.
         final isEmployer = AuthController.to.isEmployer.value;
-        // 구인자: Note 탭(3)에서만 버튼 표시 (Chat 탭에서는 add_chat_button 없음), 오른쪽 패딩 16, 버튼 간격 10
-        if (_selectedIndex != 3 || !isEmployer) {
-          return const SizedBox.shrink();
-        }
+        // Note 탭(3)에서만 표시. 구인자/구직자별 액션 분기.
+        if (_selectedIndex != 3) return const SizedBox.shrink();
         const buttonGap = 10.0;
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            GestureDetector(
-              onTap: () => Get.to(() => const StartHiringPage()),
-              child: SvgPicture.asset(
-                'assets/icon/write_button.svg',
-                width: 66,
-                height: 66,
+        if (isEmployer) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              GestureDetector(
+                onTap: () => Get.to(() => const StartHiringPage()),
+                child: SvgPicture.asset(
+                  'assets/icon/write_button.svg',
+                  width: 66,
+                  height: 66,
+                ),
               ),
-            ),
-            const SizedBox(height: buttonGap),
-            GestureDetector(
-              onTap: () async {
-                MainBinding().dependencies();
-                final noteController = Get.find<NotePageController>();
-                noteController.isEmployer = isEmployer;
-                noteController.isEmployerObs.value = isEmployer;
-                final jobs = noteController.employerJobOpenings;
-                final selected = await MyJobOpeningsModal.show(context, jobs: jobs);
-                if (!context.mounted) return;
-                if (selected != null) {
-                  final accepted = await JobApplicationListModal.show(context);
-                  if (!context.mounted) return;
-                  if (accepted != null) {
-                    setState(() => _selectedIndex = 2);
-                    if (!context.mounted) return;
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChatDetailPage(
-                          peerName: accepted['name'],
-                          peerProfileImagePath: accepted['profileImagePath'],
-                        ),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: SvgPicture.asset(
-                'assets/icon/add_chat_button.svg',
-                width: 66,
-                height: 66,
+              const SizedBox(height: buttonGap),
+              GestureDetector(
+                onTap: () => _onEmployerAddChatTap(isEmployer),
+                child: SvgPicture.asset(
+                  'assets/icon/add_chat_button.svg',
+                  width: 66,
+                  height: 66,
+                ),
               ),
-            ),
-          ],
+            ],
+          );
+        }
+        // 구직자: write_button 하나만 표시. 누르면 My Job Openings 모달로 작성할 일을 선택한 뒤
+        // 선택한 공고 정보가 prefill 된 SeekerNoteWritePage로 이동.
+        return GestureDetector(
+          onTap: _onSeekerWriteTap,
+          child: SvgPicture.asset(
+            'assets/icon/write_button.svg',
+            width: 66,
+            height: 66,
+          ),
         );
       }),
       floatingActionButtonLocation: _FabEndFloatLocation(
-        right: 16,
-        bottomGap: 16,
+        right: 20,
+        bottomGap: 20,
       ),
       floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
     );
