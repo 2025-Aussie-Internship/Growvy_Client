@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../../styles/colors.dart';
 import '../../widgets/signin_app_bar.dart';
 import '../../widgets/next_button.dart';
@@ -121,12 +122,9 @@ class _ProfilePickerPageState extends State<ProfilePickerPage> {
               child: NextButton(
                 text: 'Next',
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SignupCompletePage(),
-                    ),
-                  );
+                  // GetX 라우터로 통일 — 이후 SignupCompletePage 에서
+                  // Get.offAll 로 stack 을 비울 때 navigator 간 어긋남이 없도록 한다.
+                  Get.to(() => const SignupCompletePage());
                 },
               ),
             ),

@@ -156,11 +156,9 @@ class NotePage extends GetView<NotePageController> {
       controller.goToDetailPage(item);
       return;
     }
-    // Seeker: Applying 탭이면 작성/상세 분기, 그 외는 사진/상세
-    final isApplyingTab = controller.seekerTabIndex.value == 0;
-    if (isApplyingTab && (item['hasContent'] != true)) {
-      controller.goToWritePage(item);
-    } else if (item['hasContent'] == true || isApplyingTab) {
+    // 구직자: 작성 페이지 진입은 우측 하단 write_button 흐름으로만 가능.
+    // 리스트 카드는 작성된 노트(Saved 등)일 때만 상세로 이동한다.
+    if (item['hasContent'] == true) {
       controller.goToDetailPage(item);
     }
   }

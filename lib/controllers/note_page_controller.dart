@@ -6,7 +6,6 @@ import '../config/env.dart';
 import '../controllers/auth_controller.dart';
 import '../pages/MainPage/job_detail_page.dart';
 import '../pages/NotePage/employer_note_write_page.dart';
-import '../pages/NotePage/seeker_note_detail_page.dart';
 import '../pages/NotePage/seeker_note_write_page.dart';
 
 class NotePageController extends GetxController {
@@ -39,6 +38,62 @@ class NotePageController extends GetxController {
       <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> employerCompletionVolunteer =
       <Map<String, dynamic>>[].obs;
+
+  /// 구직자가 직접 작성한 노트(후기) 목록. SeekerNoteWritePage의 Save 흐름에서
+  /// 추가되며, Note 페이지 Saved 탭 최상단에 누적되어 표시된다.
+  final RxList<Map<String, dynamic>> seekerWrittenNotes =
+      <Map<String, dynamic>>[].obs;
+
+  /// 구직자 Done 탭과 write_button 모달이 함께 참조하는 "후기 작성 가능 목록".
+  /// API 데이터가 들어오면 그것으로 교체되고, 비어있을 동안은 더미로 채워진다.
+  /// 사용자가 한 건을 저장하면 [consumeSeekerDoneJob] 으로 여기서 제거되고
+  /// Saved 탭으로 이동한다.
+  late final RxList<Map<String, dynamic>> seekerDoneJobs =
+      <Map<String, dynamic>>[
+        for (final e in _seekerDoneDummy) Map<String, dynamic>.from(e),
+      ].obs;
+
+  /// 현재 인라인으로 표시되고 있는 노트 상세. null 이면 일반 Note 페이지가 표시되고,
+  /// 값이 있으면 그 노트의 [NoteDetailPage] 가 같은 탭 안에 표시되어
+  /// 하단 BottomNavigationBar 가 계속 보이도록 한다.
+  final Rxn<Map<String, dynamic>> viewingNote = Rxn<Map<String, dynamic>>();
+
+  void openViewingNote(Map<String, dynamic> note) {
+    viewingNote.value = note;
+  }
+
+  void closeViewingNote() {
+    viewingNote.value = null;
+  }
+
+  /// 새 노트를 Saved 탭 가장 위에 추가한다.
+  void addSeekerWrittenNote(Map<String, dynamic> note) {
+    seekerWrittenNotes.insert(0, note);
+  }
+
+  /// 사용자가 작성한 노트를 Saved 탭에서 제거한다.
+  /// 같은 참조가 있으면 그것을, 없으면 동일한 id 또는 title+createdAt 으로 매칭한다.
+  void deleteSeekerWrittenNote(Map<String, dynamic> note) {
+    final removed = seekerWrittenNotes.remove(note);
+    if (!removed) {
+      seekerWrittenNotes.removeWhere(
+        (n) => identical(n, note) || n['title'] == note['title'],
+      );
+    }
+  }
+
+  /// 후기 작성이 끝난 공고를 Done 목록에서 제거한다.
+  /// 같은 참조가 있으면 그것을 제거하고, 없으면 id 또는 title+employer 로 매칭한다.
+  void consumeSeekerDoneJob(Map<String, dynamic> item) {
+    final removed = seekerDoneJobs.remove(item);
+    if (removed) return;
+    seekerDoneJobs.removeWhere((e) {
+      if (item['id'] != null && e['id'] != null) {
+        return e['id'] == item['id'];
+      }
+      return e['title'] == item['title'] && e['employer'] == item['employer'];
+    });
+  }
 
   @override
   void onInit() {
@@ -95,12 +150,22 @@ class NotePageController extends GetxController {
     );
     if (data != null) {
       final allDone = _mapApiData(data, isDone: true);
-      completionHistoryWorks.assignAll(
-        allDone.where((e) => e['hourlyWage'] > 0).toList(),
-      );
+      final works = allDone.where((e) => e['hourlyWage'] > 0).toList();
+      completionHistoryWorks.assignAll(works);
       completionHistoryVolunteer.assignAll(
         allDone.where((e) => e['hourlyWage'] == 0).toList(),
       );
+      // Done 탭과 write_button 모달이 공유하는 단일 소스 갱신.
+      // (이미 사용자가 후기를 작성한 항목이 있다면 그것은 유지)
+      if (works.isNotEmpty) {
+        final existingIds = seekerWrittenNotes
+            .map((n) => n['sourceId'])
+            .whereType<Object>()
+            .toSet();
+        seekerDoneJobs.assignAll(
+          works.where((e) => !existingIds.contains(e['id'])),
+        );
+      }
     }
   }
 
@@ -523,6 +588,9 @@ class NotePageController extends GetxController {
 
   /// 구직자 탭별 데이터 (0 Applied / 1 Ongoing / 2 Done / 3 Saved).
   /// API 데이터가 비어있을 때(디자인/개발용)는 더미를 반환한다.
+  /// Done 탭은 [seekerDoneJobs] 를 그대로 사용하며 write_button 모달과 동일한 소스다.
+  /// Saved 탭은 사용자가 직접 작성한 노트가 최상단에 누적되고,
+  /// 아래로는 디자인 시안용 더미가 따라온다.
   List<Map<String, dynamic>> get seekerJobsForCurrentTab {
     final tab = seekerTabIndex.value.clamp(0, 3);
     switch (tab) {
@@ -533,14 +601,16 @@ class NotePageController extends GetxController {
       case 1:
         return _seekerOngoingDummy;
       case 2:
-        return completionHistoryWorks.isNotEmpty
-            ? completionHistoryWorks
-            : _seekerDoneDummy;
+        return seekerDoneJobs;
       case 3:
-        return _seekerSavedDummy;
+        return [...seekerWrittenNotes, ..._seekerSavedDummy];
     }
     return const [];
   }
+
+  /// 구직자가 write_button을 눌렀을 때 My Job Openings 모달에 보여줄 후보 목록.
+  /// Done 탭과 동일한 [seekerDoneJobs] 를 그대로 사용한다.
+  List<Map<String, dynamic>> get seekerWritableJobs => seekerDoneJobs;
 
   /// Applied 탭 (구직자) - 지원한 공고 더미.
   static const List<Map<String, dynamic>> _seekerAppliedDummy = [
@@ -705,16 +775,9 @@ class NotePageController extends GetxController {
         if (result == true) fetchAllData(); // 작성 후 돌아오면 새로고침
       });
     } else {
-      // 완료(Completion) 탭 등에서 내용이 있는 경우 상세 페이지로 이동
+      // 완료(Completion) / Saved 탭에서 내용이 있는 경우 상세를 인라인으로 표시.
       if (item['hasContent'] != true) return;
-      Get.to(
-        () => NoteDetailPage(
-          title: item['title'] as String,
-          employer: item['employer'] as String,
-          body: item['body'] as String? ?? '',
-          photos: List<String>.from(item['photos'] ?? []),
-        ),
-      );
+      openViewingNote(item);
     }
   }
 }
