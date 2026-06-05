@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'signin_page.dart';
+import 'welcome_page.dart';
 
 class SignUpPage extends StatelessWidget {
   const SignUpPage({super.key});
@@ -48,7 +48,12 @@ class SignUpPage extends StatelessWidget {
       if (context.mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const SignInPage()),
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 320),
+            pageBuilder: (_, _, _) => const WelcomePage(),
+            transitionsBuilder: (_, animation, _, child) =>
+                FadeTransition(opacity: animation, child: child),
+          ),
         );
       }
     } catch (e) {

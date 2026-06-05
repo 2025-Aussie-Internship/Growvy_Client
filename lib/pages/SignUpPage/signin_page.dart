@@ -26,35 +26,30 @@ class SignInPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SignUpButton(
-                  text: 'Employer',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CommonSignUpPage(isEmployer: true),
-                      ),
-                    );
-                  },
-                ),
-                
-                const SizedBox(width: 16),
-
-                SignUpButton(
-                  text: 'Job seeker',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CommonSignUpPage(isEmployer: false),
-                      ),
-                    );
-                  },
-                ),
-              ],
+            SignUpButton(
+              text: 'Employer',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        const CommonSignUpPage(isEmployer: true),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            SignUpButton(
+              text: 'Job seeker',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        const CommonSignUpPage(isEmployer: false),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 100),
           ],
