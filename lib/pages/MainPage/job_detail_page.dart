@@ -47,6 +47,9 @@ class _JobDetailPageState extends State<JobDetailPage> {
   late Timer _imageTimer;
   int _imageCurrentPage = 1000;
 
+  /// 북마크(저장하기) 토글 상태.
+  bool _isBookmarked = false;
+
   final List<String> _imageUrls = [
     "https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=400",
     "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400",
@@ -269,16 +272,26 @@ class _JobDetailPageState extends State<JobDetailPage> {
                           onPressed: () {},
                         ),
                         IconButton(
-                          icon: SvgPicture.asset(
-                            'assets/icon/bookmark_icon.svg',
-                            colorFilter: const ColorFilter.mode(
-                              AppColors.mainColor,
-                              BlendMode.srcIn,
+                          icon: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            transitionBuilder: (child, animation) =>
+                                ScaleTransition(scale: animation, child: child),
+                            child: SvgPicture.asset(
+                              _isBookmarked
+                                  ? 'assets/icon/bookmark_filled_icon.svg'
+                                  : 'assets/icon/bookmark_icon.svg',
+                              key: ValueKey<bool>(_isBookmarked),
+                              colorFilter: const ColorFilter.mode(
+                                AppColors.mainColor,
+                                BlendMode.srcIn,
+                              ),
+                              width: 24,
+                              height: 24,
                             ),
-                            width: 24,
-                            height: 24,
                           ),
-                          onPressed: () {},
+                          onPressed: () {
+                            setState(() => _isBookmarked = !_isBookmarked);
+                          },
                         ),
                       ],
                     ),

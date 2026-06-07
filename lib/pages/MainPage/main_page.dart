@@ -337,6 +337,38 @@ class _HomePageContentState extends State<HomePageContent> {
     });
   }
 
+  /// nearby / popular 카드, 배너 어디에서 눌러도 동일한 매핑으로
+  /// 카드의 값을 [JobDetailPage] 로 prefill 한다.
+  /// - title, company 는 그대로.
+  /// - popular 의 `dDay` 와 nearby 의 `tags` 는 모두 합쳐서 상단 칩으로 노출.
+  /// - `distance` 는 위치 라벨이 따로 없으니 칩 맨 앞에 붙여 표시한다.
+  void _openJobDetailFromCard(Map<String, dynamic> job) {
+    final List<String> tags = <String>[];
+    final distance = job['distance'];
+    if (distance is String && distance.isNotEmpty) {
+      tags.add(distance);
+    }
+    final dDay = job['dDay'];
+    if (dDay is String && dDay.isNotEmpty) {
+      tags.add(dDay);
+    }
+    final rawTags = job['tags'];
+    if (rawTags is List) {
+      tags.addAll(rawTags.map((e) => e.toString()));
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => JobDetailPage(
+          title: job['title'] as String?,
+          companyName: job['company'] as String?,
+          tags: tags.isEmpty ? null : tags,
+        ),
+      ),
+    );
+  }
+
   final List<Map<String, dynamic>> nearbyJobs = const [
     {
       "title": "Restaurant Staff",
@@ -376,42 +408,49 @@ class _HomePageContentState extends State<HomePageContent> {
     },
   ];
 
+  // popular 카드도 nearby 와 동일하게 title/company/distance/tags + dDay 키를 갖도록 통일.
   final List<Map<String, dynamic>> popularJobs = const [
     {
       "title": "Babysitter",
       "company": "Jake's mom",
       "dDay": "D-8",
       "distance": "2.6 km",
+      "tags": ["HOT"],
     },
     {
       "title": "Hostel Staff",
       "company": "Ustaing",
       "dDay": "D-10",
       "distance": "2.6 km",
+      "tags": ["NEW"],
     },
     {
       "title": "Record Shop",
       "company": "The Gomori",
       "dDay": "D-21",
       "distance": "3.4 km",
+      "tags": ["A"],
     },
     {
       "title": "Packing",
       "company": "Ropine",
       "dDay": "D-9",
       "distance": "3.4 km",
+      "tags": ["B"],
     },
     {
       "title": "Dog Walker",
       "company": "Pet Lovers",
       "dDay": "D-5",
       "distance": "1.1 km",
+      "tags": ["Flexible"],
     },
     {
       "title": "Barista",
       "company": "Starbucks",
       "dDay": "D-2",
       "distance": "0.8 km",
+      "tags": ["HOT"],
     },
   ];
 
@@ -762,15 +801,9 @@ class _HomePageContentState extends State<HomePageContent> {
                                 tags: List<String>.from(
                                   sortedJobs[columnIndex * 2]['tags'],
                                 ),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const JobDetailPage(),
-                                    ),
-                                  );
-                                },
+                                onTap: () => _openJobDetailFromCard(
+                                  sortedJobs[columnIndex * 2],
+                                ),
                               ),
                               if (columnIndex * 2 + 1 < sortedJobs.length) ...[
                                 const SizedBox(height: 12),
@@ -783,15 +816,9 @@ class _HomePageContentState extends State<HomePageContent> {
                                   tags: List<String>.from(
                                     sortedJobs[columnIndex * 2 + 1]['tags'],
                                   ),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const JobDetailPage(),
-                                      ),
-                                    );
-                                  },
+                                  onTap: () => _openJobDetailFromCard(
+                                    sortedJobs[columnIndex * 2 + 1],
+                                  ),
                                 ),
                               ],
                             ],
@@ -833,7 +860,9 @@ class _HomePageContentState extends State<HomePageContent> {
                                 company:
                                     popularJobs[columnIndex * 2]['company'],
                                 dDay: popularJobs[columnIndex * 2]['dDay'],
-                                onTap: () {},
+                                onTap: () => _openJobDetailFromCard(
+                                  popularJobs[columnIndex * 2],
+                                ),
                               ),
                               if (columnIndex * 2 + 1 < popularJobs.length) ...[
                                 const SizedBox(height: 12),
@@ -845,7 +874,9 @@ class _HomePageContentState extends State<HomePageContent> {
                                           1]['company'],
                                   dDay:
                                       popularJobs[columnIndex * 2 + 1]['dDay'],
-                                  onTap: () {},
+                                  onTap: () => _openJobDetailFromCard(
+                                    popularJobs[columnIndex * 2 + 1],
+                                  ),
                                 ),
                               ],
                             ],
@@ -863,15 +894,13 @@ class _HomePageContentState extends State<HomePageContent> {
                     child: PageView.builder(
                       controller: _bannerController,
                       itemBuilder: (context, index) {
+                        // 배너는 popular 의 첫 항목을 대표 공고로 매핑해 둔다.
+                        // (배너에 실제 공고 ID 가 연동되면 그때 매핑만 바꿔주면 됨.)
+                        final bannerJob = popularJobs.isNotEmpty
+                            ? popularJobs[index % popularJobs.length]
+                            : <String, dynamic>{};
                         return GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const JobDetailPage(),
-                              ),
-                            );
-                          },
+                          onTap: () => _openJobDetailFromCard(bannerJob),
                           child: Container(
                             width: double.infinity,
                             decoration: BoxDecoration(
