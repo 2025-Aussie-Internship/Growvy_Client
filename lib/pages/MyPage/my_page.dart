@@ -4,6 +4,7 @@ import '../../styles/colors.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../widgets/auto_translate_text.dart';
+import '../../widgets/confirm_modal.dart';
 import '../SignUpPage/signup_page.dart';
 import 'review_page.dart';
 import 'profile_edit_page.dart';
@@ -28,8 +29,7 @@ class MyPageState extends State<MyPage> {
   int _currentProfileIndex = 0;
   ImageProvider get _currentProfileImage =>
       _profileImages[_currentProfileIndex];
-  Color _bannerColor = AppColors.mainColor;
-  String _userName = 'My Name';
+  String _userName = 'User Name';
   String _editPronouns = 'She/Her';
   bool _isEditingProfile = false;
   bool _isViewingReviews = false;
@@ -67,7 +67,6 @@ class MyPageState extends State<MyPage> {
     setState(() {
       _currentProfileIndex =
           result['profileIndex'] as int? ?? _currentProfileIndex;
-      _bannerColor = result['bannerColor'] as Color? ?? _bannerColor;
       if (result['userName'] != null) _userName = result['userName'] as String;
       if (result['pronouns'] != null) _editPronouns = result['pronouns'] as String;
       _isEditingProfile = false;
@@ -108,58 +107,89 @@ class MyPageState extends State<MyPage> {
             ProfileEditContent(
               profileImages: _profileImages,
               initialProfileIndex: _currentProfileIndex,
-              initialBannerColor: _bannerColor,
               initialUserName: _userName,
               initialPronouns: _editPronouns,
-              leadingIcon: 'close',
               onApply: _applyProfileEdit,
+              onClose: () => setState(() => _isEditingProfile = false),
             )
           else ...[
-            _buildHeader(),
-            const SizedBox(height: 12),
+            const SizedBox(height: 24),
+            // 시안: 큰 원형 프로필 사진(편집 아이콘 없음 - 누르면 편집 화면 진입)
+            GestureDetector(
+              onTap: _openProfileEdit,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  image: DecorationImage(
+                    image: _currentProfileImage,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             AutoTranslateText(
               _userName,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
                 color: Colors.black,
               ),
             ),
             const SizedBox(height: 4),
-            AutoTranslateText(
-              _editPronouns,
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            ),
-            const SizedBox(height: 24),
-            _buildRatingCard(),
-          const SizedBox(height: 24),
-          _buildMenuOption('Customer Service Center'),
-          _buildDivider(),
-          _buildMenuOption('Notice'),
-          _buildDivider(),
-          _buildMenuOption('Settings'),
-          _buildDivider(),
-          _buildMenuOption('Account Deletion'),
-          const SizedBox(height: 40),
-          GestureDetector(
-            onTap: () async {
-              await Get.find<AuthController>().clearUserType();
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const SignUpPage()),
-                (route) => false,
+            // 구직자: She/Her 같은 성별 표시.
+            // 구인자: 업종(Hospitality 등) 표시. 임시로 'Hospitality' 고정.
+            Obx(() {
+              final isEmployer = AuthController.to.isEmployer.value;
+              final subtitle = isEmployer ? 'Hospitality' : _editPronouns;
+              return AutoTranslateText(
+                subtitle,
+                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
               );
-            },
-            child: AutoTranslateText(
-              'Log Out',
-              style: TextStyle(
-                decoration: TextDecoration.underline,
-                color: Colors.grey[400],
-                fontSize: 14,
+            }),
+            const SizedBox(height: 14),
+            _buildEditProfilePillButton(),
+            const SizedBox(height: 24),
+            const _SectionDivider(),
+            const SizedBox(height: 20),
+            _buildRatingCard(),
+            const SizedBox(height: 20),
+            // 메뉴 항목: 구인자/구직자에 따라 다르게 노출.
+            Obx(() {
+              final isEmployer = AuthController.to.isEmployer.value;
+              final items = isEmployer
+                  ? const [
+                      'My Job Posts',
+                      'Applicants',
+                      'Interviews',
+                      'Billing',
+                      'Support',
+                    ]
+                  : const [
+                      'Customer Service Center',
+                      'Notice',
+                      'Settings',
+                      'Account Deletion',
+                    ];
+              return _buildMenuCard(items);
+            }),
+            const SizedBox(height: 28),
+            const _SectionDivider(),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: _onLogOutTap,
+              child: AutoTranslateText(
+                'Log Out',
+                style: TextStyle(
+                  decoration: TextDecoration.underline,
+                  color: Colors.grey[400],
+                  fontSize: 13,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 120), // Bottom padding for nav bar
+            const SizedBox(height: 120), // Bottom padding for nav bar
           ],
         ],
       ),
@@ -169,69 +199,14 @@ class MyPageState extends State<MyPage> {
     );
   }
 
-  Widget _buildHeader() {
-    return SizedBox(
-      height: 200,
-      child: Stack(
-        alignment: Alignment.topCenter,
-        children: [
-          Container(height: 140, width: double.infinity, color: _bannerColor),
-          Positioned(
-            bottom: 0,
-            child: Stack(
-              children: [
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    image: DecorationImage(
-                      image: _currentProfileImage,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: GestureDetector(
-                    onTap: _openProfileEdit,
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: const BoxDecoration(
-                        color: AppColors.mainColor,
-                        shape: BoxShape.circle,
-                      ),
-                      padding: const EdgeInsets.all(6.5),
-                      child: SvgPicture.asset(
-                        'assets/icon/profile_edit_icon.svg',
-                        width: 11,
-                        height: 11,
-                        fit: BoxFit.contain,
-                        colorFilter: const ColorFilter.mode(
-                          Colors.white,
-                          BlendMode.srcIn,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildRatingCard() {
+    Widget star(String asset) => SvgPicture.asset(asset, width: 28, height: 28);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF4EE), // Light orange/peach
+        color: const Color(0xFFF5F5F5), // 시안과 유사한 연한 회색
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -239,53 +214,30 @@ class MyPageState extends State<MyPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SvgPicture.asset(
-                'assets/icon/score_filled_icon.svg',
-                width: 32,
-                height: 32,
-              ),
-              const SizedBox(width: 8),
-              SvgPicture.asset(
-                'assets/icon/score_filled_icon.svg',
-                width: 32,
-                height: 32,
-              ),
-              const SizedBox(width: 8),
-              SvgPicture.asset(
-                'assets/icon/score_filled_icon.svg',
-                width: 32,
-                height: 32,
-              ),
-              const SizedBox(width: 8),
-              SvgPicture.asset(
-                'assets/icon/score_filled_icon.svg',
-                width: 32,
-                height: 32,
-              ),
-              const SizedBox(width: 8),
-              SvgPicture.asset(
-                'assets/icon/score_not_icon.svg',
-                width: 32,
-                height: 32,
-              ),
+              star('assets/icon/score_filled_icon.svg'),
+              const SizedBox(width: 6),
+              star('assets/icon/score_filled_icon.svg'),
+              const SizedBox(width: 6),
+              star('assets/icon/score_filled_icon.svg'),
+              const SizedBox(width: 6),
+              star('assets/icon/score_filled_icon.svg'),
+              const SizedBox(width: 6),
+              star('assets/icon/score_not_icon.svg'),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: () => setState(() => _isViewingReviews = true),
               borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Center(
                   child: AutoTranslateText(
                     'Check reviews',
                     style: TextStyle(
-                      color: const Color(0xFF931515),
+                      color: Colors.black87,
                       decoration: TextDecoration.underline,
                       fontWeight: FontWeight.w500,
                       fontSize: 14,
@@ -300,15 +252,80 @@ class MyPageState extends State<MyPage> {
     );
   }
 
+  /// 시안의 주황 outline pill 모양 "Edit Profile" 버튼.
+  Widget _buildEditProfilePillButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _openProfileEdit,
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: AppColors.mainColor, width: 1.4),
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SvgPicture.asset(
+                'assets/icon/profile_edit_icon.svg',
+                width: 14,
+                height: 14,
+                colorFilter: const ColorFilter.mode(
+                  AppColors.mainColor,
+                  BlendMode.srcIn,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const AutoTranslateText(
+                'Edit Profile',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.mainColor,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 시안의 한 묶음 카드 형태 메뉴 (둥근 모서리 + 내부 divider).
+  Widget _buildMenuCard(List<String> items) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < items.length; i++) ...[
+            _buildMenuOption(items[i]),
+            if (i != items.length - 1) _buildDivider(),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildMenuOption(String title) {
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      visualDensity: const VisualDensity(vertical: -1),
       title: AutoTranslateText(
         title,
-        style: TextStyle(
-          fontSize: 16,
-          color: Colors.grey[700],
-          fontWeight: FontWeight.w400,
+        style: const TextStyle(
+          fontSize: 15,
+          color: Colors.black,
+          fontWeight: FontWeight.w500,
         ),
       ),
       trailing: Icon(
@@ -327,8 +344,43 @@ class MyPageState extends State<MyPage> {
       height: 1,
       thickness: 1,
       color: Color(0xFFF2F4F7),
-      indent: 20,
-      endIndent: 20,
+      indent: 16,
+      endIndent: 16,
+    );
+  }
+
+  /// MyPage 의 큰 섹션 사이를 나누는 옅은 회색 가로 라인.
+  /// (시안의 사진/별점/메뉴/로그아웃을 구분하는 얇은 회색 선)
+  /// — 외부 위젯 클래스로 분리해 SafeArea 안에서 const 로 재사용한다.
+  /// 아래 [_SectionDivider] 참고.
+
+  /// Log Out 텍스트 탭 → 확인 모달 → 로그아웃 진행.
+  Future<void> _onLogOutTap() async {
+    final confirmed = await ConfirmModal.show<bool>(
+      context: context,
+      message: 'Do you really want\nto Log out?',
+      onCancel: () => Navigator.pop(context, false),
+      onAccept: () => Navigator.pop(context, true),
+    );
+    if (confirmed != true || !mounted) return;
+    await Get.find<AuthController>().clearUserType();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const SignUpPage()),
+      (route) => false,
+    );
+  }
+}
+
+class _SectionDivider extends StatelessWidget {
+  const _SectionDivider();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      color: const Color(0xFFEFEFEF),
     );
   }
 }

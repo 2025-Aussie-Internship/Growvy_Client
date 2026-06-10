@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../styles/modal_theme.dart';
 import 'auto_translate_text.dart';
@@ -50,8 +49,12 @@ class ConfirmModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedCancel = cancelLabel ?? 'common.cancel'.tr();
-    final resolvedAccept = acceptLabel ?? 'common.accept'.tr();
+    // 시안에 맞춰 모든 확인 모달의 기본 라벨을 통일한다.
+    //   - Cancel = "No, I don't"
+    //   - Accept = "Yes, I do"
+    // 호출처에서 `cancelLabel` / `acceptLabel` 을 명시하면 그 값이 우선한다.
+    final resolvedCancel = cancelLabel ?? "No, I don't";
+    final resolvedAccept = acceptLabel ?? 'Yes, I do';
     return Center(
       child: Material(
         color: Colors.transparent,
@@ -117,7 +120,7 @@ class ConfirmModal extends StatelessWidget {
                               ),
                             ),
                             child: Center(
-                              child: Text(
+                              child: AutoTranslateText(
                                 resolvedCancel,
                                 style: const TextStyle(
                                   fontSize: 16,
@@ -154,7 +157,7 @@ class ConfirmModal extends StatelessWidget {
                               ),
                             ),
                             child: Center(
-                              child: Text(
+                              child: AutoTranslateText(
                                 resolvedAccept,
                                 style: const TextStyle(
                                   fontSize: 16,

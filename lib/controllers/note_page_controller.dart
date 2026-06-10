@@ -10,7 +10,13 @@ import '../pages/NotePage/seeker_note_write_page.dart';
 
 class NotePageController extends GetxController {
   final selectedTab = 0.obs;
-  /// 구인자 Note 상단 탭: 0 Hiring, 1 Filled, 2 Closed, 3 Draft
+  /// 구인자 Note 상단 탭: 0 Hiring(모집중), 1 Ongoing(인원 확정·진행중), 2 Done(완료)
+  ///
+  /// - Hiring: 모집 마감일 전. 정원이 다 차도 마감일까지 여기에 머무르며
+  ///   `_buildApplicantBadge` 가 색만 바뀐다. 카드 탭 시 `JobApplicationListModal` 노출.
+  /// - Ongoing: 정원이 확정되고 실제 일이 진행 중. 카드 탭은 무반응.
+  /// - Done: 모든 일정이 끝남. 각 카드 우측에 Write Review 버튼이 떠
+  ///   사람 선택 모달 → 별점 작성 페이지로 연결.
   final employerTabIndex = 0.obs;
   /// 구직자 Note 상단 탭: 0 Applying, 1 Done, 2 Volunteer
   final seekerTabIndex = 0.obs;
@@ -312,15 +318,25 @@ class NotePageController extends GetxController {
     final status = (item['status'] ?? item['postStatus'] ?? '')
         .toString()
         .toLowerCase();
-    if (isDraft || status == 'draft') return 'draft';
-    if (isDone || status == 'closed' || status == 'completed') return 'closed';
-    if (status == 'filled') return 'filled';
+    // 새 3탭 구조 (hiring / ongoing / done) 에서는
+    // draft 는 별도 탭이 사라졌으므로 hiring 으로 흡수하여 표시한다.
+    if (isDone ||
+        status == 'closed' ||
+        status == 'completed' ||
+        status == 'done') {
+      return 'done';
+    }
+    if (status == 'ongoing' ||
+        status == 'in_progress' ||
+        status == 'filled') {
+      return 'ongoing';
+    }
+    if (isDraft || status == 'draft') return 'hiring';
     if (status == 'hiring' || status == 'open' || status == 'active') {
       return 'hiring';
     }
-    if (applicantsTotal > 0 && applicantsCurrent >= applicantsTotal) {
-      return 'filled';
-    }
+    // 정원 다 차도 마감일 전이면 여전히 hiring 으로 두고
+    // UI 의 배지 색만 바뀌게 한다.
     return 'hiring';
   }
 
@@ -371,82 +387,64 @@ class NotePageController extends GetxController {
     ...employerCompletionVolunteer,
   ];
 
-  static const _employerStatusByTab = ['hiring', 'filled', 'closed', 'draft'];
+  static const _employerStatusByTab = ['hiring', 'ongoing', 'done'];
 
   /// 현재 구인자 탭에 해당하는 공고 목록.
   /// API 데이터가 비어 있을 때(디자인/개발용)는 더미를 반환한다.
+  ///
+  /// Done 탭(2) 은 `reviewedAll == true` 인 카드(=모든 참여자에게 리뷰 작성 완료) 를
+  /// 리스트 맨 아래로 정렬해, 사용자가 아직 작성해야 할 카드를 위쪽에서 바로 보게 한다.
   List<Map<String, dynamic>> get employerJobsForCurrentTab {
-    final tab = employerTabIndex.value.clamp(0, 3);
+    final tab = employerTabIndex.value.clamp(0, 2);
     final status = _employerStatusByTab[tab];
     final filtered = employerJobOpenings
         .where((job) => job['employerStatus'] == status)
         .toList();
-    if (filtered.isNotEmpty) return filtered;
-    switch (tab) {
-      case 0:
-        return _employerHiringDummy;
-      case 1:
-        return _employerFilledDummy;
-      case 2:
-        return _employerClosedDummy;
-      case 3:
-        return _employerDraftDummy;
+    final base = filtered.isNotEmpty
+        ? filtered
+        : switch (tab) {
+            0 => _employerHiringDummy,
+            1 => _employerOngoingDummy,
+            2 => _employerDoneDummy,
+            _ => const <Map<String, dynamic>>[],
+          };
+    if (tab == 2) {
+      // Done 탭: 리뷰 미완료(false) 가 먼저, 완료(true) 는 뒤로.
+      final sorted = [...base];
+      sorted.sort((a, b) {
+        final aDone = a['reviewedAll'] == true ? 1 : 0;
+        final bDone = b['reviewedAll'] == true ? 1 : 0;
+        return aDone.compareTo(bDone);
+      });
+      return sorted;
     }
-    return const [];
+    return base;
   }
 
-  /// Hiring 탭 (구인자) - API 데이터 없을 때 사용하는 더미.
+  /// Hiring 탭 (구인자) - 모집 마감 전 공고.
+  /// 선착순이 아니라 누구든 지원 가능한 구조라
+  /// 가분수(예: 8/3, 5/4) 도 자연스럽게 나올 수 있다.
+  /// 정원이 다 찼거나 넘긴 카드는 `NotePage._buildApplicantBadge` 에서
+  /// 색만 주황으로 강조해 사용자가 바로 알아볼 수 있게 한다.
   static const List<Map<String, dynamic>> _employerHiringDummy = [
     {
-      'title': 'Food Delivery Rider',
-      'employer': 'Hungry Panda',
+      'title': 'Pop-Up Store Crew',
+      'employer': 'UGG (AU)',
       'dDay': 'D-31',
       'tag': 'Rookie',
-      'applicantsCurrent': 1,
+      'applicantsCurrent': 8,
       'applicantsTotal': 3,
       'employerStatus': 'hiring',
     },
     {
-      'title': 'Temporary Sales Assistant',
-      'employer': 'Happy Gumpy',
+      'title': 'Brand Ambassador',
+      'employer': 'UGG (AU)',
       'dDay': 'D-31',
       'tag': 'Rookie',
-      'applicantsCurrent': 2,
-      'applicantsTotal': 5,
-      'employerStatus': 'hiring',
-    },
-    {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Red Bull Australia',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'applicantsCurrent': 4,
-      'applicantsTotal': 7,
-      'employerStatus': 'hiring',
-    },
-    {
-      'title': 'Festival Support Staff',
-      'employer': 'Boost Juice',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'applicantsCurrent': 2,
-      'applicantsTotal': 5,
-      'employerStatus': 'hiring',
-    },
-    {
-      'title': 'Event Helper',
-      'employer': 'Boost Juice',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'applicantsCurrent': 0,
+      'applicantsCurrent': 5,
       'applicantsTotal': 4,
       'employerStatus': 'hiring',
     },
-  ];
-
-  /// Filled 탭 (구인자) - API 데이터 없을 때 사용하는 더미.
-  /// 지원자가 모두 차서 applicantsCurrent == applicantsTotal.
-  static const List<Map<String, dynamic>> _employerFilledDummy = [
     {
       'title': 'Cashier',
       'employer': 'Blue Wattle Coffee',
@@ -454,7 +452,7 @@ class NotePageController extends GetxController {
       'tag': 'Rookie',
       'applicantsCurrent': 1,
       'applicantsTotal': 1,
-      'employerStatus': 'filled',
+      'employerStatus': 'hiring',
     },
     {
       'title': 'Barista',
@@ -463,119 +461,128 @@ class NotePageController extends GetxController {
       'tag': 'Rookie',
       'applicantsCurrent': 2,
       'applicantsTotal': 2,
-      'employerStatus': 'filled',
-    },
-    {
-      'title': 'Brand Ambassador',
-      'employer': 'UGG (AU)',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'applicantsCurrent': 1,
-      'applicantsTotal': 1,
-      'employerStatus': 'filled',
-    },
-    {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'UGG (AU)',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'applicantsCurrent': 8,
-      'applicantsTotal': 8,
-      'employerStatus': 'filled',
+      'employerStatus': 'hiring',
     },
     {
       'title': 'Office Assistant',
       'employer': "Browing'",
       'dDay': 'D-31',
       'tag': 'Rookie',
-      'applicantsCurrent': 3,
+      'applicantsCurrent': 1,
       'applicantsTotal': 3,
-      'employerStatus': 'filled',
+      'employerStatus': 'hiring',
+    },
+    {
+      'title': 'Food Delivery Rider',
+      'employer': 'Hungry Panda',
+      'dDay': 'D-15',
+      'tag': 'Rookie',
+      'applicantsCurrent': 1,
+      'applicantsTotal': 3,
+      'employerStatus': 'hiring',
+    },
+    {
+      'title': 'Event Helper',
+      'employer': 'Boost Juice',
+      'dDay': 'D-7',
+      'tag': 'Rookie',
+      'applicantsCurrent': 0,
+      'applicantsTotal': 4,
+      'employerStatus': 'hiring',
     },
   ];
 
-  /// Closed 탭 (구인자) - 완전히 끝난 공고 더미.
-  static const List<Map<String, dynamic>> _employerClosedDummy = [
+  /// Ongoing 탭 (구인자) - 인원이 확정되어 실제로 일이 진행 중인 공고.
+  /// 카드 탭은 무반응이며, trailing 에는 정원 배지(항상 다 찬 상태) 만 보인다.
+  static const List<Map<String, dynamic>> _employerOngoingDummy = [
     {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-31',
+      'title': 'Festival Support Staff',
+      'employer': 'Boost Juice',
+      'dDay': 'D-3',
       'tag': 'Rookie',
-      'employerStatus': 'closed',
+      'applicantsCurrent': 5,
+      'applicantsTotal': 5,
+      'employerStatus': 'ongoing',
+    },
+    {
+      'title': 'Temporary Sales Assistant',
+      'employer': 'Happy Gumpy',
+      'dDay': 'D-5',
+      'tag': 'Rookie',
+      'applicantsCurrent': 4,
+      'applicantsTotal': 4,
+      'employerStatus': 'ongoing',
     },
     {
       'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-31',
+      'employer': 'Red Bull Australia',
+      'dDay': 'D-2',
       'tag': 'Rookie',
-      'employerStatus': 'closed',
-    },
-    {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'employerStatus': 'closed',
-    },
-    {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'employerStatus': 'closed',
-    },
-    {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'employerStatus': 'closed',
+      'applicantsCurrent': 7,
+      'applicantsTotal': 7,
+      'employerStatus': 'ongoing',
     },
   ];
 
-  /// Draft 탭 (구인자) - 임시 저장된 공고 더미.
-  static const List<Map<String, dynamic>> _employerDraftDummy = [
+  /// Done 탭 (구인자) - 종료된 공고 더미.
+  /// 각 카드에는 Write Review 주황색 버튼이 trailing 으로 노출되고,
+  /// 누르면 사람 선택 모달 → ReviewDetailPage 흐름으로 연결된다.
+  ///
+  /// `reviewedAll == true` 이면 참여한 모든 사람에 대해 이미 리뷰를 작성한
+  /// 상태로 간주해 버튼을 회색·비활성으로 표시하고,
+  /// `employerJobsForCurrentTab` 에서 리스트 맨 아래로 정렬된다.
+  static const List<Map<String, dynamic>> _employerDoneDummy = [
     {
       'title': 'Pop-Up Store Crew',
       'employer': 'Happy Gumpy',
       'dDay': 'D-31',
       'tag': 'Rookie',
-      'employerStatus': 'draft',
+      'employerStatus': 'done',
+      'reviewedAll': false,
+    },
+    {
+      'title': 'Festival Support Staff',
+      'employer': 'Boost Juice',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'employerStatus': 'done',
+      'reviewedAll': false,
+    },
+    {
+      'title': 'Cashier',
+      'employer': 'Blue Wattle Coffee',
+      'dDay': 'D-31',
+      'tag': 'Rookie',
+      'employerStatus': 'done',
+      'reviewedAll': false,
     },
     {
       'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
+      'employer': 'Sephora Australia',
       'dDay': 'D-31',
       'tag': 'Rookie',
-      'employerStatus': 'draft',
+      'employerStatus': 'done',
+      'reviewedAll': true,
     },
     {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
+      'title': 'Brand Ambassador',
+      'employer': 'UGG (AU)',
       'dDay': 'D-31',
       'tag': 'Rookie',
-      'employerStatus': 'draft',
-    },
-    {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'employerStatus': 'draft',
-    },
-    {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
-      'employerStatus': 'draft',
+      'employerStatus': 'done',
+      'reviewedAll': true,
     },
   ];
 
+  /// trailing 영역에 정원 배지(1/1, 2/5 …)를 노출할지 여부.
+  /// Hiring(0) / Ongoing(1) 만 true, Done(2) 은 Write Review 버튼이 대신 노출된다.
   bool get showEmployerApplicantBadge {
     final tab = employerTabIndex.value;
     return tab == 0 || tab == 1;
   }
+
+  /// Done 탭(2) 일 때만 카드 trailing 에 Write Review 버튼이 보인다.
+  bool get showEmployerWriteReviewButton => employerTabIndex.value == 2;
 
   void setSelectedTab(int index) => selectedTab.value = index;
   void setEmployerTab(int index) => employerTabIndex.value = index;
@@ -668,39 +675,41 @@ class NotePageController extends GetxController {
     },
   ];
 
-  /// Done 탭 (구직자) - 완료한 일 더미. 카드 전체 muted 처리.
+  /// Done 탭 (구직자) - 완료한 일 더미.
+  /// 카드 자체를 탭하면 SeekerNoteWritePage 로 prefill 진입하므로
+  /// 시안과 같이 다양한 회사명을 노출해 디자인 보강.
   static const List<Map<String, dynamic>> _seekerDoneDummy = [
     {
       'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
+      'employer': 'Sephora Australia',
       'dDay': 'D-31',
       'tag': 'Rookie',
       'muted': true,
     },
     {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
+      'title': 'Festival Support Staff',
+      'employer': 'UNIQLO Australia',
       'dDay': 'D-31',
       'tag': 'Rookie',
       'muted': true,
     },
     {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
+      'title': 'Event Helper',
+      'employer': "Grill'd",
       'dDay': 'D-31',
       'tag': 'Rookie',
       'muted': true,
     },
     {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
+      'title': 'Casual Bar Support Staff',
+      'employer': 'Pepper & Vine',
       'dDay': 'D-31',
       'tag': 'Rookie',
       'muted': true,
     },
     {
-      'title': 'Pop-Up Store Crew',
-      'employer': 'Happy Gumpy',
+      'title': 'Temporary Sales Assistant',
+      'employer': 'Oak & Ivy',
       'dDay': 'D-31',
       'tag': 'Rookie',
       'muted': true,
@@ -757,12 +766,10 @@ class NotePageController extends GetxController {
   }
 
   void goToDetailPage(Map<String, dynamic> item) {
-    // 1. 구인자(Employer)인 경우
+    // 1. 구인자(Employer)인 경우 - 카드별 상세 진입.
+    //    새 3탭 구조에서는 view(NotePage)가 탭별로 직접 분기하므로
+    //    여기로 들어오는 경우는 외부(예: 다른 페이지)에서 명시적으로 호출한 때다.
     if (isEmployer) {
-      if (item['employerStatus'] == 'draft') {
-        goToEmployerWritePage();
-        return;
-      }
       Get.to(() => const JobDetailPage());
       return;
     }

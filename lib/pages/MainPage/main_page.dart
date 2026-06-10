@@ -10,20 +10,15 @@ import '../../widgets/popular_job_card.dart';
 import '../../widgets/calendar_modal.dart';
 import '../../widgets/notification_modal.dart';
 import '../../bindings/main_binding.dart';
-import '../../controllers/note_page_controller.dart';
-import '../../widgets/job_application_list_modal.dart';
-import '../../widgets/my_job_openings_modal.dart';
 import '../../widgets/job_search_bar.dart';
 import '../../widgets/auto_translate_text.dart';
 import '../SearchPage/search_page.dart';
 import '../ChatPage/chat_page.dart';
-import '../ChatPage/chat_detail_page.dart';
 import '../MainPage/job_detail_page.dart';
 import '../MyPage/my_page.dart';
 import '../MapPage/map_page.dart';
 import '../NotePage/start_hiring_page.dart';
 import '../NotePage/note_tab_page.dart';
-import '../NotePage/seeker_note_write_page.dart';
 import '../../widgets/main_logo_header.dart';
 import '../../widgets/search_overlay.dart';
 
@@ -95,55 +90,6 @@ class _MainPageState extends State<MainPage> {
   /// 홈 탭이거나 검색 오버레이가 떠 있을 때 로고 표시
   bool get _showLogoHeader =>
       (_selectedIndex == 0 || _isSearchActive) && !_regionPanelOpen;
-
-  /// 구인자 add_chat_button 핸들러 (기존 흐름을 유지).
-  Future<void> _onEmployerAddChatTap(bool isEmployer) async {
-    MainBinding().dependencies();
-    final noteController = Get.find<NotePageController>();
-    noteController.isEmployer = isEmployer;
-    noteController.isEmployerObs.value = isEmployer;
-    final jobs = noteController.employerJobOpenings;
-    final selected = await MyJobOpeningsModal.show(context, jobs: jobs);
-    if (!context.mounted) return;
-    if (selected != null) {
-      final accepted = await JobApplicationListModal.show(context);
-      if (!context.mounted) return;
-      if (accepted != null) {
-        setState(() => _selectedIndex = 2);
-        if (!context.mounted) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ChatDetailPage(
-              peerName: accepted['name'],
-              peerProfileImagePath: accepted['profileImagePath'],
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  /// 구직자 write_button 핸들러.
-  /// 1) MyJobOpeningsModal로 Done 목록(=write 가능 목록) 중 어떤 활동에 대해 쓸지 선택받고
-  /// 2) 선택한 공고 정보를 가지고 SeekerNoteWritePage 로 이동한다.
-  /// 3) Save 가 끝나면 SeekerNoteWritePage 가 controller 를 통해 해당 항목을
-  ///    Done 목록에서 제거하고 Saved 탭으로 보낸다.
-  Future<void> _onSeekerWriteTap() async {
-    MainBinding().dependencies();
-    final noteController = Get.find<NotePageController>();
-    final jobs = noteController.seekerWritableJobs;
-    final selected = await MyJobOpeningsModal.show(context, jobs: jobs);
-    if (!context.mounted) return;
-    if (selected == null) return;
-    await Get.to(
-      () => SeekerNoteWritePage(
-        initialTitle: selected['title'] as String?,
-        jobEmployer: selected['employer'] as String?,
-        sourceJob: selected,
-      ),
-    );
-  }
 
   void _onItemTapped(int index) {
     if (_isSearchActive) {
@@ -243,42 +189,22 @@ class _MainPageState extends State<MainPage> {
         final isEmployer = AuthController.to.isEmployer.value;
         // Note 탭(3)에서만 표시. 구인자/구직자별 액션 분기.
         if (_selectedIndex != 3) return const SizedBox.shrink();
-        const buttonGap = 10.0;
         if (isEmployer) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              GestureDetector(
-                onTap: () => Get.to(() => const StartHiringPage()),
-                child: SvgPicture.asset(
-                  'assets/icon/write_button.svg',
-                  width: 66,
-                  height: 66,
-                ),
-              ),
-              const SizedBox(height: buttonGap),
-              GestureDetector(
-                onTap: () => _onEmployerAddChatTap(isEmployer),
-                child: SvgPicture.asset(
-                  'assets/icon/add_chat_button.svg',
-                  width: 66,
-                  height: 66,
-                ),
-              ),
-            ],
+          // 구인자: Note 탭에서도 write 버튼 하나만 노출한다.
+          // 지원자 수락 흐름은 Hiring 탭의 카드 탭으로 이동했다.
+          return GestureDetector(
+            onTap: () => Get.to(() => const StartHiringPage()),
+            child: SvgPicture.asset(
+              'assets/icon/write_button.svg',
+              width: 66,
+              height: 66,
+            ),
           );
         }
-        // 구직자: write_button 하나만 표시. 누르면 My Job Openings 모달로 작성할 일을 선택한 뒤
-        // 선택한 공고 정보가 prefill 된 SeekerNoteWritePage로 이동.
-        return GestureDetector(
-          onTap: _onSeekerWriteTap,
-          child: SvgPicture.asset(
-            'assets/icon/write_button.svg',
-            width: 66,
-            height: 66,
-          ),
-        );
+        // 구직자: 별도 floating write 버튼을 두지 않는다.
+        // Done 탭에서 카드 자체를 탭하면 노트 작성 페이지로 이동하고,
+        // Saved 탭에서 카드를 탭하면 작성된 노트 상세를 본다.
+        return const SizedBox.shrink();
       }),
       floatingActionButtonLocation: _FabEndFloatLocation(
         right: 20,

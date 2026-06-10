@@ -9,6 +9,11 @@ import '../../widgets/safe_back_app_bar.dart';
 
 /// My Review 수정 페이지. 티켓 배경 위에 별점·리뷰 내용 표시·수정.
 /// [isEditable] false면 Received Reviews용 읽기 전용.
+///
+/// [peerName] 이 주어지면 구인자가 특정 지원자에 대한 리뷰를 새로 작성하는
+/// 흐름(Note → Done → Write Review)으로 간주해 제목 위에 작은 헤더로
+/// "Reviewing  <프로필 사진>  <이름>" 행을 보여준다.
+/// 이 인자는 nullable 이라 기존 MyPage 리뷰 보기/수정 흐름은 영향 없음.
 class ReviewDetailPage extends StatefulWidget {
   const ReviewDetailPage({
     super.key,
@@ -17,6 +22,8 @@ class ReviewDetailPage extends StatefulWidget {
     required this.body,
     this.index,
     this.isEditable = true,
+    this.peerName,
+    this.peerProfileImagePath,
   });
 
   final String title;
@@ -24,6 +31,10 @@ class ReviewDetailPage extends StatefulWidget {
   final String body;
   final int? index;
   final bool isEditable;
+
+  /// 누구에 대한 리뷰인지 (구인자 → 지원자 리뷰 흐름에서만 사용).
+  final String? peerName;
+  final String? peerProfileImagePath;
 
   @override
   State<ReviewDetailPage> createState() => _ReviewDetailPageState();
@@ -119,6 +130,10 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            if (widget.peerName != null) ...[
+                              _buildPeerHeader(),
+                              const SizedBox(height: 8),
+                            ],
                             Center(
                               child: AutoTranslateText(
                                 widget.title,
@@ -202,6 +217,9 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                                   ),
                                 ),
                               ),
+                              // 티켓 바닥과 Save Changes 버튼 사이 여백.
+                              // 기존엔 버튼이 티켓 하단 가장자리에 거의 붙어 있었다.
+                              const SizedBox(height: 36),
                             ],
                           ],
                         ),
@@ -226,6 +244,51 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
             ],
           ),
         ),
+    );
+  }
+
+  /// 구인자→지원자 리뷰 흐름에서 제목 위에 노출되는
+  /// "Reviewing  <프로필>  <이름>" 칩 형태의 헤더.
+  Widget _buildPeerHeader() {
+    final name = widget.peerName ?? '';
+    final imagePath = widget.peerProfileImagePath;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AutoTranslateText(
+            'Reviewing',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF747474),
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (imagePath != null && imagePath.isNotEmpty)
+            CircleAvatar(
+              radius: 11,
+              backgroundColor: const Color(0xFFEFEFEF),
+              backgroundImage: AssetImage(imagePath),
+              onBackgroundImageError: (_, __) {},
+            ),
+          if (imagePath != null && imagePath.isNotEmpty)
+            const SizedBox(width: 6),
+          AutoTranslateText(
+            name,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

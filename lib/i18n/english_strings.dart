@@ -13,6 +13,8 @@ const List<String> kStaticEnglishStrings = <String>[
   // ──────────────────────────────────────────────────────────────────────────
   'Cancel',
   'Accept',
+  "No, I don't",
+  'Yes, I do',
   'OK',
   'Save',
   'Save Changes',
@@ -125,6 +127,7 @@ const List<String> kStaticEnglishStrings = <String>[
   'Settings',
   'Account Deletion',
   'Log Out',
+  'Edit Profile',
   'Check reviews',
   'Profile', 'Banner',
   'Enter My Name',
@@ -133,6 +136,33 @@ const List<String> kStaticEnglishStrings = <String>[
   'Your G-mail Address',
   'Phone Number',
   'Home/Company Address',
+  'Home Address',
+  'Business Address',
+  // MyPage 메뉴(구인자)
+  'My Job Posts',
+  'Applicants',
+  'Interviews',
+  'Billing',
+  'Support',
+  // MyPage subtitle (employer 임시 업종)
+  'Hospitality',
+  // 확인 모달
+  'Do you really want\nto Log out?',
+  'Do you want to\nsave the changes?',
+  // ProfileEdit 신규 필드
+  'Phone-Number',
+  'G-mail Address',
+  'Career',
+  'One Line Introduction',
+  'Preference',
+  "Sadie's Hot Pot",
+  'Unit 5, 123 George Street',
+  '00 0000 0000',
+  'abcdefg@gmail.com',
+  'blahblah',
+  "I like to help people! And I'm trying to improve my social skills :)",
+  // Note 탭 (seeker Done) 신규 버튼
+  'Write Note',
 
   // ReviewDetail
   'Change Saved!',
@@ -262,4 +292,20 @@ const List<String> kStaticEnglishStrings = <String>[
   'D-Day', 'Expired',
   'Promotional Staff', 'Conference Helper', 'Inventory Assistant',
   'Festival Staff',
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Note 탭 (employer) - 구인자용 새 UI
+  // ──────────────────────────────────────────────────────────────────────────
+  'Write Review',
+  'Reviewing',
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Note 탭 (seeker Done 더미) - 시안 보강
+  // ──────────────────────────────────────────────────────────────────────────
+  'Sephora Australia',
+  'UNIQLO Australia',
+  "Grill'd",
+  'Casual Bar Support Staff',
+  'Pepper & Vine',
+  'Oak & Ivy',
 ];

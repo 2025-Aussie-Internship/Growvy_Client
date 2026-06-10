@@ -82,7 +82,7 @@ class _ProfilePickerContentState extends State<_ProfilePickerContent> {
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: const BoxDecoration(
-                    color: Color(0xFFFF7252),
+                    color: Color(0xFFC4C4C4), // 시안: 회색 동그라미
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.close, color: Colors.white, size: 20),
