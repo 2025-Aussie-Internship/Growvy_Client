@@ -1,6 +1,7 @@
-import 'package:easy_localization/easy_localization.dart';
+import 'package:easy_localization/easy_localization.dart' hide StringTranslateExtension;
 import 'package:flutter/material.dart';
 // import 'package:shared_preferences/shared_preferences.dart';
+import '../../i18n/app_translations.dart';
 import '../../styles/colors.dart';
 import '../../widgets/next_button.dart';
 import 'translation_loading_page.dart';
@@ -77,6 +78,28 @@ class _LanguagePickerPageState extends State<LanguagePickerPage>
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  /// 옵션을 누르는 순간 곧장 setLocale 을 호출해서 이 화면(타이틀/서브타이틀/
+  /// "시작하기" 버튼) 자체가 즉시 새 언어로 다시 그려지게 한다.
+  Future<void> _pickLocale(Locale locale) async {
+    if (_selected == locale) return;
+    // 1) 우리 자체 사전의 활성 locale 먼저 갱신 (이걸로 .tr() 가 즉시
+    //    새 locale 의 값 반환). easy_localization 의 context.locale 도
+    //    같이 갱신해서 페이지에서 InheritedWidget 구독이 자동 rebuild
+    //    하도록 만든다.
+    AppTranslations.setLocale(locale);
+    setState(() => _selected = locale);
+    if (context.locale != locale) {
+      try {
+        await context.setLocale(locale);
+      } catch (_) {
+        // setLocale 가 어떤 이유로 실패해도 AppTranslations 는 이미 갱신됐다.
+      }
+    }
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    setState(() {});
   }
 
   Future<void> _onContinue() async {
@@ -162,14 +185,14 @@ class _LanguagePickerPageState extends State<LanguagePickerPage>
                     label: 'language_picker.korean'.tr(),
                     flag: '🇰🇷',
                     selected: _selected?.languageCode == 'ko',
-                    onTap: () => setState(() => _selected = const Locale('ko')),
+                    onTap: () => _pickLocale(const Locale('ko')),
                   ),
                   const SizedBox(height: 14),
                   _LanguageOption(
                     label: 'language_picker.english'.tr(),
                     flag: '🇺🇸',
                     selected: _selected?.languageCode == 'en',
-                    onTap: () => setState(() => _selected = const Locale('en')),
+                    onTap: () => _pickLocale(const Locale('en')),
                   ),
                   const Spacer(flex: 4),
                   NextButton(

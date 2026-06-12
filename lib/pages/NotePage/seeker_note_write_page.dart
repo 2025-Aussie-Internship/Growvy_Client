@@ -20,6 +20,8 @@ class SeekerNoteWritePage extends StatefulWidget {
     this.initialTitle,
     this.initialBody,
     this.initialPhotos,
+    this.initialSkills,
+    this.initialExperience,
     this.jobEmployer,
     this.sourceJob,
   });
@@ -32,6 +34,13 @@ class SeekerNoteWritePage extends StatefulWidget {
 
   /// 수정 모드일 때 기존 사진 URL 목록
   final List<String>? initialPhotos;
+
+  /// 수정 모드일 때 미리 선택돼 있어야 할 skill 칩 목록.
+  final List<String>? initialSkills;
+
+  /// 수정 모드일 때 미리 선택돼 있어야 할 Overall Experience 라벨.
+  /// (Great / Good / Okay / Challenging / Tough)
+  final String? initialExperience;
 
   /// MyJobOpeningsModal 에서 선택된 회사명. Saved 카드 employer 표시에 사용.
   final String? jobEmployer;
@@ -94,6 +103,18 @@ class _SeekerNoteWritePageState extends State<SeekerNoteWritePage> {
     );
     if (widget.initialPhotos != null && widget.initialPhotos!.isNotEmpty) {
       _photos.addAll(widget.initialPhotos!.take(_maxPhotos));
+    }
+    // 수정 모드 prefill — skills 는 _skills 기본 목록에도 영구 추가하고 선택 표시.
+    if (widget.initialSkills != null) {
+      for (final s in widget.initialSkills!) {
+        if (s.isEmpty) continue;
+        if (!_skills.contains(s)) _skills.add(s);
+        _selectedSkills.add(s);
+      }
+    }
+    if (widget.initialExperience != null) {
+      final idx = _experienceLabels.indexOf(widget.initialExperience!);
+      if (idx >= 0) _experienceIndex = idx;
     }
     _descriptionController.addListener(_onBodyChanged);
     _checkUserType();
@@ -445,64 +466,91 @@ class _SeekerNoteWritePageState extends State<SeekerNoteWritePage> {
   }
 
   // ---------------- Overall Experience ----------------
+  /// 5단계 슬라이더. 탭 / 드래그 둘 다 가능.
+  /// - 트랙 전체에 GestureDetector(horizontal drag + tap down) 를 깔아
+  ///   손가락 x 좌표를 가장 가까운 dot 인덱스로 snap.
+  /// - 안쪽 dot 들은 IgnorePointer 로 시각 표시 전담 (탭은 외곽이 흡수).
+  /// - 라벨 행(Great … Tough) 의 탭은 별도 GestureDetector 로 유지.
+  /// - 색/크기/주황 채움 라인 등 기존 스타일은 그대로.
   Widget _buildExperienceSelector() {
     return LayoutBuilder(
       builder: (context, constraints) {
         const double dotSize = 14;
+        // 손가락 hit-test 용 트랙 높이 (시각적 dot 크기보다 크게).
+        const double trackHitHeight = 36;
         final width = constraints.maxWidth;
         final segmentWidth = (width - dotSize) / (_experienceLabels.length - 1);
         final filledWidth = segmentWidth * _experienceIndex + dotSize;
 
+        void selectAtDx(double dx) {
+          // dot 들이 dotSize/2 ~ width - dotSize/2 사이 균등 분포.
+          final rel = (dx - dotSize / 2) / segmentWidth;
+          final idx = rel.round().clamp(0, _experienceLabels.length - 1);
+          if (idx != _experienceIndex) {
+            setState(() => _experienceIndex = idx);
+          }
+        }
+
         return Column(
           children: [
-            SizedBox(
-              height: dotSize,
-              child: Stack(
-                alignment: Alignment.centerLeft,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: dotSize / 2),
-                    height: 2,
-                    decoration: BoxDecoration(
-                      color: _underlineGray,
-                      borderRadius: BorderRadius.circular(1),
-                    ),
-                  ),
-                  Positioned(
-                    left: dotSize / 2,
-                    child: Container(
-                      width: (filledWidth - dotSize).clamp(
-                        0.0,
-                        width - dotSize,
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapDown: (d) => selectAtDx(d.localPosition.dx),
+              onHorizontalDragStart: (d) => selectAtDx(d.localPosition.dx),
+              onHorizontalDragUpdate: (d) => selectAtDx(d.localPosition.dx),
+              child: SizedBox(
+                height: trackHitHeight,
+                width: width,
+                child: Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    // 회색 베이스 라인
+                    Container(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: dotSize / 2,
                       ),
                       height: 2,
                       decoration: BoxDecoration(
-                        color: AppColors.mainColor,
+                        color: _underlineGray,
                         borderRadius: BorderRadius.circular(1),
                       ),
                     ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(_experienceLabels.length, (i) {
-                      final filled = i <= _experienceIndex;
-                      return GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => setState(() => _experienceIndex = i),
-                        child: Container(
-                          width: dotSize,
-                          height: dotSize,
-                          decoration: BoxDecoration(
-                            color: filled
-                                ? AppColors.mainColor
-                                : _underlineGray,
-                            shape: BoxShape.circle,
-                          ),
+                    // 주황 채움 라인 (현재 인덱스까지)
+                    Positioned(
+                      left: dotSize / 2,
+                      child: Container(
+                        width: (filledWidth - dotSize).clamp(
+                          0.0,
+                          width - dotSize,
                         ),
-                      );
-                    }),
-                  ),
-                ],
+                        height: 2,
+                        decoration: BoxDecoration(
+                          color: AppColors.mainColor,
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ),
+                    // dot 5개 — 시각 표시만 담당.
+                    IgnorePointer(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(_experienceLabels.length, (i) {
+                          final filled = i <= _experienceIndex;
+                          return Container(
+                            width: dotSize,
+                            height: dotSize,
+                            decoration: BoxDecoration(
+                              color: filled
+                                  ? AppColors.mainColor
+                                  : _underlineGray,
+                              shape: BoxShape.circle,
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 10),

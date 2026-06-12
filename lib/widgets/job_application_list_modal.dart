@@ -1,4 +1,4 @@
-import 'package:easy_localization/easy_localization.dart';
+import '../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../styles/colors.dart';
@@ -7,15 +7,21 @@ import 'auto_translate_text.dart';
 
 /// 구인자용 Job Application List 모달. 아래에서 위로 슬라이드, 신청한 구직자 중 선택 후 Accept로 새 채팅방 생성.
 /// Accept 시 선택한 지원자 정보를 반환. [name], [profileImagePath].
+///
+/// [applicantCount] 가 주어지면 더미 풀에서 해당 수만큼만(부족하면 반복으로 채워서)
+/// 리스트로 표시한다. 카드의 `applicantsCurrent` 와 모달이 일치해야 자연스럽다.
 class JobApplicationListModal {
-  static Future<Map<String, String>?> show(BuildContext context) async {
+  static Future<Map<String, String>?> show(
+    BuildContext context, {
+    int? applicantCount,
+  }) async {
     return showModalBottomSheet<Map<String, String>>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => Theme(
         data: modalTheme(context),
-        child: const _JobApplicationListContent(),
+        child: _JobApplicationListContent(applicantCount: applicantCount),
       ),
     );
   }
@@ -399,7 +405,10 @@ class _ApplicantProfileSheetContentState
 }
 
 class _JobApplicationListContent extends StatefulWidget {
-  const _JobApplicationListContent();
+  const _JobApplicationListContent({this.applicantCount});
+
+  /// 표시할 지원자 수. null 이면 전체 더미 풀을 보여준다.
+  final int? applicantCount;
 
   @override
   State<_JobApplicationListContent> createState() =>
@@ -407,7 +416,7 @@ class _JobApplicationListContent extends StatefulWidget {
 }
 
 class _JobApplicationListContentState extends State<_JobApplicationListContent> {
-  static final List<_ApplicantItem> _dummyApplicants = [
+  static final List<_ApplicantItem> _dummyPool = [
     _ApplicantItem(name: 'Joy', profileImagePath: 'assets/image/test_profile1.png', rating: 5),
     _ApplicantItem(name: 'Sadie', profileImagePath: 'assets/image/test_profile2.png', rating: 4),
     _ApplicantItem(name: 'Nia', profileImagePath: 'assets/image/test_profile3.png', rating: 3),
@@ -415,6 +424,23 @@ class _JobApplicationListContentState extends State<_JobApplicationListContent> 
     _ApplicantItem(name: 'Seongyun', profileImagePath: 'assets/image/test_profile5.png', rating: 2),
     _ApplicantItem(name: 'Julee', profileImagePath: 'assets/image/test_profile6.png', rating: 4),
   ];
+
+  /// 실제 표시되는 지원자 리스트. applicantCount 가 주어지면 그 수에 맞게
+  /// 풀에서 반복으로 잘라낸다.
+  late final List<_ApplicantItem> _dummyApplicants = _resolveApplicants();
+
+  List<_ApplicantItem> _resolveApplicants() {
+    final n = widget.applicantCount;
+    if (n == null || n <= 0) return _dummyPool;
+    if (n <= _dummyPool.length) {
+      return _dummyPool.take(n).toList();
+    }
+    // 카드의 applicantsCurrent 가 가분수(8/3 같은) 일 수도 있어
+    // 풀보다 많이 요청되면 풀을 순환해 채워준다.
+    return [
+      for (int i = 0; i < n; i++) _dummyPool[i % _dummyPool.length],
+    ];
+  }
 
   int? _selectedIndex;
 

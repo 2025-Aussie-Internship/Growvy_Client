@@ -1,4 +1,5 @@
-import 'package:easy_localization/easy_localization.dart';
+import 'package:easy_localization/easy_localization.dart' hide StringTranslateExtension;
+import '../i18n/app_translations.dart';
 
 /// 백엔드가 내려준 interestIds(=관심/설문 답변 id) 를 화면에 표시할 때 쓰는 헬퍼.
 ///

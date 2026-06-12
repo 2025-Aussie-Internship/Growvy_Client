@@ -1,4 +1,5 @@
-import 'package:easy_localization/easy_localization.dart';
+import 'package:easy_localization/easy_localization.dart' hide StringTranslateExtension;
+import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Trans;
 import '../../controllers/signup_data_controller.dart';
@@ -25,17 +26,31 @@ class _SeekerCareerPageState extends State<SeekerCareerPage> {
     final data = Get.find<SignupDataController>();
     _careerController = TextEditingController(text: data.career ?? '');
     _introController = TextEditingController(text: data.introduction ?? '');
+    _careerController.addListener(_onFieldChanged);
+    _introController.addListener(_onFieldChanged);
   }
 
   @override
   void dispose() {
+    _careerController.removeListener(_onFieldChanged);
+    _introController.removeListener(_onFieldChanged);
     _careerController.dispose();
     _introController.dispose();
     super.dispose();
   }
 
+  void _onFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _isFormValid {
+    return _careerController.text.trim().isNotEmpty &&
+        _introController.text.trim().isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
+    context.locale; // setLocale 시 자동 rebuild 보장
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: const SignInAppBar(),
@@ -57,14 +72,14 @@ class _SeekerCareerPageState extends State<SeekerCareerPage> {
 
               CustomTextField(
                 controller: _careerController,
-                label: 'signup.career'.tr(),
+                label: '*${'signup.career'.tr()}',
                 hintText: 'signup.career_hint'.tr(),
               ),
               const SizedBox(height: 16),
 
               CustomTextField(
                 controller: _introController,
-                label: 'signup.introduction'.tr(),
+                label: '*${'signup.introduction'.tr()}',
                 hintText: 'signup.introduction_hint'.tr(),
               ),
 
@@ -72,19 +87,20 @@ class _SeekerCareerPageState extends State<SeekerCareerPage> {
 
               NextButton(
                 text: 'common.next'.tr(),
-                onPressed: () {
-                  // 필수 값이 아니라 그냥 trim 결과만 저장. 빈 문자열도 그대로 들어간다.
-                  Get.find<SignupDataController>().setCareerInfo(
-                    career: _careerController.text.trim(),
-                    introduction: _introController.text.trim(),
-                  );
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ProfilePickerPage(),
-                    ),
-                  );
-                },
+                onPressed: _isFormValid
+                    ? () {
+                        Get.find<SignupDataController>().setCareerInfo(
+                          career: _careerController.text.trim(),
+                          introduction: _introController.text.trim(),
+                        );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ProfilePickerPage(),
+                          ),
+                        );
+                      }
+                    : null,
               ),
               const SizedBox(height: 40),
             ],

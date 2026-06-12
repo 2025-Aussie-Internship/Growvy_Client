@@ -1,4 +1,5 @@
-import 'package:easy_localization/easy_localization.dart';
+import 'package:easy_localization/easy_localization.dart' hide StringTranslateExtension;
+import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Trans;
 import '../../controllers/signup_data_controller.dart';
@@ -31,17 +32,31 @@ class _EmployerSignupPageState extends State<EmployerSignupPage> {
       text: data.businessAddress ?? '',
     );
     isSoleProprietorship = data.isSoleProprietorship ?? false;
+    _companyNameController.addListener(_onFieldChanged);
+    _businessAddressController.addListener(_onFieldChanged);
   }
 
   @override
   void dispose() {
+    _companyNameController.removeListener(_onFieldChanged);
+    _businessAddressController.removeListener(_onFieldChanged);
     _companyNameController.dispose();
     _businessAddressController.dispose();
     super.dispose();
   }
 
+  void _onFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _isFormValid {
+    return _companyNameController.text.trim().isNotEmpty &&
+        _businessAddressController.text.trim().isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
+    context.locale; // setLocale 시 자동 rebuild 보장
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: const SignInAppBar(),
@@ -63,7 +78,7 @@ class _EmployerSignupPageState extends State<EmployerSignupPage> {
 
               CustomTextField(
                 controller: _companyNameController,
-                label: 'signup.company_name'.tr(),
+                label: '*${'signup.company_name'.tr()}',
                 hintText: 'signup.company_name_hint'.tr(),
               ),
 
@@ -100,19 +115,22 @@ class _EmployerSignupPageState extends State<EmployerSignupPage> {
 
               NextButton(
                 text: 'common.next'.tr(),
-                onPressed: () {
-                  Get.find<SignupDataController>().setEmployerInfo(
-                    companyName: _companyNameController.text.trim(),
-                    isSoleProprietorship: isSoleProprietorship,
-                    businessAddress: _businessAddressController.text.trim(),
-                  );
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ProfilePickerPage(),
-                    ),
-                  );
-                },
+                onPressed: _isFormValid
+                    ? () {
+                        Get.find<SignupDataController>().setEmployerInfo(
+                          companyName: _companyNameController.text.trim(),
+                          isSoleProprietorship: isSoleProprietorship,
+                          businessAddress:
+                              _businessAddressController.text.trim(),
+                        );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ProfilePickerPage(),
+                          ),
+                        );
+                      }
+                    : null,
               ),
               const SizedBox(height: 40),
             ],

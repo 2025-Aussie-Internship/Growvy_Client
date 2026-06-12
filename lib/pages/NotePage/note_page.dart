@@ -1,4 +1,4 @@
-import 'package:easy_localization/easy_localization.dart';
+import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart' hide Trans;
@@ -7,8 +7,12 @@ import '../../styles/colors.dart';
 import '../../widgets/auto_translate_text.dart';
 import '../../widgets/employer_note_tab_bar.dart';
 import '../../widgets/job_application_list_modal.dart';
+import '../../widgets/completion_modal.dart';
+import '../../widgets/confirm_modal.dart';
 import '../ChatPage/chat_detail_page.dart';
+import '../MainPage/job_detail_page.dart';
 import '../MyPage/review_detail_page.dart';
+import 'employer_note_write_page.dart';
 import 'seeker_note_write_page.dart';
 
 /// Note 목록 View (GetX MVVM). write만 직업별(employer_note_write / seeker_note_write)로 분리.
@@ -186,8 +190,11 @@ class NotePage extends GetView<NotePageController> {
     // 구인자 탭별 동작 분기.
     switch (controller.employerTabIndex.value) {
       case 0:
-        // Hiring: 신청한 사람 선택 모달 → 수락 시 채팅 페이지로 이동.
-        _openHiringApplicants(context);
+        // Hiring: 본인이 올린 공고의 JobDetailPage 로 이동(=수정 가능).
+        //  - 상단 우측: 주황 동그라미 수정/삭제 버튼
+        //  - 하단 버튼: "Apply" 대신 "Hiring" — 누르면 지원자 선택 모달이 열리고
+        //    수락된 지원자와의 채팅 페이지로 이어진다.
+        _openOwnerJobDetail(context, item);
         break;
       case 1:
       case 2:
@@ -196,6 +203,110 @@ class NotePage extends GetView<NotePageController> {
         // (Done 은 별도 Write Review 버튼이 trailing 에 노출됨)
         break;
     }
+  }
+
+  /// 구인자가 본인 공고 카드를 탭했을 때 호출.
+  /// JobDetailPage 를 owner 모드로 띄우고:
+  ///  - 수정 버튼 → EmployerNoteWritePage(prefill, edit) → 결과로 카드 갱신
+  ///  - 삭제 버튼 → 확인 모달 → Yes 시 controller 에서 카드 제거
+  ///  - 하단 "Hiring" 버튼 → 지원자 모달(카드의 applicantsCurrent 수와 동일하게)
+  void _openOwnerJobDetail(
+    BuildContext context,
+    Map<String, dynamic> item,
+  ) {
+    final applicantCount = item['applicantsCurrent'] as int?;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (innerContext) => JobDetailPage(
+          postId: item['id'],
+          title: item['title'] as String?,
+          companyName: item['employer'] as String?,
+          tags: <String>[
+            if (item['dDay'] is String) item['dDay'] as String,
+            if (item['tag'] is String) item['tag'] as String,
+          ],
+          scheduleDate: item['scheduleDate'] as String? ??
+              'Jan 29, 2026 - Feb 21, 2026',
+          location: item['location'] as String? ??
+              '27 Willow Street, Newtown NSW 2042, Australia',
+          payText: item['payText'] as String? ?? '\$600 per week',
+          openingsText: item['openingsText'] as String? ??
+              '${item['applicantsTotal'] ?? 3} openings.',
+          description: item['description'] as String? ??
+              'People Needs Rabbit! is looking for a friendly, reliable team '
+                  'member who loves music, enjoys talking with customers.',
+          isOwner: true,
+          onEdit: () => _onOwnerEdit(innerContext, item),
+          onDelete: () => _onOwnerDelete(innerContext, item),
+          onHiringTap: () =>
+              _openHiringApplicants(innerContext, applicantCount: applicantCount),
+        ),
+      ),
+    );
+  }
+
+  /// 수정 버튼 흐름: JobDetailPage 를 닫고 EmployerNoteWritePage(prefill, edit)
+  /// 로 이동해 결과를 받아 controller 에 반영.
+  Future<void> _onOwnerEdit(
+    BuildContext detailContext,
+    Map<String, dynamic> item,
+  ) async {
+    Navigator.of(detailContext).pop();
+    final updated = await Get.to<Map<String, dynamic>>(
+      () => EmployerNoteWritePage(
+        isEditMode: true,
+        initialTitle: item['title'] as String?,
+        initialDescription: item['description'] as String?,
+        initialScheduleDate: item['scheduleDate'] as String?,
+        initialScheduleTime: item['scheduleTime'] as String?,
+        initialLocation: item['location'] as String?,
+        initialPay: item['payText'] as String?,
+        initialNumberOfHires: item['applicantsTotal'] as int?,
+        initialTags: <String>[
+          if (item['tag'] is String) item['tag'] as String,
+        ],
+      ),
+    );
+    if (updated == null) return;
+    final merged = <String, dynamic>{
+      ...item,
+      'title': updated['title'] ?? item['title'],
+      'description': updated['description'] ?? item['description'],
+      'scheduleDate': updated['scheduleDate'] ?? item['scheduleDate'],
+      'scheduleTime': updated['scheduleTime'] ?? item['scheduleTime'],
+      'location': updated['location'] ?? item['location'],
+      'payText': updated['payText'] ?? item['payText'],
+      if (updated['numberOfHires'] is int) ...{
+        'applicantsTotal': updated['numberOfHires'],
+        'openingsText': '${updated['numberOfHires']} openings.',
+      },
+      if (updated['tags'] is List && (updated['tags'] as List).isNotEmpty)
+        'tag': (updated['tags'] as List).first,
+    };
+    controller.updateEmployerJob(item, merged);
+  }
+
+  /// 삭제 버튼 흐름: 확인 모달 → Yes 시 카드 제거 + 완료 모달 → JobDetailPage 닫기.
+  Future<void> _onOwnerDelete(
+    BuildContext detailContext,
+    Map<String, dynamic> item,
+  ) async {
+    final confirmed = await ConfirmModal.show<bool>(
+      context: detailContext,
+      message: 'Do you really want\nto delete this posting?',
+      onCancel: () => Navigator.of(detailContext).pop(false),
+      onAccept: () => Navigator.of(detailContext).pop(true),
+    );
+    if (confirmed != true) return;
+    controller.removeEmployerJob(item);
+    if (!detailContext.mounted) return;
+    CompletionModal.show(
+      detailContext,
+      message: 'Delete Complete!',
+      onDismiss: () {
+        if (detailContext.mounted) Navigator.of(detailContext).pop();
+      },
+    );
   }
 
   /// 구직자 탭별 카드 탭 흐름.
@@ -279,8 +390,15 @@ class NotePage extends GetView<NotePageController> {
   }
 
   /// Hiring 탭 카드 탭 시 노출되는 지원자 선택 모달 → 수락 시 채팅 페이지로 이동.
-  Future<void> _openHiringApplicants(BuildContext context) async {
-    final accepted = await JobApplicationListModal.show(context);
+  /// [applicantCount] 가 주어지면 모달에 그 수만큼의 더미 지원자가 노출된다.
+  Future<void> _openHiringApplicants(
+    BuildContext context, {
+    int? applicantCount,
+  }) async {
+    final accepted = await JobApplicationListModal.show(
+      context,
+      applicantCount: applicantCount,
+    );
     if (!context.mounted) return;
     if (accepted == null) return;
     Navigator.of(context).push(

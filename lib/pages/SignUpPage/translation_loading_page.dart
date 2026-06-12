@@ -1,6 +1,7 @@
-import 'package:easy_localization/easy_localization.dart';
+import 'package:easy_localization/easy_localization.dart' hide StringTranslateExtension;
 import 'package:flutter/material.dart';
 
+import '../../i18n/app_translations.dart';
 import '../../i18n/english_strings.dart';
 import '../../services/translation_service.dart';
 import '../../styles/colors.dart';
@@ -65,9 +66,8 @@ class _TranslationLoadingPageState extends State<TranslationLoadingPage> {
 
   Future<void> _goNext() async {
     // 안전벨트: 혹시라도 prewarm 동안 locale 이 흔들렸다면 한국어로 다시 고정.
-    // (이 화면은 사용자가 한국어를 선택해 진입했을 때만 쓰이므로
-    //  영어 사용자는 이 _goNext 가 호출되기 전에 위 _runPrewarm 의
-    //  early-return 으로 빠져나가 영향이 없다.)
+    // 자체 사전(AppTranslations) 의 활성 locale 도 한국어로 fixed.
+    AppTranslations.setLocale(const Locale('ko'));
     if (context.locale.languageCode != 'ko') {
       await context.setLocale(const Locale('ko'));
       await WidgetsBinding.instance.endOfFrame;
