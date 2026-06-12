@@ -1,4 +1,5 @@
-import 'package:easy_localization/easy_localization.dart';
+import 'package:easy_localization/easy_localization.dart' hide StringTranslateExtension;
+import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../styles/colors.dart';
@@ -37,18 +38,39 @@ class _CommonSignUpPageState extends State<CommonSignUpPage> {
     _dobController = TextEditingController(text: data.dateOfBirth ?? '');
     _phoneController = TextEditingController(text: data.phoneNumber ?? '');
     selectedGender = data.gender ?? '';
+    // 입력값이 바뀔 때마다 NextButton 활성/비활성 갱신.
+    _nameController.addListener(_onFieldChanged);
+    _dobController.addListener(_onFieldChanged);
+    _phoneController.addListener(_onFieldChanged);
   }
 
   @override
   void dispose() {
+    _nameController.removeListener(_onFieldChanged);
+    _dobController.removeListener(_onFieldChanged);
+    _phoneController.removeListener(_onFieldChanged);
     _nameController.dispose();
     _dobController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
 
+  void _onFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// 모든 필수 필드가 채워졌는지. NextButton onPressed 분기에 그대로 사용.
+  bool get _isFormValid {
+    return _nameController.text.trim().isNotEmpty &&
+        _phoneController.text.trim().isNotEmpty &&
+        selectedGender.isNotEmpty &&
+        _dobController.text.length == 10; // YYYY/MM/DD 10자
+  }
+
   @override
   Widget build(BuildContext context) {
+    // 명시적으로 locale 구독 → setLocale 발생 시 자동 rebuild.
+    context.locale;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: const SignInAppBar(),
@@ -133,37 +155,40 @@ class _CommonSignUpPageState extends State<CommonSignUpPage> {
 
               NextButton(
                 text: 'common.next'.tr(),
-                onPressed: () async {
-                  // 1) 현재 단계 입력값을 컨트롤러에 누적
-                  final signupData = Get.find<SignupDataController>();
-                  signupData.setUserType(widget.isEmployer);
-                  signupData.setBasicInfo(
-                    name: _nameController.text.trim(),
-                    dateOfBirth: _dobController.text.trim(),
-                    phoneNumber: _phoneController.text.trim(),
-                    gender: selectedGender.isEmpty ? null : selectedGender,
-                  );
+                // 필수값 모두 입력되기 전엔 NextButton 이 회색 비활성으로 표시된다.
+                onPressed: _isFormValid
+                    ? () async {
+                        // 1) 현재 단계 입력값을 컨트롤러에 누적
+                        final signupData = Get.find<SignupDataController>();
+                        signupData.setUserType(widget.isEmployer);
+                        signupData.setBasicInfo(
+                          name: _nameController.text.trim(),
+                          dateOfBirth: _dobController.text.trim(),
+                          phoneNumber: _phoneController.text.trim(),
+                          gender: selectedGender,
+                        );
 
-                  // 2) 기존대로 사용자 타입 저장 후 다음 화면으로 이동
-                  await Get.find<AuthController>()
-                      .saveUserType(widget.isEmployer);
-                  if (!context.mounted) return;
-                  if (widget.isEmployer) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const EmployerSignupPage(),
-                      ),
-                    );
-                  } else {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SeekerAddressPage(),
-                      ),
-                    );
-                  }
-                },
+                        // 2) 기존대로 사용자 타입 저장 후 다음 화면으로 이동
+                        await Get.find<AuthController>()
+                            .saveUserType(widget.isEmployer);
+                        if (!context.mounted) return;
+                        if (widget.isEmployer) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const EmployerSignupPage(),
+                            ),
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SeekerAddressPage(),
+                            ),
+                          );
+                        }
+                      }
+                    : null,
               ),
               const SizedBox(height: 40),
             ],

@@ -1,4 +1,5 @@
-import 'package:easy_localization/easy_localization.dart';
+import 'package:easy_localization/easy_localization.dart' hide StringTranslateExtension;
+import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Trans;
 import '../../controllers/signup_data_controller.dart';
@@ -24,16 +25,25 @@ class _SeekerAddressPageState extends State<SeekerAddressPage> {
     _addressController = TextEditingController(
       text: Get.find<SignupDataController>().homeAddress ?? '',
     );
+    _addressController.addListener(_onFieldChanged);
   }
 
   @override
   void dispose() {
+    _addressController.removeListener(_onFieldChanged);
     _addressController.dispose();
     super.dispose();
   }
 
+  void _onFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _isFormValid => _addressController.text.trim().isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
+    context.locale; // setLocale 시 자동 rebuild 보장
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: const SignInAppBar(),
@@ -63,17 +73,19 @@ class _SeekerAddressPageState extends State<SeekerAddressPage> {
 
               NextButton(
                 text: 'common.next'.tr(),
-                onPressed: () {
-                  Get.find<SignupDataController>().setHomeAddress(
-                    _addressController.text.trim(),
-                  );
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SeekerInterestPage(),
-                    ),
-                  );
-                },
+                onPressed: _isFormValid
+                    ? () {
+                        Get.find<SignupDataController>().setHomeAddress(
+                          _addressController.text.trim(),
+                        );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SeekerInterestPage(),
+                          ),
+                        );
+                      }
+                    : null,
               ),
               const SizedBox(height: 40),
             ],

@@ -1,10 +1,11 @@
-import 'package:easy_localization/easy_localization.dart';
+import 'package:easy_localization/easy_localization.dart' hide StringTranslateExtension;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:get/get.dart';
+import 'package:get/get.dart' hide Trans;
 import 'firebase_options.dart';
+import 'i18n/app_translations.dart';
 import 'services/user_service.dart';
 import 'bindings/initial_binding.dart';
 import 'routes/app_pages.dart';
@@ -19,6 +20,9 @@ void main() async {
   await UserService.init();
   // 다국어 초기화 (한국어 / 영어 두 가지 지원).
   await EasyLocalization.ensureInitialized();
+  // easy_localization 의 사전 동작이 GetMaterialApp 환경에서 갱신되지 않는
+  // 문제를 회피하기 위해, 우리 자체 사전을 추가로 메모리에 적재한다.
+  await AppTranslations.init();
   runApp(
     EasyLocalization(
       supportedLocales: const [Locale('en'), Locale('ko')],

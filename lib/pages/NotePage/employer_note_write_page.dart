@@ -46,7 +46,32 @@ class DashedBorderPainter extends CustomPainter {
 }
 
 class EmployerNoteWritePage extends StatefulWidget {
-  const EmployerNoteWritePage({super.key});
+  const EmployerNoteWritePage({
+    super.key,
+    this.initialTitle,
+    this.initialDescription,
+    this.initialScheduleDate,
+    this.initialScheduleTime,
+    this.initialLocation,
+    this.initialPay,
+    this.initialNumberOfHires,
+    this.initialTags,
+    this.isEditMode = false,
+  });
+
+  /// 아래 prop 들은 수정 모드일 때 prefill 에 사용된다. 신규 작성 모드면 모두 null.
+  final String? initialTitle;
+  final String? initialDescription;
+  final String? initialScheduleDate;
+  final String? initialScheduleTime;
+  final String? initialLocation;
+  final String? initialPay;
+  final int? initialNumberOfHires;
+  final List<String>? initialTags;
+
+  /// true 면 Save 버튼이 draft 모달을 거치지 않고 곧바로 결과 Map 을 반환하며
+  /// 페이지가 닫힌다. (호출 측에서 controller.updateEmployerJob 으로 전달)
+  final bool isEditMode;
 
   @override
   State<EmployerNoteWritePage> createState() => _EmployerNoteWritePageState();
@@ -69,6 +94,29 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
   @override
   void initState() {
     super.initState();
+    // 수정 모드 prefill — 빈 문자열도 그대로 적용해 사용자가 비울 수 있게.
+    if (widget.initialTitle != null) _titleController.text = widget.initialTitle!;
+    if (widget.initialDescription != null) {
+      _descriptionController.text = widget.initialDescription!;
+    }
+    if (widget.initialScheduleDate != null) {
+      _scheduleDateController.text = widget.initialScheduleDate!;
+    }
+    if (widget.initialScheduleTime != null) {
+      _scheduleTimeController.text = widget.initialScheduleTime!;
+    }
+    if (widget.initialLocation != null) {
+      _locationController.text = widget.initialLocation!;
+    }
+    if (widget.initialPay != null) _payController.text = widget.initialPay!;
+    if (widget.initialNumberOfHires != null && widget.initialNumberOfHires! > 0) {
+      _numberOfHires = widget.initialNumberOfHires!;
+    }
+    if (widget.initialTags != null && widget.initialTags!.isNotEmpty) {
+      _selectedTags
+        ..clear()
+        ..addAll(widget.initialTags!);
+    }
     _checkUserType();
   }
 
@@ -416,13 +464,7 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: () {
-                if (_hasContent()) {
-                  _showSaveDraftModal();
-                } else {
-                  Navigator.pop(context);
-                }
-              },
+              onPressed: _onSavePressed,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.mainColor,
                 foregroundColor: Colors.white,
@@ -431,9 +473,12 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
                   borderRadius: BorderRadius.circular(30),
                 ),
               ),
-              child: const AutoTranslateText(
-                'Save',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              child: AutoTranslateText(
+                widget.isEditMode ? 'Save Changes' : 'Save',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -441,6 +486,48 @@ class _EmployerNoteWritePageState extends State<EmployerNoteWritePage> {
       ),
       ),
     );
+  }
+
+  /// Save 버튼: 수정 모드면 변경 데이터를 호출자에 돌려주고 페이지를 닫는다.
+  /// 신규 모드는 기존 흐름(draft 모달) 유지.
+  void _onSavePressed() {
+    if (widget.isEditMode) {
+      Navigator.pop(context, _collectFormResult());
+      return;
+    }
+    if (_hasContent()) {
+      _showSaveDraftModal();
+    } else {
+      Navigator.pop(context);
+    }
+  }
+
+  /// 폼에 입력된 값들을 NotePageController.updateEmployerJob 에서 그대로
+  /// 카드 갱신에 쓸 수 있는 형태로 묶어 반환한다.
+  /// 비어있는 값은 prefill 값을 fallback 으로 사용 — 부분 수정 케이스 대응.
+  Map<String, dynamic> _collectFormResult() {
+    String pick(String value, String? fallback) =>
+        value.trim().isEmpty ? (fallback ?? '') : value.trim();
+
+    return <String, dynamic>{
+      'title': pick(_titleController.text, widget.initialTitle),
+      'description': pick(
+        _descriptionController.text,
+        widget.initialDescription,
+      ),
+      'scheduleDate': pick(
+        _scheduleDateController.text,
+        widget.initialScheduleDate,
+      ),
+      'scheduleTime': pick(
+        _scheduleTimeController.text,
+        widget.initialScheduleTime,
+      ),
+      'location': pick(_locationController.text, widget.initialLocation),
+      'payText': pick(_payController.text, widget.initialPay),
+      'numberOfHires': _numberOfHires,
+      'tags': List<String>.from(_selectedTags),
+    };
   }
 
   void _showStopRecruitingModal() {

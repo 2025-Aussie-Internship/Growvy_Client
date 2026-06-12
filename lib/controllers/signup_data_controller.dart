@@ -1,5 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+
+import '../services/signup_repository.dart';
 
 /// 회원가입 단계마다 사용자가 입력한 값을 한 곳에 누적했다가
 /// 마지막 SignupCompletePage 에서 한 번에 서버(DB)로 보낼 수 있게 해 주는 컨트롤러.
@@ -192,6 +193,92 @@ class SignupDataController extends GetxController {
     if (introduction != null) this.introduction = introduction;
   }
 
+  // ---------------- 단계별 validation ----------------
+  //
+  // 각 페이지의 NextButton 활성/비활성에 그대로 쓰일 수 있도록 컨트롤러 한 곳에서
+  // 모아 둔다. 페이지가 setState 콜백을 돌리면 controller 의 값을 그대로 읽어
+  // 호출하면 되고, 백엔드 스펙이 바뀌어도 이 메서드들만 수정하면 된다.
+  //
+  // - 모든 필드는 `trim().isNotEmpty` 기준으로 "입력됨" 판정.
+  // - 입력 모드(employer/seeker) 가 정해진 뒤에만 일부 검증이 의미를 가진다.
+
+  /// CommonSignUpPage (이름/생일/전화/성별) 모두 입력됐는지.
+  bool isBasicInfoValid() {
+    final n = (name ?? '').trim();
+    final dob = (dateOfBirth ?? '').trim();
+    final phone = (phoneNumber ?? '').trim();
+    final g = (gender ?? '').trim();
+    // 생일은 YYYY/MM/DD 10글자 모두 채워졌을 때만 유효한 것으로 본다.
+    return n.isNotEmpty &&
+        phone.isNotEmpty &&
+        g.isNotEmpty &&
+        dob.length == 10;
+  }
+
+  /// EmployerSignupPage 의 필수: 회사명 + 사업장 주소.
+  bool isEmployerInfoValid() {
+    return (companyName ?? '').trim().isNotEmpty &&
+        (businessAddress ?? '').trim().isNotEmpty;
+  }
+
+  /// SeekerAddressPage 의 필수: 자택 주소.
+  bool isAddressValid() {
+    return (homeAddress ?? '').trim().isNotEmpty;
+  }
+
+  /// SeekerCareerPage 의 필수: 경력 + 자기소개.
+  bool isCareerValid() {
+    return (career ?? '').trim().isNotEmpty &&
+        (introduction ?? '').trim().isNotEmpty;
+  }
+
+  /// SeekerInterestPage 또는 SeekerSurveyPage 중 하나에서 결과가 있어야 한다.
+  /// (interests 분기 → 최소 1개, survey 분기 → 6개 모든 질문 답변)
+  bool isInterestOrSurveyValid() {
+    if (interests.isNotEmpty) return true;
+    return _surveyAnswerLabels.length >= 6;
+  }
+
+  bool isProfileImagePicked() => profileImageId != null && profileImageId! > 0;
+
+  /// 최종 submit 직전의 종합 검증.
+  /// 누락된 필드가 있으면 false 를 반환하고, 누락 필드 라벨은 [missingFields] 로 조회.
+  bool isReadyForSubmit() {
+    if (isEmployer == null) return false;
+    if (!isBasicInfoValid()) return false;
+    if (!isProfileImagePicked()) return false;
+    if (isEmployer == true) {
+      return isEmployerInfoValid();
+    }
+    return isAddressValid() && isCareerValid() && isInterestOrSurveyValid();
+  }
+
+  /// 디버그/안내용: 비어 있는 필수 필드의 사람-읽기용 라벨 리스트.
+  /// (예: SignupCompletePage 에서 어떤 필드가 빠졌는지 SnackBar 로 안내할 때 사용)
+  List<String> missingFields() {
+    final missing = <String>[];
+    if (isEmployer == null) missing.add('User type');
+    if ((name ?? '').trim().isEmpty) missing.add('Name');
+    if ((dateOfBirth ?? '').trim().length != 10) {
+      missing.add('Date of birth');
+    }
+    if ((phoneNumber ?? '').trim().isEmpty) missing.add('Phone number');
+    if ((gender ?? '').trim().isEmpty) missing.add('Gender');
+    if (!isProfileImagePicked()) missing.add('Profile image');
+    if (isEmployer == true) {
+      if ((companyName ?? '').trim().isEmpty) missing.add('Company name');
+      if ((businessAddress ?? '').trim().isEmpty) {
+        missing.add('Business address');
+      }
+    } else if (isEmployer == false) {
+      if ((homeAddress ?? '').trim().isEmpty) missing.add('Home address');
+      if ((career ?? '').trim().isEmpty) missing.add('Career');
+      if ((introduction ?? '').trim().isEmpty) missing.add('Introduction');
+      if (!isInterestOrSurveyValid()) missing.add('Interests or survey');
+    }
+    return missing;
+  }
+
   // ---------------- 직렬화 ----------------
 
   /// 백엔드 스펙에 맞춘 최종 payload (평탄한 구조).
@@ -249,14 +336,41 @@ class SignupDataController extends GetxController {
     return raw.toUpperCase();
   }
 
-  /// DB 연동 전 단계의 placeholder.
-  /// 실제 백엔드가 붙으면 이 메서드 안에서 `http.post(...)` 로 [toPayload] 를 보낸다.
-  Future<void> submitToBackend() async {
-    final payload = toPayload();
-    debugPrint('[SignupDataController] collected payload = $payload');
-    // TODO: API 연동 시 여기서 http.post / Dio 사용해 한 번에 전송.
-    //  - seeker: POST /api/users/seeker
-    //  - employer: POST /api/users/employer
+  /// [toPayload] 의 alias. 백엔드가 받자마자 DB users 테이블 한 행으로
+  /// insert 할 수 있는 평탄한 Map 임을 호출 측에 분명히 하기 위해 별도 이름을 둠.
+  ///
+  /// SQL 비유:
+  /// ```sql
+  /// INSERT INTO users (name, email, birth_date, gender, phone,
+  ///                    profile_image_id, banner_image_id,
+  ///                    home_address, career, bio, interest_ids,        -- seeker
+  ///                    company_name, business_address)                 -- employer
+  /// VALUES (:name, :email, :birthDate, :gender, :phone, ...);
+  /// ```
+  Map<String, dynamic> toDbRow() => toPayload();
+
+  /// 수집된 모든 값을 디버그/로깅용 한 줄짜리 문자열로 직렬화.
+  /// (실제로는 개인정보가 섞이므로 release 빌드에서 호출 금지)
+  String describeForDebug() {
+    final p = toPayload();
+    final keys = p.keys.toList()..sort();
+    return keys.map((k) => '$k=${p[k]}').join(' | ');
+  }
+
+  /// 수집한 페이로드를 백엔드로 한 번에 전송한다.
+  ///
+  /// 실제 API 호출은 [SignupRepository] 가 담당하며, `API_ENABLED` 가
+  /// false 인 동안은 안전한 stub 으로 동작 (UI 흐름이 멈추지 않게).
+  ///
+  /// [isReadyForSubmit] 가 false 일 때는 호출하지 말 것을 권장한다 —
+  /// 호출 자체는 막지 않지만, 누락된 필드는 빈 문자열/0 등으로 전송된다.
+  ///
+  /// 백엔드 응답으로 생성된 user JSON 을 반환 (없으면 빈 map).
+  Future<Map<String, dynamic>> submitToBackend() async {
+    return SignupRepository.submit(
+      isEmployer: isEmployer == true,
+      payload: toPayload(),
+    );
   }
 
   /// 다음 회원가입 시도를 위해 누적된 값을 초기화한다.

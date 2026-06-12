@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:easy_localization/easy_localization.dart';
+import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart' hide Trans;
@@ -8,6 +8,7 @@ import '../../styles/colors.dart';
 import '../../widgets/auto_translate_text.dart';
 import '../../widgets/completion_modal.dart';
 import '../../widgets/confirm_modal.dart';
+import 'seeker_note_write_page.dart';
 
 /// 구직자가 작성한 노트(후기) 상세 페이지.
 ///
@@ -195,6 +196,17 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                // 수정 버튼: share / delete 와 같은 흰 동그라미 + 주황 아이콘.
+                // (edit svg 가 없어 Material Icon 으로 대체 — 톤은 동일)
+                _CircleIconButton(
+                  onTap: () => _onEdit(context),
+                  child: const Icon(
+                    Icons.edit_outlined,
+                    size: 22,
+                    color: AppColors.mainColor,
+                  ),
+                ),
+                const SizedBox(height: 10),
                 _CircleIconButton(
                   onTap: () => _onShare(context),
                   child: SvgPicture.asset(
@@ -418,6 +430,31 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
   }
 
   // ---------------- 액션 핸들러 ----------------
+  /// Edit 버튼: 현재 노트를 prefill 한 SeekerNoteWritePage 로 이동.
+  /// 저장하면 Saved 탭 최상단에 새 항목으로 추가된다(원본은 사용자가 필요시 삭제).
+  Future<void> _onEdit(BuildContext context) async {
+    final sourceJob = widget.item['sourceId'] != null
+        ? <String, dynamic>{
+            'id': widget.item['sourceId'],
+            'title': widget.item['title'],
+            'employer': widget.item['employer'],
+          }
+        : null;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SeekerNoteWritePage(
+          initialTitle: _title,
+          initialBody: _body,
+          initialPhotos: _photos,
+          initialSkills: _skills,
+          initialExperience: _experience,
+          jobEmployer: _employer,
+          sourceJob: sourceJob,
+        ),
+      ),
+    );
+  }
+
   void _onShare(BuildContext context) {
     ConfirmModal.show(
       context: context,

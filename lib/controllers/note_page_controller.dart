@@ -59,6 +59,22 @@ class NotePageController extends GetxController {
         for (final e in _seekerDoneDummy) Map<String, dynamic>.from(e),
       ].obs;
 
+  /// 구인자 Hiring/Ongoing/Done 더미를 시드로 한 mutable RxList.
+  /// 백엔드 데이터가 비어있는 동안 UI 가 실제처럼 동작하도록 — 삭제/수정이
+  /// 이 RxList 에 반영되어 즉시 카드 목록에서 사라지거나 갱신된다.
+  late final RxList<Map<String, dynamic>> localEmployerHiring =
+      <Map<String, dynamic>>[
+        for (final e in _employerHiringDummy) Map<String, dynamic>.from(e),
+      ].obs;
+  late final RxList<Map<String, dynamic>> localEmployerOngoing =
+      <Map<String, dynamic>>[
+        for (final e in _employerOngoingDummy) Map<String, dynamic>.from(e),
+      ].obs;
+  late final RxList<Map<String, dynamic>> localEmployerDone =
+      <Map<String, dynamic>>[
+        for (final e in _employerDoneDummy) Map<String, dynamic>.from(e),
+      ].obs;
+
   /// 현재 인라인으로 표시되고 있는 노트 상세. null 이면 일반 Note 페이지가 표시되고,
   /// 값이 있으면 그 노트의 [NoteDetailPage] 가 같은 탭 안에 표시되어
   /// 하단 BottomNavigationBar 가 계속 보이도록 한다.
@@ -403,9 +419,9 @@ class NotePageController extends GetxController {
     final base = filtered.isNotEmpty
         ? filtered
         : switch (tab) {
-            0 => _employerHiringDummy,
-            1 => _employerOngoingDummy,
-            2 => _employerDoneDummy,
+            0 => localEmployerHiring,
+            1 => localEmployerOngoing,
+            2 => localEmployerDone,
             _ => const <Map<String, dynamic>>[],
           };
     if (tab == 2) {
@@ -419,6 +435,49 @@ class NotePageController extends GetxController {
       return sorted;
     }
     return base;
+  }
+
+  /// 구인자 공고를 더미/실데이터 양쪽에서 모두 안전하게 제거한다.
+  /// 매칭 우선순위: id → (title + employer).
+  void removeEmployerJob(Map<String, dynamic> item) {
+    bool sameItem(Map<String, dynamic> e) {
+      if (item['id'] != null && e['id'] != null) return e['id'] == item['id'];
+      return e['title'] == item['title'] && e['employer'] == item['employer'];
+    }
+
+    employerRecruitmentHistory.removeWhere(sameItem);
+    employerCompletionHistory.removeWhere(sameItem);
+    employerCompletionVolunteer.removeWhere(sameItem);
+    localEmployerHiring.removeWhere(sameItem);
+    localEmployerOngoing.removeWhere(sameItem);
+    localEmployerDone.removeWhere(sameItem);
+  }
+
+  /// 구인자 공고 카드를 새 값으로 갱신한다. (수정 페이지 저장 후 호출)
+  /// 매칭은 [removeEmployerJob] 과 동일 규칙.
+  void updateEmployerJob(
+    Map<String, dynamic> oldItem,
+    Map<String, dynamic> newItem,
+  ) {
+    bool sameItem(Map<String, dynamic> e) {
+      if (oldItem['id'] != null && e['id'] != null) {
+        return e['id'] == oldItem['id'];
+      }
+      return e['title'] == oldItem['title'] &&
+          e['employer'] == oldItem['employer'];
+    }
+
+    void replaceIn(RxList<Map<String, dynamic>> list) {
+      final idx = list.indexWhere(sameItem);
+      if (idx >= 0) list[idx] = newItem;
+    }
+
+    replaceIn(employerRecruitmentHistory);
+    replaceIn(employerCompletionHistory);
+    replaceIn(employerCompletionVolunteer);
+    replaceIn(localEmployerHiring);
+    replaceIn(localEmployerOngoing);
+    replaceIn(localEmployerDone);
   }
 
   /// Hiring 탭 (구인자) - 모집 마감 전 공고.
@@ -435,6 +494,14 @@ class NotePageController extends GetxController {
       'applicantsCurrent': 8,
       'applicantsTotal': 3,
       'employerStatus': 'hiring',
+      'scheduleDate': 'Jan 29, 2026 - Feb 21, 2026',
+      'location': '120 Pitt St, Sydney NSW 2000',
+      'payText': '\$28 / hour',
+      'openingsText': '3 openings.',
+      'description':
+          'UGG Pop-Up Store is hiring outgoing crew members to assist '
+              'customers during our 4-week pop-up campaign. Shifts are '
+              'flexible (weekdays + weekends) and full training is provided.',
     },
     {
       'title': 'Brand Ambassador',
@@ -444,6 +511,13 @@ class NotePageController extends GetxController {
       'applicantsCurrent': 5,
       'applicantsTotal': 4,
       'employerStatus': 'hiring',
+      'scheduleDate': 'Feb 03, 2026 - Mar 14, 2026',
+      'location': 'Westfield Bondi Junction, NSW 2022',
+      'payText': '\$32 / hour + bonus',
+      'openingsText': '4 openings.',
+      'description':
+          'Represent UGG at flagship stores across Sydney. Looking for '
+              'enthusiastic ambassadors for weekend shifts.',
     },
     {
       'title': 'Cashier',
@@ -453,6 +527,13 @@ class NotePageController extends GetxController {
       'applicantsCurrent': 1,
       'applicantsTotal': 1,
       'employerStatus': 'hiring',
+      'scheduleDate': 'Feb 10, 2026 - May 10, 2026',
+      'location': '12 Oxford St, Paddington NSW 2021',
+      'payText': '\$26 / hour',
+      'openingsText': '1 opening.',
+      'description':
+          'Friendly cafe in Paddington looking for a cashier for the morning '
+              'rush (6am - 11am). Coffee knowledge is a plus.',
     },
     {
       'title': 'Barista',
@@ -462,6 +543,13 @@ class NotePageController extends GetxController {
       'applicantsCurrent': 2,
       'applicantsTotal': 2,
       'employerStatus': 'hiring',
+      'scheduleDate': 'Feb 10, 2026 - May 10, 2026',
+      'location': '12 Oxford St, Paddington NSW 2021',
+      'payText': '\$30 / hour',
+      'openingsText': '2 openings.',
+      'description':
+          'Experienced barista (6+ months) wanted for our specialty coffee '
+              'bar. Latte art and pour-over experience preferred.',
     },
     {
       'title': 'Office Assistant',
@@ -471,6 +559,13 @@ class NotePageController extends GetxController {
       'applicantsCurrent': 1,
       'applicantsTotal': 3,
       'employerStatus': 'hiring',
+      'scheduleDate': 'Feb 15, 2026 - Aug 15, 2026',
+      'location': '88 Phillip St, Sydney NSW 2000',
+      'payText': '\$27 / hour',
+      'openingsText': '3 openings.',
+      'description':
+          'Support our 12-person team with light admin tasks: filing, '
+              'reception cover, and meeting prep. 3 days a week.',
     },
     {
       'title': 'Food Delivery Rider',
@@ -480,6 +575,13 @@ class NotePageController extends GetxController {
       'applicantsCurrent': 1,
       'applicantsTotal': 3,
       'employerStatus': 'hiring',
+      'scheduleDate': 'Feb 20, 2026 - Aug 20, 2026',
+      'location': 'Sydney CBD & Inner West',
+      'payText': '\$29 / hour + tips',
+      'openingsText': '3 openings.',
+      'description':
+          'Deliver Asian cuisine across Sydney with our e-bike fleet. Bikes '
+              'and uniforms supplied.',
     },
     {
       'title': 'Event Helper',
@@ -489,6 +591,13 @@ class NotePageController extends GetxController {
       'applicantsCurrent': 0,
       'applicantsTotal': 4,
       'employerStatus': 'hiring',
+      'scheduleDate': 'Feb 28, 2026 - Mar 02, 2026',
+      'location': 'Royal Botanic Garden Sydney',
+      'payText': '\$31 / hour',
+      'openingsText': '4 openings.',
+      'description':
+          'Weekend pop-up at the Botanic Gardens. Help set up the booth, '
+              'serve samples, and pack down.',
     },
   ];
 
@@ -716,31 +825,66 @@ class NotePageController extends GetxController {
     },
   ];
 
-  /// Saved 탭 (구직자) - 북마크한 공고 더미.
+  /// Saved 탭 (구직자) - 사용자가 저장한 자기 노트 더미.
+  /// detail / edit 페이지가 정상 동작하도록 hasContent, body, skills,
+  /// tag(=Overall Experience 라벨), photos 까지 함께 채워둔다.
   static const List<Map<String, dynamic>> _seekerSavedDummy = [
     {
       'title': 'Record Shop Employee',
-      'employer': 'People needs Rabbit!',
-      'dDay': 'D-8',
-      'tag': 'Rookie',
+      'employer': "People Needs Rabbit!",
+      'dDay': 'Saved',
+      'tag': 'Great',
+      'hasContent': true,
+      'body':
+          'Loved every shift here. The crew was super welcoming and I '
+          'genuinely learned how to recommend vinyl to first-time buyers. '
+          'Closing duties are quick once you get the rhythm.',
+      'skills': ['Communication', 'Customer Interaction', 'Initiative'],
+      'photos': [
+        'https://images.unsplash.com/photo-1511735111819-9a3f7709049c?w=800',
+        'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800',
+      ],
     },
     {
       'title': 'Festival Support Staff',
       'employer': 'Boost Juice',
-      'dDay': 'D-31',
-      'tag': 'Rookie',
+      'dDay': 'Saved',
+      'tag': 'Good',
+      'hasContent': true,
+      'body':
+          'High-energy weekend at the festival. Long shifts but the team '
+          'made it fly by. Got better at handling cash and managing queues.',
+      'skills': ['Teamwork', 'Time Management', 'Adaptability'],
+      'photos': [
+        'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800',
+      ],
     },
     {
       'title': 'Hostel Staff',
       'employer': 'Ustaing',
-      'dDay': 'D-10',
-      'tag': 'Rookie',
+      'dDay': 'Saved',
+      'tag': 'Okay',
+      'hasContent': true,
+      'body':
+          'Front-desk shifts were quiet on weekdays, busy on weekends. '
+          'Good entry-level role if you want to practise English with '
+          'international guests.',
+      'skills': ['Communication', 'Problem Solving'],
+      'photos': <String>[],
     },
     {
       'title': 'Dog Walker',
       'employer': 'Pet Lovers',
-      'dDay': 'D-5',
-      'tag': 'Rookie',
+      'dDay': 'Saved',
+      'tag': 'Great',
+      'hasContent': true,
+      'body':
+          'Met three adorable regulars and learned how to read each dog\'s '
+          'energy. Outdoor work in the morning is honestly the best.',
+      'skills': ['Independence', 'Adaptability'],
+      'photos': [
+        'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800',
+      ],
     },
   ];
 

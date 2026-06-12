@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../styles/colors.dart';
 import 'package:get/get.dart';
+
 import '../../controllers/auth_controller.dart';
+import '../../controllers/user_profile_controller.dart';
+import '../../services/auth_repository.dart';
 import '../../widgets/auto_translate_text.dart';
 import '../../widgets/confirm_modal.dart';
 import '../SignUpPage/signup_page.dart';
-import 'review_page.dart';
 import 'profile_edit_page.dart';
+import 'review_page.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -26,37 +28,29 @@ class MyPageState extends State<MyPage> {
     }
   }
 
-  int _currentProfileIndex = 0;
-  ImageProvider get _currentProfileImage =>
-      _profileImages[_currentProfileIndex];
-  String _userName = 'User Name';
-  String _editPronouns = 'She/Her';
   bool _isEditingProfile = false;
   bool _isViewingReviews = false;
-  late final TextEditingController _nameController;
 
-  final List<ImageProvider> _profileImages = [
-    const AssetImage('assets/image/test_profile1.png'),
-    const AssetImage('assets/image/test_profile2.png'),
-    const AssetImage('assets/image/test_profile3.png'),
-    const AssetImage('assets/image/test_profile4.png'),
-    const AssetImage('assets/image/test_profile5.png'),
-    const AssetImage('assets/image/test_profile6.png'),
-    const AssetImage('assets/image/test_profile7.png'),
-    const AssetImage('assets/image/test_profile8.png'),
-    const AssetImage('assets/image/test_profile9.png'),
+  /// 회원가입 시 선택 가능한 9종 프로필 사진. 인덱스는 1-based id - 1.
+  /// ProfileEdit 모달에서 동일 목록을 carousel 로 보여준다.
+  final List<ImageProvider> _profileImages = const [
+    AssetImage('assets/image/test_profile1.png'),
+    AssetImage('assets/image/test_profile2.png'),
+    AssetImage('assets/image/test_profile3.png'),
+    AssetImage('assets/image/test_profile4.png'),
+    AssetImage('assets/image/test_profile5.png'),
+    AssetImage('assets/image/test_profile6.png'),
+    AssetImage('assets/image/test_profile7.png'),
+    AssetImage('assets/image/test_profile8.png'),
+    AssetImage('assets/image/test_profile9.png'),
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: _userName);
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
+  /// 현재 사용자 프로필의 사진 index (1-based id - 1).
+  /// 컨트롤러에 없으면 0.
+  int get _currentProfileIndex {
+    final id = UserProfileController.to.profile.value?.profileImageId;
+    if (id == null || id <= 0) return 0;
+    return (id - 1).clamp(0, _profileImages.length - 1);
   }
 
   void _openProfileEdit() {
@@ -64,14 +58,18 @@ class MyPageState extends State<MyPage> {
   }
 
   void _applyProfileEdit(Map<String, dynamic> result) {
-    setState(() {
-      _currentProfileIndex =
-          result['profileIndex'] as int? ?? _currentProfileIndex;
-      if (result['userName'] != null) _userName = result['userName'] as String;
-      if (result['pronouns'] != null) _editPronouns = result['pronouns'] as String;
-      _isEditingProfile = false;
-    });
-    _nameController.text = _userName;
+    final newIndex = result['profileIndex'] as int? ?? _currentProfileIndex;
+    final newName = result['userName'] as String?;
+    final newPronouns = result['pronouns'] as String?;
+    // 프로필 컨트롤러에 변경 사항 반영 → MyPage 전체가 Obx 로 자동 갱신.
+    UserProfileController.to.applyEdit(
+      profileImageId: newIndex + 1,
+      profileImageAsset: 'assets/image/test_profile${newIndex + 1}.png',
+      name: newName,
+      pronouns: newPronouns,
+    );
+    setState(() => _isEditingProfile = false);
+    // TODO: 백엔드 연동 후 UserRepository.updateMe(profile.toJson()) 호출.
   }
 
   @override
@@ -104,58 +102,66 @@ class MyPageState extends State<MyPage> {
                   child: Column(
                     children: [
           if (_isEditingProfile)
-            ProfileEditContent(
-              profileImages: _profileImages,
-              initialProfileIndex: _currentProfileIndex,
-              initialUserName: _userName,
-              initialPronouns: _editPronouns,
-              onApply: _applyProfileEdit,
-              onClose: () => setState(() => _isEditingProfile = false),
-            )
+            Obx(() {
+              final p = UserProfileController.to.profile.value;
+              return ProfileEditContent(
+                profileImages: _profileImages,
+                initialProfileIndex: _currentProfileIndex,
+                initialUserName: p?.displayLabel ?? 'User Name',
+                initialPronouns: p?.pronouns ?? 'She/Her',
+                onApply: _applyProfileEdit,
+                onClose: () => setState(() => _isEditingProfile = false),
+              );
+            })
           else ...[
-            const SizedBox(height: 24),
-            // 시안: 큰 원형 프로필 사진(편집 아이콘 없음 - 누르면 편집 화면 진입)
-            GestureDetector(
-              onTap: _openProfileEdit,
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  image: DecorationImage(
-                    image: _currentProfileImage,
-                    fit: BoxFit.cover,
+            // 시안: 사진 → 이름 → 부제 → 별점카드 가 위쪽으로 모이도록 간격 축소.
+            // Edit Profile 진입 pill 버튼은 제거하고, 사진을 누르면 곧바로
+            // 편집 화면으로 진입한다.
+            const SizedBox(height: 16),
+            Obx(() {
+              final image = UserProfileController.to.profile.value
+                      ?.profileImageProvider ??
+                  _profileImages[_currentProfileIndex];
+              return GestureDetector(
+                onTap: _openProfileEdit,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    image: DecorationImage(image: image, fit: BoxFit.cover),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            AutoTranslateText(
-              _userName,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Colors.black,
-              ),
-            ),
-            const SizedBox(height: 4),
+              );
+            }),
+            const SizedBox(height: 12),
+            Obx(() {
+              final p = UserProfileController.to.profile.value;
+              return AutoTranslateText(
+                p?.displayLabel ?? 'User Name',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                ),
+              );
+            }),
+            const SizedBox(height: 2),
             // 구직자: She/Her 같은 성별 표시.
             // 구인자: 업종(Hospitality 등) 표시. 임시로 'Hospitality' 고정.
             Obx(() {
               final isEmployer = AuthController.to.isEmployer.value;
-              final subtitle = isEmployer ? 'Hospitality' : _editPronouns;
+              final pronouns =
+                  UserProfileController.to.profile.value?.pronouns ?? 'She/Her';
+              final subtitle = isEmployer ? 'Hospitality' : pronouns;
               return AutoTranslateText(
                 subtitle,
                 style: TextStyle(fontSize: 13, color: Colors.grey[500]),
               );
             }),
-            const SizedBox(height: 14),
-            _buildEditProfilePillButton(),
-            const SizedBox(height: 24),
-            const _SectionDivider(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             _buildRatingCard(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             // 메뉴 항목: 구인자/구직자에 따라 다르게 노출.
             Obx(() {
               final isEmployer = AuthController.to.isEmployer.value;
@@ -175,9 +181,9 @@ class MyPageState extends State<MyPage> {
                     ];
               return _buildMenuCard(items);
             }),
-            const SizedBox(height: 28),
-            const _SectionDivider(),
             const SizedBox(height: 20),
+            const _SectionDivider(),
+            const SizedBox(height: 14),
             GestureDetector(
               onTap: _onLogOutTap,
               child: AutoTranslateText(
@@ -252,50 +258,6 @@ class MyPageState extends State<MyPage> {
     );
   }
 
-  /// 시안의 주황 outline pill 모양 "Edit Profile" 버튼.
-  Widget _buildEditProfilePillButton() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _openProfileEdit,
-        borderRadius: BorderRadius.circular(28),
-        child: Container(
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: AppColors.mainColor, width: 1.4),
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SvgPicture.asset(
-                'assets/icon/profile_edit_icon.svg',
-                width: 14,
-                height: 14,
-                colorFilter: const ColorFilter.mode(
-                  AppColors.mainColor,
-                  BlendMode.srcIn,
-                ),
-              ),
-              const SizedBox(width: 6),
-              const AutoTranslateText(
-                'Edit Profile',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.mainColor,
-                  height: 1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   /// 시안의 한 묶음 카드 형태 메뉴 (둥근 모서리 + 내부 divider).
   Widget _buildMenuCard(List<String> items) {
     return Container(
@@ -363,7 +325,11 @@ class MyPageState extends State<MyPage> {
       onAccept: () => Navigator.pop(context, true),
     );
     if (confirmed != true || !mounted) return;
+    // 1) 로컬 사용자 타입 + 프로필 캐시 비우기.
     await Get.find<AuthController>().clearUserType();
+    await UserProfileController.to.clear();
+    // 2) Firebase signOut + secure storage 토큰 폐기.
+    await AuthRepository.signOut();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,

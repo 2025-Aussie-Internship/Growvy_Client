@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../models/job_shift.dart';
 import '../../styles/colors.dart';
 import '../../utils/auto_localize.dart';
 import '../../widgets/auto_translate_text.dart';
@@ -279,23 +280,29 @@ class _StartHiringPageState extends State<StartHiringPage> {
           description: _responsibilitiesController.text.trim(),
           tags: tags,
           scheduleDate: _dateController.text.trim(),
-          scheduleTime: _buildScheduleTimeText(),
+          scheduleShifts: _buildShiftList(),
           location: _workLocationController.text.trim(),
           payText: _buildPayText(),
           openingsText: _buildOpeningsText(),
+          // 본인이 방금 작성/게시한 공고이므로 상단 우측에 수정/삭제 아이콘 노출.
+          isOwner: true,
         ),
       ),
     );
   }
 
-  String _buildScheduleTimeText() {
+  /// 작성한 요일별 시간을 [JobShift] 리스트로 변환. JobDetailPage 의 시계
+  /// 영역이 이 리스트를 펼쳐서 SUN~SAT 같은 행으로 보여준다.
+  List<JobShift> _buildShiftList() {
     final indices = _selectedDayIndices.toList()..sort();
-    if (indices.isEmpty) return '';
-    return indices.map((i) {
-      final range = _dayTimes[i] ?? _defaultRange;
-      final dayShort = _weekDays[i][0] + _weekDays[i].substring(1).toLowerCase();
-      return '$dayShort ${_formatTime(range.from)} - ${_formatTime(range.to)}';
-    }).join(', ');
+    return [
+      for (final i in indices)
+        JobShift(
+          dayIndex: i,
+          from: (_dayTimes[i] ?? _defaultRange).from,
+          to: (_dayTimes[i] ?? _defaultRange).to,
+        ),
+    ];
   }
 
   String _buildPayText() {

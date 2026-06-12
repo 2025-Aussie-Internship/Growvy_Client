@@ -1,4 +1,5 @@
-import 'package:easy_localization/easy_localization.dart';
+import 'package:easy_localization/easy_localization.dart' hide StringTranslateExtension;
+import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Trans;
 import '../../controllers/signup_data_controller.dart';
@@ -80,6 +81,7 @@ class _SeekerInterestPageState extends State<SeekerInterestPage> {
 
   @override
   Widget build(BuildContext context) {
+    context.locale; // setLocale 시 자동 rebuild 보장
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: const SignInAppBar(),
@@ -113,7 +115,9 @@ class _SeekerInterestPageState extends State<SeekerInterestPage> {
               Center(
                 child: NextButton(
                   text: 'common.next'.tr(),
-                  onPressed: _goNext,
+                  // 칩을 하나도 안 골랐으면 비활성. 관심사가 정말 없는 사용자는
+                  // 아래 "I don't know what I want to do.." 링크로 설문 우회.
+                  onPressed: _selected.isEmpty ? null : _goNext,
                 ),
               ),
               const SizedBox(height: 64),

@@ -1,4 +1,4 @@
-import 'package:easy_localization/easy_localization.dart';
+import '../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import '../styles/colors.dart';
 import 'auto_translate_text.dart';

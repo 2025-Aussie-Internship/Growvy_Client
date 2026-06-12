@@ -1,10 +1,12 @@
-import 'package:easy_localization/easy_localization.dart';
+import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:get/get.dart' hide Trans;
 import '../../controllers/signup_data_controller.dart';
+import '../../services/auth_repository.dart';
+import '../../services/token_storage.dart';
 import 'signin_page.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -59,6 +61,15 @@ class _SignUpPageState extends State<SignUpPage> {
         uid: userCredential.user?.uid,
         idToken: firebaseIdToken,
       );
+
+      // 이후 API 호출이 자동으로 Authorization 헤더를 붙일 수 있게
+      // Firebase ID Token 을 SecureStorage 에 저장.
+      // 백엔드 자체 access/refresh token 발급 API 가 생기면
+      // AuthRepository.exchangeFirebaseTokenForAccess(...) 를 여기서 호출.
+      if (firebaseIdToken != null && firebaseIdToken.isNotEmpty) {
+        await TokenStorage.saveFirebaseIdToken(firebaseIdToken);
+        await AuthRepository.exchangeFirebaseTokenForAccess(firebaseIdToken);
+      }
 
       if (!mounted) return;
       Navigator.pushReplacement(
