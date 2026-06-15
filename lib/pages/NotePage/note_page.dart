@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart' hide Trans;
 import '../../controllers/note_page_controller.dart';
+import '../../models/job_shift.dart';
 import '../../styles/colors.dart';
 import '../../widgets/auto_translate_text.dart';
 import '../../widgets/employer_note_tab_bar.dart';
@@ -215,6 +216,16 @@ class NotePage extends GetView<NotePageController> {
     Map<String, dynamic> item,
   ) {
     final applicantCount = item['applicantsCurrent'] as int?;
+    final rawPhotos = item['photos'];
+    final photoUrls = rawPhotos is List
+        ? rawPhotos.map((e) => e.toString()).toList()
+        : null;
+    final rawShifts = item['scheduleShifts'];
+    final scheduleShifts = rawShifts is List<JobShift>
+        ? rawShifts
+        : (rawShifts is List
+            ? rawShifts.whereType<JobShift>().toList()
+            : null);
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (innerContext) => JobDetailPage(
@@ -227,6 +238,7 @@ class NotePage extends GetView<NotePageController> {
           ],
           scheduleDate: item['scheduleDate'] as String? ??
               'Jan 29, 2026 - Feb 21, 2026',
+          scheduleShifts: scheduleShifts,
           location: item['location'] as String? ??
               '27 Willow Street, Newtown NSW 2042, Australia',
           payText: item['payText'] as String? ?? '\$600 per week',
@@ -236,6 +248,8 @@ class NotePage extends GetView<NotePageController> {
               'People Needs Rabbit! is looking for a friendly, reliable team '
                   'member who loves music, enjoys talking with customers.',
           isOwner: true,
+          // StartHiringPage 에서 첨부한 사진을 owner detail 에서도 그대로 노출.
+          photoUrls: photoUrls,
           onEdit: () => _onOwnerEdit(innerContext, item),
           onDelete: () => _onOwnerDelete(innerContext, item),
           onHiringTap: () =>
