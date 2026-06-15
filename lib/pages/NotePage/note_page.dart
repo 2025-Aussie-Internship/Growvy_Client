@@ -184,7 +184,7 @@ class NotePage extends GetView<NotePageController> {
     required bool isEmployer,
   }) {
     if (!isEmployer) {
-      _onSeekerCardTap(item);
+      _onSeekerCardTap(context, item);
       return;
     }
     // 구인자 탭별 동작 분기.
@@ -310,12 +310,16 @@ class NotePage extends GetView<NotePageController> {
   }
 
   /// 구직자 탭별 카드 탭 흐름.
-  /// - Applied(0) / Ongoing(1) / Done(2): 카드 자체 탭은 무반응
+  /// - Applied(0): JobDetailPage(isApplied=true) — 하단 버튼이 "Cancel application"
+  ///   으로 표시되며 Yes 시 controller 에서 카드 제거.
+  /// - Ongoing(1) / Done(2): 카드 자체 탭은 무반응
   ///   (Done 은 우측의 Write Note 주황 버튼이 작성 진입을 담당)
   /// - Saved(3): 작성된 노트 상세를 인라인으로 표시
-  void _onSeekerCardTap(Map<String, dynamic> item) {
+  void _onSeekerCardTap(BuildContext context, Map<String, dynamic> item) {
     switch (controller.seekerTabIndex.value) {
       case 0:
+        _openAppliedJobDetail(context, item);
+        break;
       case 1:
       case 2:
         break;
@@ -327,6 +331,47 @@ class NotePage extends GetView<NotePageController> {
       default:
         break;
     }
+  }
+
+  /// 구직자가 Applied 탭에서 본인이 지원한 공고 카드를 탭했을 때 호출.
+  /// JobDetailPage 를 띄우되 하단을 "Cancel application" 버튼으로 표시한다.
+  /// Yes 시 controller 에서 해당 항목 제거 + JobDetailPage 닫기.
+  void _openAppliedJobDetail(
+    BuildContext context,
+    Map<String, dynamic> item,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (innerContext) => JobDetailPage(
+          postId: item['id'],
+          title: item['title'] as String?,
+          companyName: item['employer'] as String?,
+          tags: <String>[
+            if (item['dDay'] is String) item['dDay'] as String,
+            if (item['tag'] is String) item['tag'] as String,
+          ],
+          scheduleDate: item['scheduleDate'] as String?,
+          location: item['location'] as String?,
+          payText: item['payText'] as String?,
+          openingsText: item['openingsText'] as String?,
+          description: item['description'] as String?,
+          isApplied: true,
+          onCancelApplication: () {
+            controller.removeSeekerApplied(item);
+            if (!innerContext.mounted) return;
+            CompletionModal.show(
+              innerContext,
+              message: 'job_detail.cancel_complete'.tr(),
+              onDismiss: () {
+                if (innerContext.mounted) {
+                  Navigator.of(innerContext).pop();
+                }
+              },
+            );
+          },
+        ),
+      ),
+    );
   }
 
   Widget _buildTrailing(

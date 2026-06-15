@@ -11,10 +11,15 @@ class RegionFilterPanel extends StatefulWidget {
     super.key,
     required this.onClose,
     this.onComplete,
+    this.onRegionPicked,
   });
 
   final VoidCallback onClose;
   final void Function(List<String> selected)? onComplete;
+
+  /// 도시 선택 즉시 호출. MapPage 에서는 이 콜백으로 패널을 닫고
+  /// 지도 카메라를 부드럽게 해당 지역으로 이동시킨다.
+  final void Function(String displayName)? onRegionPicked;
 
   @override
   State<RegionFilterPanel> createState() => _RegionFilterPanelState();
@@ -333,6 +338,11 @@ class _RegionFilterPanelState extends State<RegionFilterPanel> {
                                 _selectedRegion =
                                     isSelected ? null : displayName;
                               });
+                              // 도시를 새로 고른 순간 곧장 MapPage 로 알려서
+                              // 지도 카메라를 그 지역으로 부드럽게 이동시킨다.
+                              if (!isSelected) {
+                                widget.onRegionPicked?.call(displayName);
+                              }
                             },
                             child: Padding(
                               padding: const EdgeInsets.symmetric(

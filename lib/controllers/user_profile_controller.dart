@@ -43,6 +43,10 @@ class UserProfileController extends GetxController {
       homeAddress: s.homeAddress,
       career: s.career,
       introduction: s.introduction,
+      // 가입 단계에서 모은 백엔드 interest id 들을 그대로 in-memory 프로필로.
+      interestIds: List<int>.unmodifiable(
+        (s.interestIds.toSet().toList()..sort()),
+      ),
     );
     UserProfileCache.save(profile.value!);
   }

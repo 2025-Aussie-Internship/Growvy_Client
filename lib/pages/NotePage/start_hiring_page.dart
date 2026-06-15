@@ -96,8 +96,9 @@ class _StartHiringPageState extends State<StartHiringPage> {
   int _currentStep = 0;
   bool _menuOpen = false;
 
-  /// 한 번 자동으로 넘어간 단계는 다시 자동 진행하지 않는다.
-  /// (뒤로 돌아와서 수정하는 동안 또 자동 이동되는 것을 막기 위함)
+  /// (과거에는 입력이 완료되면 다음 단계로 자동 진행했지만,
+  ///  사용자가 자기 페이스로 우측 step 메뉴를 눌러 이동하도록 자동 진행은 비활성화.
+  ///  남겨둔 set 은 호환을 위해 유지하지만 더 이상 채워지지 않는다.)
   final Set<int> _autoAdvancedSteps = {};
 
   // Basic Info
@@ -137,18 +138,7 @@ class _StartHiringPageState extends State<StartHiringPage> {
   @override
   void initState() {
     super.initState();
-    // 모든 텍스트 컨트롤러 변경마다 자동 진행 조건을 재평가한다.
-    for (final c in <TextEditingController>[
-      _jobTitleController,
-      _responsibilitiesController,
-      _shiftDetailsController,
-      _dateController,
-      _peopleCountController,
-      _hourlyRateController,
-      _penaltyRateController,
-    ]) {
-      c.addListener(_maybeAdvance);
-    }
+    // 자동 진행을 비활성화했으므로 컨트롤러 listener 등록도 필요 없다.
   }
 
   @override
@@ -186,20 +176,9 @@ class _StartHiringPageState extends State<StartHiringPage> {
     }
   }
 
-  /// 현재 단계가 모두 채워졌고 아직 자동 진행되지 않았다면
-  /// 짧은 딜레이 후 다음 단계로 이동한다.
-  void _maybeAdvance() {
-    if (_currentStep >= _steps.length - 1) return;
-    if (_autoAdvancedSteps.contains(_currentStep)) return;
-    if (!_isStepComplete(_currentStep)) return;
-    _autoAdvancedSteps.add(_currentStep);
-    final stepBeforeDelay = _currentStep;
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      if (_currentStep != stepBeforeDelay) return;
-      setState(() => _currentStep = stepBeforeDelay + 1);
-    });
-  }
+  /// 자동 진행 비활성화: 사용자가 우측 step 메뉴를 직접 눌러 다음 단계로
+  /// 이동하도록 한다. 기존 호출처(`onTap` 등)는 그대로 두지만 no-op 으로 작동.
+  void _maybeAdvance() {}
 
   void _onBackPressed() {
     if (_currentStep > 0) {

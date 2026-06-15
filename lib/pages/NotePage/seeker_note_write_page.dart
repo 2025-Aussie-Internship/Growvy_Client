@@ -220,8 +220,15 @@ class _SeekerNoteWritePageState extends State<SeekerNoteWritePage> {
           ),
           centerTitle: true,
         ),
-        body: SingleChildScrollView(
+        // 휴대폰에서 입력 후 키보드가 화면을 가려도 다른 UI 를 터치할 수 있도록
+        // (1) body 전체를 GestureDetector 로 감싸 빈 영역 탭 시 unfocus,
+        // (2) ScrollView 의 keyboardDismissBehavior 로 스크롤(드래그) 시 자동 닫힘.
+        body: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -252,6 +259,7 @@ class _SeekerNoteWritePageState extends State<SeekerNoteWritePage> {
               _buildPhotoBox(),
               const SizedBox(height: 16),
             ],
+          ),
           ),
         ),
         bottomNavigationBar: Padding(
