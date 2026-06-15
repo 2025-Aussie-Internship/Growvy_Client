@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+
 import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -8,6 +10,7 @@ import '../../styles/colors.dart';
 import '../../widgets/auto_translate_text.dart';
 import '../../widgets/confirm_modal.dart';
 import '../../widgets/completion_modal.dart';
+import '../NotePage/employer_note_write_page.dart';
 
 class JobDetailPage extends StatefulWidget {
   const JobDetailPage({
@@ -28,6 +31,7 @@ class JobDetailPage extends StatefulWidget {
     this.onDelete,
     this.onHiringTap,
     this.onCancelApplication,
+    this.photoUrls,
   });
 
   /// 공고 ID. Apply 성공 시 이 값을 pop하여 호출측에서 리스트에서 제거할 수 있음.
@@ -76,6 +80,11 @@ class JobDetailPage extends StatefulWidget {
   /// null 이면 단순히 [postId] 와 함께 pop 한다.
   final VoidCallback? onCancelApplication;
 
+  /// 상단 자동 슬라이드 영역에 보여 줄 사진 목록.
+  /// 항목은 `http(s)://` URL 이거나 단말 local 파일 경로(둘 다 지원).
+  /// null 또는 빈 리스트면 기본 더미 이미지가 노출된다.
+  final List<String>? photoUrls;
+
   @override
   State<JobDetailPage> createState() => _JobDetailPageState();
 }
@@ -94,18 +103,57 @@ class _JobDetailPageState extends State<JobDetailPage> {
   /// 시계 영역(요일별 시간) 펼침 여부. 기본 펼쳐진 상태로 표시.
   bool _scheduleExpanded = true;
 
-  final List<String> _imageUrls = [
+  // ---------------- 화면 표시용 mutable 상태 ----------------
+  // 수정 모달이 닫힌 직후 화면을 즉시 갱신하기 위해 widget.X 대신 이 변수들을
+  // 그린다. initState 에서 widget 값으로 초기화하고, 수정 결과(map)가 들어오면
+  // setState 로 교체한다.
+  String? _title;
+  String? _companyName;
+  String? _description;
+  List<String>? _tags;
+  String? _scheduleDate;
+  String? _location;
+  String? _payText;
+  String? _openingsText;
+  int? _numberOfHires;
+
+  /// 호출 측에서 photoUrls 가 들어오면 그것만, 비어 있으면 기본 더미 4장.
+  static const List<String> _defaultImageUrls = [
     "https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=400",
     "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400",
     "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=400",
     "https://images.unsplash.com/photo-1519750783826-e2420f4d687f?w=400",
   ];
 
+  List<String> get _imageUrls {
+    final injected = widget.photoUrls;
+    if (injected != null && injected.isNotEmpty) return injected;
+    return _defaultImageUrls;
+  }
+
+  /// URL/파일 경로 모두 받아 자동 슬라이드용 한 장을 그린다.
+  /// http 면 NetworkImage, 그 외(=local 파일 경로) 면 FileImage.
+  Widget _slideImage(String path) {
+    if (path.startsWith('http')) {
+      return Image.network(path, fit: BoxFit.cover);
+    }
+    return Image.file(File(path), fit: BoxFit.cover);
+  }
+
   @override
   void initState() {
     super.initState();
     _imageController = PageController(initialPage: _imageCurrentPage);
     _startImageTimer();
+
+    _title = widget.title;
+    _companyName = widget.companyName;
+    _description = widget.description;
+    _tags = widget.tags;
+    _scheduleDate = widget.scheduleDate;
+    _location = widget.location;
+    _payText = widget.payText;
+    _openingsText = widget.openingsText;
   }
 
   @override
@@ -143,10 +191,8 @@ class _JobDetailPageState extends State<JobDetailPage> {
                   child: PageView.builder(
                     controller: _imageController,
                     itemBuilder: (context, index) {
-                      return Image.network(
-                        _imageUrls[index % _imageUrls.length],
-                        fit: BoxFit.cover,
-                      );
+                      final urls = _imageUrls;
+                      return _slideImage(urls[index % urls.length]);
                     },
                   ),
                 ),
@@ -180,7 +226,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         AutoTranslateText(
-                          widget.title ?? "Sadie's HotPot",
+                          _title ?? "Sadie's HotPot",
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -193,7 +239,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             AutoTranslateText(
-                              widget.companyName ?? 'My Awesome Company',
+                              _companyName ?? 'My Awesome Company',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.grey[600],
@@ -217,13 +263,13 @@ class _JobDetailPageState extends State<JobDetailPage> {
                             children: [
                               for (int i = 0;
                                   i <
-                                      (widget.tags ??
+                                      (_tags ??
                                               const ['D-10', 'Veteran'])
                                           .length;
                                   i++) ...[
                                 if (i != 0) const SizedBox(width: 8),
                                 _buildTag(
-                                  (widget.tags ??
+                                  (_tags ??
                                       const ['D-10', 'Veteran'])[i],
                                 ),
                               ],
@@ -233,7 +279,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
                         const SizedBox(height: 24),
 
                         AutoTranslateText(
-                          widget.description ??
+                          _description ??
                               "Looking for someone to try my Malatang.",
                           style: const TextStyle(
                             fontSize: 14,
@@ -251,22 +297,21 @@ class _JobDetailPageState extends State<JobDetailPage> {
 
                         _buildInfoRow(
                           'assets/icon/calendar_icon.svg',
-                          widget.scheduleDate ??
-                              'Feb 15, 2026 - Feb 16, 2026',
+                          _scheduleDate ?? 'Feb 15, 2026 - Feb 16, 2026',
                         ),
                         _buildScheduleSection(),
                         _buildInfoRow(
                           'assets/icon/address_icon.svg',
-                          widget.location ??
+                          _location ??
                               '123 Swanston St, Melbourne, VIC, Australia',
                         ),
                         _buildInfoRow(
                           'assets/icon/salary_icon.svg',
-                          widget.payText ?? '\$1000 per day',
+                          _payText ?? '\$1000 per day',
                         ),
                         _buildInfoRow(
                           'assets/icon/people_icon.svg',
-                          widget.openingsText ?? '1 openings.',
+                          _openingsText ?? '1 openings.',
                         ),
 
                         const SizedBox(height: 80),
@@ -379,72 +424,123 @@ class _JobDetailPageState extends State<JobDetailPage> {
     );
   }
 
-  /// 상단 우측: 본인 공고용. 흰 동그라미 배경 + 주황 아이콘 + 약한 그림자.
-  /// (구직자 NoteDetailPage 의 share/delete 와 같은 톤으로 통일)
+  /// 상단 우측: 본인 공고용. 디자인 자체가 흰 원 배경 + 그림자까지 포함되어
+  /// 있으므로 별도 컨테이너 없이 SVG/PNG 를 그대로 보여 준다.
+  ///
+  /// 주의: `jobdetail_delete_icon.svg` 파일은 확장자만 .svg 이고 실제 내용이
+  /// PNG (Figma export 누락) 이므로 `Image.asset` 으로 그려야 한다.
+  /// `SvgPicture.asset` 으로 PNG 를 파싱하면 build 도중 예외가 발생해
+  /// 화면이 멈춘 것처럼 보일 수 있다.
   Widget _buildOwnerActions() {
     return Row(
       children: [
-        _circleIconButton(
-          icon: Icons.edit_outlined,
+        _circleAssetButton(
           onTap: _handleEditTap,
+          child: SvgPicture.asset(
+            'assets/icon/jobdetail_edit_icon.svg',
+            width: 44,
+            height: 44,
+            fit: BoxFit.contain,
+          ),
         ),
-        const SizedBox(width: 8),
-        _circleIconButton(
-          icon: Icons.delete_outline,
+        const SizedBox(width: 6),
+        _circleAssetButton(
           onTap: _handleDeleteTap,
+          child: Image.asset(
+            'assets/icon/jobdetail_delete_icon.svg',
+            width: 44,
+            height: 44,
+            fit: BoxFit.contain,
+          ),
         ),
       ],
     );
   }
 
-  Widget _circleIconButton({
-    required IconData icon,
+  /// 원형 InkWell 로 감싸 탭 영역을 만들어 주는 단순 helper.
+  Widget _circleAssetButton({
+    required Widget child,
     required VoidCallback onTap,
   }) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return SizedBox(
+      width: 44,
+      height: 44,
       child: Material(
         color: Colors.transparent,
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onTap,
-          child: Center(
-            child: Icon(icon, color: AppColors.mainColor, size: 22),
-          ),
+          child: Center(child: child),
         ),
       ),
     );
   }
 
-  void _handleEditTap() {
+  /// 수정 흐름.
+  /// 1) 호출 측이 [JobDetailPage.onEdit] 콜백을 주면 그것을 우선 호출
+  ///    (NotePage 에서 들어온 경우 처럼 외부 컨트롤러를 갱신해야 할 때).
+  /// 2) 콜백이 없으면 (= StartHiringPage 직후 등) 곧장 EmployerNoteWritePage
+  ///    를 prefill 된 수정 모드로 띄우고, 결과 map 으로 화면을 즉시 갱신한다.
+  Future<void> _handleEditTap() async {
     if (widget.onEdit != null) {
       widget.onEdit!();
       return;
     }
-    // 기본 동작: 작성 페이지로 돌아간다 (pushReplacement 로 들어온 경우 호환).
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        duration: Duration(seconds: 2),
-        backgroundColor: AppColors.mainColor,
-        content: AutoTranslateText(
-          'Edit posting coming soon',
-          style: TextStyle(color: Colors.white),
+    final updated = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => EmployerNoteWritePage(
+          isEditMode: true,
+          initialTitle: _title,
+          initialDescription: _description,
+          initialScheduleDate: _scheduleDate,
+          initialLocation: _location,
+          initialPay: _payText,
+          initialNumberOfHires: _numberOfHires,
+          initialTags: _tags == null ? null : List<String>.from(_tags!),
         ),
       ),
     );
+    if (!mounted || updated == null) return;
+    setState(() {
+      _title = (updated['title'] as String?)?.trim().isNotEmpty == true
+          ? updated['title'] as String
+          : _title;
+      _description =
+          (updated['description'] as String?)?.trim().isNotEmpty == true
+              ? updated['description'] as String
+              : _description;
+      _scheduleDate =
+          (updated['scheduleDate'] as String?)?.trim().isNotEmpty == true
+              ? updated['scheduleDate'] as String
+              : _scheduleDate;
+      _location = (updated['location'] as String?)?.trim().isNotEmpty == true
+          ? updated['location'] as String
+          : _location;
+      _payText = (updated['payText'] as String?)?.trim().isNotEmpty == true
+          ? updated['payText'] as String
+          : _payText;
+      if (updated['numberOfHires'] is int) {
+        _numberOfHires = updated['numberOfHires'] as int;
+        final isOne = _numberOfHires == 1;
+        _openingsText = '$_numberOfHires ${isOne ? 'opening' : 'openings'}.';
+      }
+      if (updated['tags'] is List && (updated['tags'] as List).isNotEmpty) {
+        _tags = List<String>.from(updated['tags'] as List);
+      }
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          duration: Duration(seconds: 2),
+          backgroundColor: AppColors.mainColor,
+          content: AutoTranslateText(
+            'Posting updated.',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _handleDeleteTap() async {
@@ -459,7 +555,16 @@ class _JobDetailPageState extends State<JobDetailPage> {
       onAccept: () => Navigator.pop(context, true),
     );
     if (confirmed != true || !mounted) return;
-    Navigator.pop(context, {'deleted': true, 'postId': widget.postId});
+    // 삭제 완료 모달 → JobDetailPage 자체 pop. 호출 측이 결과로 알 수 있게.
+    CompletionModal.show(
+      context,
+      message: 'Delete Complete!',
+      onDismiss: () {
+        if (mounted) {
+          Navigator.pop(context, {'deleted': true, 'postId': widget.postId});
+        }
+      },
+    );
   }
 
   /// 요일별 시간 섹션. 헤더(시계 + 첫 줄 + 펼침 토글) + 펼침 시 7일 리스트.

@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 
 import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart' hide Trans;
+import 'package:image_picker/image_picker.dart';
 import '../../controllers/job_post_data_controller.dart';
+import '../../controllers/note_page_controller.dart';
+import '../../controllers/user_profile_controller.dart';
 import '../../models/job_shift.dart';
 import '../../styles/colors.dart';
 import '../../utils/auto_localize.dart';
@@ -98,6 +102,14 @@ class _StartHiringPageState extends State<StartHiringPage> {
   /// 선택된 INDUSTRY id 들 (1~11). 백엔드로 그대로 전송.
   final Set<int> _selectedIndustryIds = <int>{};
 
+  /// 첨부된 사진 경로 (local 파일 경로 또는 http URL). 최대 [_maxPhotos] 장.
+  /// 백엔드로는 JobPostDataController.photoUrls 로, JobDetailPage 의 상단
+  /// 자동 슬라이드 영역으로는 그대로 전달된다.
+  final List<String> _photos = <String>[];
+  static const int _maxPhotos = 4;
+  static const Color _photoBorderGray = Color(0xFFE5E5E5);
+  static const Color _photoIconGray = Color(0xFFBDBDBD);
+
   // Job Details
   final TextEditingController _responsibilitiesController =
       TextEditingController();
@@ -145,27 +157,41 @@ class _StartHiringPageState extends State<StartHiringPage> {
     super.dispose();
   }
 
-  bool _isStepComplete(int step) {
+  /// 해당 step 의 *필수* 입력 중 비어있는 항목의 라벨 목록을 반환.
+  /// publish 실패 SnackBar 에 그대로 노출되므로 사용자가 어떤 칸을 채워야 할지
+  /// 바로 알 수 있어야 한다.
+  ///
+  /// 참고: 모든 입력란을 필수로 두면 publish 가 막혀 사용자가 어디가 비었는지
+  /// 알기 어렵다고 보고, 핵심 정보만 필수로 두고 보조 항목 (Shift details,
+  /// Penalty rate, Superannuation) 은 optional 로 둠.
+  List<String> _missingFieldsForStep(int step) {
+    final missing = <String>[];
     switch (step) {
       case 0: // Basic Info
-        return _jobTitleController.text.trim().isNotEmpty &&
-            _employmentTypeId != null &&
-            _selectedIndustryIds.isNotEmpty;
+        if (_jobTitleController.text.trim().isEmpty) missing.add('Job title');
+        if (_employmentTypeId == null) missing.add('Employment type');
+        if (_selectedIndustryIds.isEmpty) missing.add('Industry');
+        break;
       case 1: // Job Details
-        return _responsibilitiesController.text.trim().isNotEmpty &&
-            _shiftDetailsController.text.trim().isNotEmpty &&
-            _dateController.text.trim().isNotEmpty &&
-            _peopleCountController.text.trim().isNotEmpty &&
-            _selectedDayIndices.isNotEmpty;
+        if (_responsibilitiesController.text.trim().isEmpty) {
+          missing.add('Responsibilities');
+        }
+        if (_dateController.text.trim().isEmpty) missing.add('Schedule date');
+        if (_selectedDayIndices.isEmpty) missing.add('Working days');
+        if (_peopleCountController.text.trim().isEmpty) {
+          missing.add('Number of hires');
+        }
+        break;
       case 2: // Pay & Benefits
-        return _hourlyRateController.text.trim().isNotEmpty &&
-            _penaltyRateController.text.trim().isNotEmpty &&
-            _superannuation != null;
+        if (_hourlyRateController.text.trim().isEmpty) {
+          missing.add('Hourly rate');
+        }
+        break;
       case 3: // Application Settings
-        return _selectedDate != null;
-      default:
-        return false;
+        if (_selectedDate == null) missing.add('Application deadline');
+        break;
     }
+    return missing;
   }
 
   /// 자동 진행 비활성화: 사용자가 우측 step 메뉴를 직접 눌러 다음 단계로
@@ -206,25 +232,34 @@ class _StartHiringPageState extends State<StartHiringPage> {
   ///   상세 페이지의 뒤로가기 시 곧바로 MainPage 로 돌아간다.)
   void _onPublishPressed() {
     for (int i = 0; i < _steps.length - 1; i++) {
-      if (!_isStepComplete(i)) {
-        setState(() {
-          _currentStep = i;
-          _menuOpen = false;
-          _autoAdvancedSteps.remove(i);
-        });
-        final stepLabel = _steps[i]['label']!.replaceAll('\n', ' ');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            duration: const Duration(seconds: 2),
-            backgroundColor: AppColors.mainColor,
-            content: Text(
-              autoLocalize(context, 'Please complete "$stepLabel" first.'),
-              style: const TextStyle(color: Colors.white),
+      final missing = _missingFieldsForStep(i);
+      if (missing.isEmpty) continue;
+      setState(() {
+        _currentStep = i;
+        _menuOpen = false;
+        _autoAdvancedSteps.remove(i);
+      });
+      final stepLabel = _steps[i]['label']!.replaceAll('\n', ' ');
+      final missingLabel = missing.join(', ');
+      // floating + margin 으로 publish 페이지 하단 큰 버튼/네비에 가리지 않게 표시.
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 4),
+          backgroundColor: AppColors.mainColor,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 100),
+          content: Text(
+            autoLocalize(
+              context,
+              'Please fill out "$missingLabel" in "$stepLabel" before publishing.',
             ),
+            style: const TextStyle(color: Colors.white),
           ),
-        );
-        return;
-      }
+        ),
+      );
+      return;
     }
 
     // 1) 현재 화면 입력을 JobPostDataController 에 누적.
@@ -255,7 +290,8 @@ class _StartHiringPageState extends State<StartHiringPage> {
         penaltyRate: _penaltyRateController.text.trim(),
         superannuation: _superannuation,
       )
-      ..setApplicationDeadline(_selectedDate);
+      ..setApplicationDeadline(_selectedDate)
+      ..setPhotos(_photos);
 
     debugPrint('[StartHiring] ${jobPost.describeForDebug()}');
 
@@ -280,27 +316,84 @@ class _StartHiringPageState extends State<StartHiringPage> {
       ),
     ].where((s) => s.isNotEmpty).toList();
 
+    final title = _jobTitleController.text.trim();
+    final description = _responsibilitiesController.text.trim();
+    final scheduleDateText = _dateController.text.trim();
+    final payText = _buildPayText();
+    final openingsText = _buildOpeningsText();
+    final headCount = int.tryParse(_peopleCountController.text.trim()) ?? 1;
+    final shifts = _buildShiftList();
+    final photos = List<String>.from(_photos);
+
+    // 회사명은 로그인 시 입력한 employer 프로필에서 가져온다 (없으면 비워둠).
+    String companyName = '';
+    try {
+      final user = Get.find<UserProfileController>();
+      companyName = user.profile.value?.companyName ?? '';
+    } catch (_) {}
+
+    // 4) NotePage 의 Hiring 탭에서도 즉시 카드로 보이도록 controller 에 등록.
+    //    backend submit 와 무관하게 로컬 RxList 에 먼저 반영해 사용자가 곧장
+    //    확인할 수 있게 한다. (NotePage 가 아직 한 번도 진입 전이라
+    //    NotePageController 가 Get.put 되지 않았을 수 있어 isRegistered 가드)
+    final hiringCard = <String, dynamic>{
+      'title': title.isEmpty ? 'Untitled Posting' : title,
+      'employer': companyName,
+      'dDay': _dDayLabel(_selectedDate),
+      'tag': tags.isNotEmpty ? tags.first : 'Rookie',
+      'applicantsCurrent': 0,
+      'applicantsTotal': headCount,
+      'employerStatus': 'hiring',
+      'scheduleDate': scheduleDateText,
+      'location': '',
+      'payText': payText,
+      'openingsText': openingsText,
+      'description': description,
+      'photos': photos,
+      'scheduleShifts': shifts,
+      // 사용자에게 노출되진 않지만, 카드 매칭/디버깅 용 식별자.
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+    if (Get.isRegistered<NotePageController>()) {
+      Get.find<NotePageController>().addEmployerHiring(hiringCard);
+    }
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => JobDetailPage(
-          title: _jobTitleController.text.trim(),
-          companyName: '',
-          description: _responsibilitiesController.text.trim(),
+          title: title,
+          companyName: companyName,
+          description: description,
           tags: tags,
-          scheduleDate: _dateController.text.trim(),
-          scheduleShifts: _buildShiftList(),
+          scheduleDate: scheduleDateText,
+          scheduleShifts: shifts,
           location: '',
-          payText: _buildPayText(),
-          openingsText: _buildOpeningsText(),
+          payText: payText,
+          openingsText: openingsText,
           // 본인이 방금 작성/게시한 공고이므로 상단 우측에 수정/삭제 아이콘 노출.
           isOwner: true,
+          // 상단 자동 슬라이드 영역을 사용자가 첨부한 사진으로 채운다.
+          // 비어 있으면 JobDetailPage 가 알아서 기본 더미 이미지로 fallback.
+          photoUrls: photos,
         ),
       ),
     );
 
-    // 4) 다음 공고 작성을 위해 누적값 초기화 (백그라운드 submit 의 toPayload() 는
+    // 5) 다음 공고 작성을 위해 누적값 초기화 (백그라운드 submit 의 toPayload() 는
     //    이미 호출 직후 평가되었으므로 안전).
     jobPost.reset();
+  }
+
+  /// 마감일(deadline) 기준으로 D-XX / D-Day / Expired 라벨을 만든다.
+  String _dDayLabel(DateTime? deadline) {
+    if (deadline == null) return 'D-?';
+    final now = DateTime.now();
+    final t = DateTime(now.year, now.month, now.day);
+    final d = DateTime(deadline.year, deadline.month, deadline.day);
+    final diff = d.difference(t).inDays;
+    if (diff == 0) return 'D-Day';
+    if (diff < 0) return 'Expired';
+    return 'D-$diff';
   }
 
   /// 작성한 요일별 시간을 [JobShift] 리스트로 변환. JobDetailPage 의 시계
@@ -453,7 +546,172 @@ class _StartHiringPageState extends State<StartHiringPage> {
               );
             }).toList(),
           ),
+          const SizedBox(height: 24),
+
+          // Paste images — 최대 4장. 시안과 동일한 둥근 사각 placeholder 스타일.
+          // (SeekerNoteWritePage 의 photo box 와 톤/아이콘을 통일)
+          // 사진은 필수 입력이 아니므로 라벨 옆 빨간 별표(*)는 붙이지 않는다.
+          const AutoTranslateText(
+            'Paste images',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildPhotoBox(),
         ],
+      ),
+    );
+  }
+
+  // ---------------- Photo slots (Basic Info 하단) ----------------
+  /// 항상 4칸을 **한 줄에** 균등 배치한다.
+  /// (Wrap 으로 그리면 가용 너비가 부족할 때 마지막 칸이 다음 줄로 떨어지는
+  /// 문제가 있어, LayoutBuilder 로 가용 폭을 4분할해서 사용)
+  Widget _buildPhotoBox() {
+    const spacing = 10.0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final slotSize =
+            ((constraints.maxWidth - spacing * (_maxPhotos - 1)) / _maxPhotos)
+                .floorToDouble();
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (int i = 0; i < _maxPhotos; i++) ...[
+              if (i != 0) const SizedBox(width: spacing),
+              SizedBox(
+                width: slotSize,
+                height: slotSize,
+                child: (i < _photos.length)
+                    ? _buildPhotoThumb(i)
+                    : _buildAddPhotoSlot(),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAddPhotoSlot() {
+    final disabled = _photos.length >= _maxPhotos;
+    return GestureDetector(
+      onTap: disabled ? null : _pickPhoto,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _photoBorderGray),
+        ),
+        alignment: Alignment.center,
+        child: SvgPicture.asset(
+          'assets/icon/add_photo_icon.svg',
+          width: 34,
+          height: 34,
+          colorFilter: const ColorFilter.mode(
+            _photoIconGray,
+            BlendMode.srcIn,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoThumb(int index) {
+    final photoUrl = _photos[index];
+    return Stack(
+      clipBehavior: Clip.none,
+      fit: StackFit.expand,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: photoUrl.startsWith('http')
+              ? Image.network(
+                  photoUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => _thumbFallback(),
+                )
+              : Image.file(
+                  File(photoUrl),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => _thumbFallback(),
+                ),
+        ),
+        Positioned(
+          top: 4,
+          right: 4,
+          child: GestureDetector(
+            onTap: () => setState(() => _photos.removeAt(index)),
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: const BoxDecoration(
+                color: AppColors.mainColor,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.close,
+                size: 14,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _thumbFallback() => Container(
+        color: Colors.grey.shade200,
+        alignment: Alignment.center,
+        child: const Icon(Icons.broken_image, color: _photoIconGray),
+      );
+
+  Future<void> _pickPhoto() async {
+    if (_photos.length >= _maxPhotos) {
+      _showMaxPhotosSnack();
+      return;
+    }
+    final picker = ImagePicker();
+    final remaining = _maxPhotos - _photos.length;
+    // OS 단에서도 최대 [remaining] 장까지만 고를 수 있도록 limit 전달.
+    // (image_picker 가 platform 별로 limit 를 지원하지 않을 수 있어 try/catch.)
+    List<XFile> picked;
+    try {
+      picked = await picker.pickMultiImage(limit: remaining);
+    } catch (_) {
+      picked = await picker.pickMultiImage();
+    }
+    if (picked.isEmpty) return;
+    // 어떤 경우에도 _maxPhotos 를 절대 초과하지 않도록 한 번 더 cap.
+    final overflowed = picked.length > remaining;
+    setState(() {
+      for (final img in picked) {
+        if (_photos.length >= _maxPhotos) break;
+        _photos.add(img.path);
+      }
+    });
+    if (overflowed) _showMaxPhotosSnack();
+  }
+
+  void _showMaxPhotosSnack() {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 2),
+        backgroundColor: AppColors.mainColor,
+        behavior: SnackBarBehavior.floating,
+        content: Text(
+          autoLocalize(
+            context,
+            'You can attach up to $_maxPhotos photos.',
+          ),
+          style: const TextStyle(color: Colors.white),
+        ),
       ),
     );
   }

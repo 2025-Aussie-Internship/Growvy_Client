@@ -502,6 +502,25 @@ class NotePageController extends GetxController {
     replaceIn(localEmployerDone);
   }
 
+  /// 새로 publish 된 구인 공고를 Hiring 탭 최상단에 끼워 넣는다.
+  /// (StartHiringPage 의 publish 흐름 — 백엔드 응답을 기다리지 않고
+  ///  먼저 로컬 RxList 에 반영해 사용자가 곧장 카드 형태로 볼 수 있게 한다.)
+  ///
+  /// 같은 카드를 두 번 등록하지 않도록 `id` 또는 `title + employer` 기준으로
+  /// 이미 존재하면 무시한다. (백엔드가 응답하며 같은 id 의 카드를 다시
+  /// 보낼 수도 있어 안전망을 둠.)
+  void addEmployerHiring(Map<String, dynamic> item) {
+    bool isSame(Map<String, dynamic> e) {
+      if (item['id'] != null && e['id'] != null) return e['id'] == item['id'];
+      return e['title'] == item['title'] && e['employer'] == item['employer'];
+    }
+
+    if (employerRecruitmentHistory.any(isSame)) return;
+    if (localEmployerHiring.any(isSame)) return;
+    localEmployerHiring.insert(0, item);
+    // 현재 표시 탭이 Hiring 이 아니어도 다음에 Hiring 탭을 열 때 보이도록 한다.
+  }
+
   /// 구직자 Applied 탭에서 카드를 제거한다 (Cancel application 시 사용).
   /// API 데이터(recruitmentHistory) / 로컬 더미 양쪽에서 모두 제거.
   void removeSeekerApplied(Map<String, dynamic> item) {
