@@ -74,6 +74,13 @@ class NotePageController extends GetxController {
       <Map<String, dynamic>>[
         for (final e in _employerOngoingDummy) Map<String, dynamic>.from(e),
       ].obs;
+  /// Applied 탭 (구직자) 의 mutable 사본. Cancel application 등으로 즉시
+  /// 카드가 사라지도록 employer 쪽과 동일한 패턴으로 RxList 로 들고 있다.
+  late final RxList<Map<String, dynamic>> localSeekerApplied =
+      <Map<String, dynamic>>[
+        for (final e in _seekerAppliedDummy) Map<String, dynamic>.from(e),
+      ].obs;
+
   late final RxList<Map<String, dynamic>> localEmployerDone =
       <Map<String, dynamic>>[
         for (final e in _employerDoneDummy) Map<String, dynamic>.from(e),
@@ -495,6 +502,18 @@ class NotePageController extends GetxController {
     replaceIn(localEmployerDone);
   }
 
+  /// 구직자 Applied 탭에서 카드를 제거한다 (Cancel application 시 사용).
+  /// API 데이터(recruitmentHistory) / 로컬 더미 양쪽에서 모두 제거.
+  void removeSeekerApplied(Map<String, dynamic> item) {
+    bool sameItem(Map<String, dynamic> e) {
+      if (item['id'] != null && e['id'] != null) return e['id'] == item['id'];
+      return e['title'] == item['title'] && e['employer'] == item['employer'];
+    }
+
+    recruitmentHistory.removeWhere(sameItem);
+    localSeekerApplied.removeWhere(sameItem);
+  }
+
   /// Hiring 탭 (구인자) - 모집 마감 전 공고.
   /// 선착순이 아니라 누구든 지원 가능한 구조라
   /// 가분수(예: 8/3, 5/4) 도 자연스럽게 나올 수 있다.
@@ -728,7 +747,7 @@ class NotePageController extends GetxController {
       case 0:
         return recruitmentHistory.isNotEmpty
             ? recruitmentHistory
-            : _seekerAppliedDummy;
+            : localSeekerApplied;
       case 1:
         return _seekerOngoingDummy;
       case 2:

@@ -23,9 +23,11 @@ class JobDetailPage extends StatefulWidget {
     this.payText,
     this.openingsText,
     this.isOwner = false,
+    this.isApplied = false,
     this.onEdit,
     this.onDelete,
     this.onHiringTap,
+    this.onCancelApplication,
   });
 
   /// 공고 ID. Apply 성공 시 이 값을 pop하여 호출측에서 리스트에서 제거할 수 있음.
@@ -52,6 +54,13 @@ class JobDetailPage extends StatefulWidget {
   ///    누르면 [onHiringTap] 콜백을 호출 (지원자 선택 모달 등에 사용).
   final bool isOwner;
 
+  /// true 면 구직자가 이미 지원한 공고로 간주하고,
+  /// 하단 버튼이 "Apply" 가 아니라 **"Cancel application"** 으로 표시된다.
+  /// 누르면 확인 모달 → Yes 시 [onCancelApplication] 콜백 호출.
+  ///
+  /// [isOwner] 와 동시에 true 면 isOwner 가 우선한다.
+  final bool isApplied;
+
   /// 수정 아이콘 탭. null 이면 기본 placeholder snackbar.
   final VoidCallback? onEdit;
 
@@ -61,6 +70,11 @@ class JobDetailPage extends StatefulWidget {
   /// "Hiring" 버튼(=isOwner 일 때 하단 버튼) 콜백.
   /// 일반적으로 지원자 선택 모달 → 채팅 페이지 흐름을 호출 측에서 주입한다.
   final VoidCallback? onHiringTap;
+
+  /// "Cancel application" 버튼 (=isApplied 일 때 하단 버튼) 콜백.
+  /// 호출자가 controller 에서 지원 목록에서 제거 등 처리.
+  /// null 이면 단순히 [postId] 와 함께 pop 한다.
+  final VoidCallback? onCancelApplication;
 
   @override
   State<JobDetailPage> createState() => _JobDetailPageState();
@@ -283,9 +297,11 @@ class _JobDetailPageState extends State<JobDetailPage> {
                       ),
                       onPressed: () => Navigator.pop(context),
                     ),
+                    // Cancel 모드(isApplied=true) 일 때는 상단 액션은 viewer 와 동일.
                     widget.isOwner
                         ? _buildOwnerActions()
                         : _buildViewerActions(),
+
                   ],
                 ),
               ),
@@ -575,8 +591,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
   }
 
   Widget _buildBottomButton(BuildContext context) {
-    // 본인 공고(isOwner) → "Hiring" 버튼, 그 외 → 기존 "Apply" 흐름.
-    // employer 가 남의 공고를 보는 경우엔 기존처럼 비활성 Apply.
+    // 1) 본인 공고(isOwner) → "Hiring" 버튼.
     if (widget.isOwner) {
       return _bottomBar(
         label: 'Hiring',
@@ -584,11 +599,43 @@ class _JobDetailPageState extends State<JobDetailPage> {
         onPressed: widget.onHiringTap ?? () {},
       );
     }
+    // 2) 이미 지원한 공고(isApplied) → "Cancel application" 버튼.
+    if (widget.isApplied) {
+      return _bottomBar(
+        label: 'job_detail.cancel_application'.tr(),
+        enabled: true,
+        onPressed: () => _onCancelPressed(context),
+      );
+    }
+    // 3) 그 외 → 기존 "Apply" 흐름. employer 가 남의 공고를 보면 비활성.
     final isEmployer = AuthController.to.isEmployer.value;
     return _bottomBar(
       label: 'job_detail.apply'.tr(),
       enabled: !isEmployer,
       onPressed: () => _onApplyPressed(context),
+    );
+  }
+
+  /// "Cancel application" 버튼 → 확인 모달 → Yes 시 콜백 호출.
+  /// 콜백이 없으면 단순히 postId 와 함께 pop 한다.
+  void _onCancelPressed(BuildContext context) {
+    ConfirmModal.show(
+      context: context,
+      message: 'job_detail.cancel_confirm'.tr(),
+      cancelLabel: 'common.no'.tr(),
+      acceptLabel: 'common.yes'.tr(),
+      onAccept: () {
+        Navigator.pop(context); // 모달 닫기
+        if (!context.mounted) return;
+        if (widget.onCancelApplication != null) {
+          widget.onCancelApplication!();
+          return;
+        }
+        Navigator.pop(context, {
+          'cancelled': true,
+          'postId': widget.postId,
+        });
+      },
     );
   }
 

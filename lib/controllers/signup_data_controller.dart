@@ -43,60 +43,41 @@ class SignupDataController extends GetxController {
 
   // --------------- Seeker 전용 ---------------
   String? homeAddress;
-  final List<String> interests = <String>[]; // SeekerInterestPage 라벨
-  final Map<int, int> surveyAnswers = <int, int>{}; // SeekerSurveyPage 원답
-  final List<String> _surveyAnswerLabels = <String>[]; // 설문 답변 라벨 (id 매핑용)
+
+  /// 사용자가 회원가입 단계에서 고른 interest id 들의 누적 집합.
+  /// 백엔드 DB seed (INDUSTRY 1~11, ENERGY_STYLE 12~14, WORK_ENVIRONMENT 15~17,
+  /// SOCIAL_PREFERENCE 18~20, COMFORT_ZONE 21~23, MAIN_GOAL 24~27, WORK_PACE 28~30)
+  /// 와 1:1 매칭되며, `toPayload()` 의 `interestIds` 로 그대로 전송된다.
+  ///
+  /// - interest chip 분기에서 들어왔으면 INDUSTRY 만 (1~11) 들어 있다.
+  /// - survey 분기에서 들어왔으면 12~30 만 들어 있다.
+  /// - 두 분기는 mutually exclusive: 한 쪽 setter 가 호출되면 반대편 값은 비워진다.
+  final List<int> interestIds = <int>[];
+
+  /// SeekerSurveyPage 의 (질문 인덱스 → 옵션 인덱스) 원답.
+  /// 사용자가 뒤로 돌아갔을 때 prefill 하는 용도. 백엔드로는 전송하지 않는다.
+  final Map<int, int> surveyAnswers = <int, int>{};
+
   String? career; // SeekerCareerPage
   String? introduction; // SeekerCareerPage → 백엔드의 'bio'
 
-  // ---------------- id 매핑 (백엔드 DB 시드 기준) ----------------
-
-  /// 라벨 → id 매핑. INDUSTRY(1~11) + 설문 답변(12~30).
-  /// EMPLOYMENT(31~35) 는 회원가입 단계에서 사용하지 않으므로 제외.
-  static const Map<String, int> _interestIdByLabel = <String, int>{
-    // INDUSTRY (1~11)
-    'Hospitality & F&B': 1,
-    'Retail & Sales': 2,
-    'Farm & Seasonal': 3,
-    'Manufacturing': 4,
-    'Factory Work': 5,
-    'Cleaning & Facilities': 6,
-    'Construction': 7,
-    'Logistics & Moving': 8,
-    'Events & Festivals': 9,
-    'Customer Service': 10,
-    'Other Jobs': 11,
-
-    // ENERGY_STYLE (12~14)
-    'I prefer thinking and planning': 12,
-    'I prefer hands-on, physical work': 13,
-    'A mix of both sounds good': 14,
-
-    // WORK_ENVIRONMENT (15~17)
-    'Indoors (office, cafe, studio)': 15,
-    'Outdoors (nature, farm, field)': 16,
-    "I'm okay with either": 17,
-
-    // SOCIAL_PREFERENCE (18~20)
-    'I enjoy meeting and talking to people': 18,
-    'I prefer working on my own': 19,
-    'A balance of both': 20,
-
-    // COMFORT_ZONE (21~23)
-    'Something new and exciting': 21,
-    'Something familiar and stable': 22,
-    "I'm open to anything": 23,
-
-    // MAIN_GOAL (24~27)
-    'Earning money': 24,
-    'Gaining new experiences': 25,
-    'Building my career': 26,
-    'Taking a break and recharging': 27,
-
-    // WORK_PACE (28~30)
-    'Fast-paced and active': 28,
-    'Relaxed and steady': 29,
-    'Depends on the day': 30,
+  // ---------------- 인터레스트 id 카테고리 ----------------
+  //
+  // 카테고리(EMPLOYMENT 31~35 포함) 는 SeekerInterestPage / SeekerSurveyPage
+  // 의 옵션 정의에서 직접 들고 다닌다. 여기서는 디버그/검증용 카테고리 정보만
+  // 유지한다 (백엔드 seed 와 동일).
+  static const Map<int, String> _interestCategoryById = <int, String>{
+    1: 'INDUSTRY', 2: 'INDUSTRY', 3: 'INDUSTRY', 4: 'INDUSTRY',
+    5: 'INDUSTRY', 6: 'INDUSTRY', 7: 'INDUSTRY', 8: 'INDUSTRY',
+    9: 'INDUSTRY', 10: 'INDUSTRY', 11: 'INDUSTRY',
+    12: 'ENERGY_STYLE', 13: 'ENERGY_STYLE', 14: 'ENERGY_STYLE',
+    15: 'WORK_ENVIRONMENT', 16: 'WORK_ENVIRONMENT', 17: 'WORK_ENVIRONMENT',
+    18: 'SOCIAL_PREFERENCE', 19: 'SOCIAL_PREFERENCE', 20: 'SOCIAL_PREFERENCE',
+    21: 'COMFORT_ZONE', 22: 'COMFORT_ZONE', 23: 'COMFORT_ZONE',
+    24: 'MAIN_GOAL', 25: 'MAIN_GOAL', 26: 'MAIN_GOAL', 27: 'MAIN_GOAL',
+    28: 'WORK_PACE', 29: 'WORK_PACE', 30: 'WORK_PACE',
+    31: 'EMPLOYMENT', 32: 'EMPLOYMENT', 33: 'EMPLOYMENT',
+    34: 'EMPLOYMENT', 35: 'EMPLOYMENT',
   };
 
   // ---------------- Setter helpers ----------------
@@ -151,36 +132,35 @@ class SignupDataController extends GetxController {
   }
 
   /// "Choose your interests" 분기로 진입했을 때 호출.
-  /// seeker 흐름에서는 interests 와 surveyAnswers 가 mutually exclusive 하므로
-  /// 이 메서드는 설문 답변을 함께 비운다.
-  void setInterests(Iterable<String> values) {
-    interests
+  /// 전달된 INDUSTRY id 들만 채운다 (백엔드 seed: 1~11).
+  /// seeker 흐름에서는 interest chip 분기와 survey 분기가 mutually exclusive 하므로
+  /// 설문 원답도 함께 비운다.
+  void setInterestIds(Iterable<int> ids) {
+    interestIds
       ..clear()
-      ..addAll(values);
+      ..addAll(ids);
     surveyAnswers.clear();
-    _surveyAnswerLabels.clear();
   }
 
-  /// "I don't know what I want to do..." 설문 분기로 진입했을 때 호출.
-  /// 마찬가지로 interests 와는 동시에 가질 수 없으므로 그 쪽을 비운다.
-  /// 라벨이 있어야 [_interestIdByLabel] 로 id 매핑이 가능하다.
-  void setSurveyAnswers(
+  /// "I don't know what I want to do..." 설문 분기 종료 시 호출.
+  /// [answers] 는 prefill 용 원답, [interestIds] 는 백엔드로 전송될 id 들.
+  /// 설문 분기에서는 id 들이 12~30 범위에서만 들어와야 한다 (validate 는 호출 측 책임).
+  void setSurveyAnswerIds(
     Map<int, int> answers, {
-    List<String> answerLabels = const [],
+    required List<int> interestIds,
   }) {
     surveyAnswers
       ..clear()
       ..addAll(answers);
-    _surveyAnswerLabels
+    this.interestIds
       ..clear()
-      ..addAll(answerLabels);
-    interests.clear();
+      ..addAll(interestIds);
   }
 
   /// SeekerInterestPage 에서 설문 분기로 빠지는 순간 호출해서
-  /// 그 전에 선택해 둔 industry 칩들을 폐기한다.
+  /// 그 전에 선택해 둔 industry id 들을 폐기한다.
   void clearInterests() {
-    interests.clear();
+    interestIds.clear();
   }
 
   void setCareerInfo({String? career, String? introduction}) {
@@ -225,10 +205,13 @@ class SignupDataController extends GetxController {
   }
 
   /// SeekerInterestPage 또는 SeekerSurveyPage 중 하나에서 결과가 있어야 한다.
-  /// (interests 분기 → 최소 1개, survey 분기 → 6개 모든 질문 답변)
+  /// (interests 분기 → 최소 1개 INDUSTRY id,
+  ///  survey 분기 → 6개 모든 질문 답변 → 12~30 범위 6개 id)
   bool isInterestOrSurveyValid() {
-    if (interests.isNotEmpty) return true;
-    return _surveyAnswerLabels.length >= 6;
+    if (interestIds.isEmpty) return false;
+    // survey 분기는 정확히 6개 답변이 채워져야 한다.
+    if (surveyAnswers.isNotEmpty) return surveyAnswers.length >= 6;
+    return true;
   }
 
   bool isProfileImagePicked() => profileImageId != null && profileImageId! > 0;
@@ -293,26 +276,21 @@ class SignupDataController extends GetxController {
         'homeAddress': homeAddress ?? '',
         'career': career ?? '',
         'bio': introduction ?? '',
-        'interestIds': _buildInterestIds(),
+        // 페이지 단계에서 이미 백엔드 id 로 저장돼 있으므로 그대로 전송.
+        // 중복 제거 + 정렬 후 List<int> 형태로.
+        'interestIds':
+            (interestIds.toSet().toList()..sort()).toList(growable: false),
       });
     }
     return base;
   }
 
-  /// seeker 분기 결과를 단일 [interestIds] 배열로 변환한다.
-  /// - "Choose your interests" 를 거쳤다면 1~11 의 INDUSTRY id 만,
-  /// - 설문을 거쳤다면 12~ 의 답변 id 만 들어간다.
-  /// 두 분기는 mutually exclusive 라서 둘 중 채워진 쪽을 우선 사용한다.
-  List<int> _buildInterestIds() {
-    final source = _surveyAnswerLabels.isNotEmpty
-        ? _surveyAnswerLabels
-        : interests;
-    final ids = <int>{};
-    for (final label in source) {
-      final id = _interestIdByLabel[label];
-      if (id != null) ids.add(id);
-    }
-    return ids.toList(growable: false);
+  /// 디버그/검증: 누적된 interestIds 가 각각 어느 카테고리인지 사람 읽기용으로.
+  /// (예: [1, 3, 18] → 'INDUSTRY, INDUSTRY, SOCIAL_PREFERENCE')
+  String describeInterestCategories() {
+    return interestIds
+        .map((id) => _interestCategoryById[id] ?? 'UNKNOWN($id)')
+        .join(', ');
   }
 
   /// 'YYYY/MM/DD' → 'YYYY-MM-DD'. 잘못된 입력이면 빈 문자열.
@@ -382,9 +360,8 @@ class SignupDataController extends GetxController {
     isSoleProprietorship = null;
     businessAddress = null;
     homeAddress = null;
-    interests.clear();
+    interestIds.clear();
     surveyAnswers.clear();
-    _surveyAnswerLabels.clear();
     career = null;
     introduction = null;
   }

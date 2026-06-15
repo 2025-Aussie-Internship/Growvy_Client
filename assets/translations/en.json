@@ -32,7 +32,8 @@
     "continue": "Continue"
   },
   "welcome": {
-    "greeting": "Welcome!"
+    "greeting": "Welcome!",
+    "tap_to_continue": "Tap the screen to start"
   },
   "translation_loading": {
     "title": "Preparing Korean translations",
@@ -147,7 +148,10 @@
   "job_detail": {
     "apply": "apply",
     "submit_application": "Submit Application?",
-    "application_submitted": "Application submitted successfully!"
+    "application_submitted": "Application submitted successfully!",
+    "cancel_application": "Cancel application",
+    "cancel_confirm": "Cancel this application?",
+    "cancel_complete": "Application cancelled."
   },
   "note": {
     "my_history": "My History",

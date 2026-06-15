@@ -5,7 +5,7 @@ import 'package:get/get.dart' hide Trans;
 import '../../controllers/signup_data_controller.dart';
 import '../../styles/colors.dart';
 import '../../widgets/next_button.dart';
-import 'profile_picker_page.dart';
+import 'seeker_career_page.dart';
 
 /// 구직자 회원가입 단계 - 관심사를 모를 때 진행하는 8단계 설문.
 ///
@@ -33,25 +33,29 @@ class _SeekerSurveyPageState extends State<SeekerSurveyPage> {
   static const Color _chipBorder = Color(0xFFE5E5E5);
   static const Color _subtitleGray = Color(0xFF747474);
 
-  // 옵션은 (백엔드 매핑용 영어 라벨, 화면 표시용 i18n 키) 쌍으로 들고 다닌다.
-  // - englishLabel 은 SignupDataController._interestIdByLabel 의 키와 1:1.
-  // - 화면에는 i18n 키를 tr 로 변환해서 표시한다.
+  // 옵션은 (백엔드 interest_id, 표시용 i18n 키, 디버그 라벨) 묶음으로 들고 다닌다.
+  // id 는 백엔드 DB seed (ENERGY_STYLE 12~14, WORK_ENVIRONMENT 15~17,
+  // SOCIAL_PREFERENCE 18~20, COMFORT_ZONE 21~23, MAIN_GOAL 24~27, WORK_PACE 28~30)
+  // 와 정확히 1:1. 라벨 문자열 변경/번역과 무관하게 백엔드 매핑이 유지된다.
   static const List<_SurveyQuestion> _questions = [
     _SurveyQuestion(
       titleKey: 'signup.survey.q1_title',
       subtitleKey: 'signup.survey.q1_subtitle',
       options: [
         _SurveyOption(
-          'I prefer thinking and planning',
+          12,
           'survey_options.thinking_planning',
+          'I prefer thinking and planning',
         ),
         _SurveyOption(
-          'I prefer hands-on, physical work',
+          13,
           'survey_options.hands_on',
+          'I prefer hands-on, physical work',
         ),
         _SurveyOption(
-          'A mix of both sounds good',
+          14,
           'survey_options.mix_of_both',
+          'A mix of both sounds good',
         ),
       ],
     ),
@@ -60,14 +64,20 @@ class _SeekerSurveyPageState extends State<SeekerSurveyPage> {
       subtitleKey: 'signup.survey.q2_subtitle',
       options: [
         _SurveyOption(
-          'Indoors (office, cafe, studio)',
+          15,
           'survey_options.indoors',
+          'Indoors (office, cafe, studio)',
         ),
         _SurveyOption(
-          'Outdoors (nature, farm, field)',
+          16,
           'survey_options.outdoors',
+          'Outdoors (nature, farm, field)',
         ),
-        _SurveyOption("I'm okay with either", 'survey_options.either_env'),
+        _SurveyOption(
+          17,
+          'survey_options.either_env',
+          "I'm okay with either",
+        ),
       ],
     ),
     _SurveyQuestion(
@@ -75,11 +85,20 @@ class _SeekerSurveyPageState extends State<SeekerSurveyPage> {
       subtitleKey: 'signup.survey.q3_subtitle',
       options: [
         _SurveyOption(
-          'I enjoy meeting and talking to people',
+          18,
           'survey_options.people_oriented',
+          'I enjoy meeting and talking to people',
         ),
-        _SurveyOption('I prefer working on my own', 'survey_options.solo'),
-        _SurveyOption('A balance of both', 'survey_options.balanced_social'),
+        _SurveyOption(
+          19,
+          'survey_options.solo',
+          'I prefer working on my own',
+        ),
+        _SurveyOption(
+          20,
+          'survey_options.balanced_social',
+          'A balance of both',
+        ),
       ],
     ),
     _SurveyQuestion(
@@ -87,29 +106,45 @@ class _SeekerSurveyPageState extends State<SeekerSurveyPage> {
       subtitleKey: 'signup.survey.q4_subtitle',
       options: [
         _SurveyOption(
-          'Something new and exciting',
+          21,
           'survey_options.new_exciting',
+          'Something new and exciting',
         ),
         _SurveyOption(
-          'Something familiar and stable',
+          22,
           'survey_options.familiar_stable',
+          'Something familiar and stable',
         ),
-        _SurveyOption("I'm open to anything", 'survey_options.open_anything'),
+        _SurveyOption(
+          23,
+          'survey_options.open_anything',
+          "I'm open to anything",
+        ),
       ],
     ),
     _SurveyQuestion(
       titleKey: 'signup.survey.q5_title',
       subtitleKey: 'signup.survey.q5_subtitle',
       options: [
-        _SurveyOption('Earning money', 'survey_options.earn_money'),
         _SurveyOption(
-          'Gaining new experiences',
-          'survey_options.new_experience',
+          24,
+          'survey_options.earn_money',
+          'Earning money',
         ),
-        _SurveyOption('Building my career', 'survey_options.build_career'),
         _SurveyOption(
-          'Taking a break and recharging',
+          25,
+          'survey_options.new_experience',
+          'Gaining new experiences',
+        ),
+        _SurveyOption(
+          26,
+          'survey_options.build_career',
+          'Building my career',
+        ),
+        _SurveyOption(
+          27,
           'survey_options.recharge',
+          'Taking a break and recharging',
         ),
       ],
     ),
@@ -117,9 +152,21 @@ class _SeekerSurveyPageState extends State<SeekerSurveyPage> {
       titleKey: 'signup.survey.q6_title',
       subtitleKey: 'signup.survey.q6_subtitle',
       options: [
-        _SurveyOption('Fast-paced and active', 'survey_options.fast_paced'),
-        _SurveyOption('Relaxed and steady', 'survey_options.relaxed_steady'),
-        _SurveyOption('Depends on the day', 'survey_options.depends_day'),
+        _SurveyOption(
+          28,
+          'survey_options.fast_paced',
+          'Fast-paced and active',
+        ),
+        _SurveyOption(
+          29,
+          'survey_options.relaxed_steady',
+          'Relaxed and steady',
+        ),
+        _SurveyOption(
+          30,
+          'survey_options.depends_day',
+          'Depends on the day',
+        ),
       ],
     ),
   ];
@@ -153,20 +200,24 @@ class _SeekerSurveyPageState extends State<SeekerSurveyPage> {
   }
 
   void _finish() {
-    // 설문 답변(qIndex → optIndex) 과 답변 라벨을 함께 컨트롤러에 저장한다.
-    // 라벨은 SignupDataController 의 id 매핑 테이블을 거쳐
-    // 최종 payload 의 interestIds 배열로 변환된다.
-    final labels = <String>[
+    // 각 질문의 선택된 옵션을 백엔드 interest_id 로 곧장 변환해서 저장.
+    // 라벨 문자열을 거치지 않으므로 apostrophe / 공백 / 번역 차이로
+    // 매핑이 깨질 일이 없다.
+    final ids = <int>[
       for (final entry in _answers.entries)
-        _questions[entry.key].options[entry.value].englishLabel,
+        _questions[entry.key].options[entry.value].interestId,
     ];
-    Get.find<SignupDataController>().setSurveyAnswers(
+    Get.find<SignupDataController>().setSurveyAnswerIds(
       _answers,
-      answerLabels: labels,
+      interestIds: ids,
     );
+    // 설문이 끝나면 곧장 프로필이 아니라, 커리어 / 한 줄 소개를 받는
+    // SeekerCareerPage 를 거친 뒤 프로필 선택으로 이어진다.
+    // (interest 분기와 동일한 흐름을 맞춰서, 결국 어느 분기로 들어와도
+    //  career / bio 가 누락되지 않게 보장.)
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const ProfilePickerPage()),
+      MaterialPageRoute(builder: (_) => const SeekerCareerPage()),
     );
   }
 
@@ -396,10 +447,13 @@ class _SurveyQuestion {
 }
 
 class _SurveyOption {
-  /// 백엔드 매핑(SignupDataController._interestIdByLabel) 의 키. 절대 번역 X.
-  final String englishLabel;
+  /// 백엔드 DB seed 의 interest id. 백엔드로는 이 정수만 전달된다.
+  final int interestId;
 
   /// 화면에 표시될 때 tr 로 변환되는 i18n 키.
   final String i18nKey;
-  const _SurveyOption(this.englishLabel, this.i18nKey);
+
+  /// 디버그 로그 / 캐시 키 용 영어 라벨. 백엔드 매핑에는 사용 X.
+  final String englishLabel;
+  const _SurveyOption(this.interestId, this.i18nKey, this.englishLabel);
 }

@@ -23,46 +23,52 @@ class SeekerInterestPage extends StatefulWidget {
   State<SeekerInterestPage> createState() => _SeekerInterestPageState();
 }
 
-/// (백엔드에 전송되는 영어 라벨, 화면에 표시되는 i18n 키) 쌍.
-/// - [englishLabel] 은 [SignupDataController._interestIdByLabel] 의 키와 1:1.
-///   사용자가 어떤 언어로 보든 이 값으로 저장되어야 백엔드 매핑이 깨지지 않는다.
-/// - [i18nKey] 는 화면에 표시될 때 [tr] 로 변환된다.
+/// (백엔드 interest_id, 표시용 i18n 키, 로그용 영어 라벨) 묶음.
+///
+/// - [interestId] 는 백엔드 DB seed 의 id 와 1:1. 사용자가 어떤 언어로 보든
+///   이 정수만 그대로 서버로 전송되므로 라벨 문자열의 apostrophe/대소문자/
+///   공백 차이로 매핑이 깨질 일이 없다.
+/// - [i18nKey] 는 화면 표시용. tr() 로 변환된다.
+/// - [englishLabel] 은 디버그 로그/캐시 키 용도. 백엔드 매핑에는 사용하지 않는다.
 class _InterestOption {
-  final String englishLabel;
+  final int interestId;
   final String i18nKey;
-  const _InterestOption(this.englishLabel, this.i18nKey);
+  final String englishLabel;
+  const _InterestOption(this.interestId, this.i18nKey, this.englishLabel);
 }
 
 class _SeekerInterestPageState extends State<SeekerInterestPage> {
   // 시안 그대로 2열 배치를 위해 좌/우 컬럼을 분리해서 정의한다.
+  // 숫자(id) 는 백엔드 DB seed 의 INDUSTRY (1~11) 와 정확히 매칭된다.
   static const List<_InterestOption> _leftColumn = [
-    _InterestOption('Hospitality & F&B', 'interests.hospitality_fb'),
-    _InterestOption('Farm & Seasonal', 'interests.farm_seasonal'),
-    _InterestOption('Factory Work', 'interests.factory_work'),
-    _InterestOption('Construction', 'interests.construction'),
-    _InterestOption('Events & Festivals', 'interests.events_festivals'),
-    _InterestOption('Other Jobs', 'interests.other_jobs'),
+    _InterestOption(1, 'interests.hospitality_fb', 'Hospitality & F&B'),
+    _InterestOption(3, 'interests.farm_seasonal', 'Farm & Seasonal'),
+    _InterestOption(5, 'interests.factory_work', 'Factory Work'),
+    _InterestOption(7, 'interests.construction', 'Construction'),
+    _InterestOption(9, 'interests.events_festivals', 'Events & Festivals'),
+    _InterestOption(11, 'interests.other_jobs', 'Other Jobs'),
   ];
   static const List<_InterestOption> _rightColumn = [
-    _InterestOption('Retail & Sales', 'interests.retail_sales'),
-    _InterestOption('Manufacturing', 'interests.manufacturing'),
-    _InterestOption('Cleaning & Facilities', 'interests.cleaning_facilities'),
-    _InterestOption('Logistics & Moving', 'interests.logistics_moving'),
-    _InterestOption('Customer Service', 'interests.customer_service'),
+    _InterestOption(2, 'interests.retail_sales', 'Retail & Sales'),
+    _InterestOption(4, 'interests.manufacturing', 'Manufacturing'),
+    _InterestOption(6, 'interests.cleaning_facilities', 'Cleaning & Facilities'),
+    _InterestOption(8, 'interests.logistics_moving', 'Logistics & Moving'),
+    _InterestOption(10, 'interests.customer_service', 'Customer Service'),
   ];
 
-  late final Set<String> _selected;
+  /// 선택된 interest id 집합 (백엔드로 그대로 보낼 값).
+  late final Set<int> _selectedIds;
 
   @override
   void initState() {
     super.initState();
     // 이전 단계에서 이미 선택했던 관심사가 있다면 그대로 prefill.
-    _selected = <String>{...Get.find<SignupDataController>().interests};
+    _selectedIds = <int>{...Get.find<SignupDataController>().interestIds};
   }
 
   void _goNext() {
-    // industry 분기로 확정. (setInterests 내부에서 설문 답변은 비워진다.)
-    Get.find<SignupDataController>().setInterests(_selected);
+    // industry 분기로 확정. (setInterestIds 내부에서 설문 답변은 비워진다.)
+    Get.find<SignupDataController>().setInterestIds(_selectedIds);
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const SeekerCareerPage()),
@@ -117,7 +123,7 @@ class _SeekerInterestPageState extends State<SeekerInterestPage> {
                   text: 'common.next'.tr(),
                   // 칩을 하나도 안 골랐으면 비활성. 관심사가 정말 없는 사용자는
                   // 아래 "I don't know what I want to do.." 링크로 설문 우회.
-                  onPressed: _selected.isEmpty ? null : _goNext,
+                  onPressed: _selectedIds.isEmpty ? null : _goNext,
                 ),
               ),
               const SizedBox(height: 64),
@@ -169,15 +175,15 @@ class _SeekerInterestPageState extends State<SeekerInterestPage> {
   }
 
   Widget _buildChip(_InterestOption option) {
-    final selected = _selected.contains(option.englishLabel);
+    final selected = _selectedIds.contains(option.interestId);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
         setState(() {
           if (selected) {
-            _selected.remove(option.englishLabel);
+            _selectedIds.remove(option.interestId);
           } else {
-            _selected.add(option.englishLabel);
+            _selectedIds.add(option.interestId);
           }
         });
       },

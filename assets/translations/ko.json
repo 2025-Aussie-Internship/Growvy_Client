@@ -32,7 +32,8 @@
     "continue": "시작하기"
   },
   "welcome": {
-    "greeting": "환영합니다!"
+    "greeting": "환영합니다!",
+    "tap_to_continue": "화면을 눌러 시작하기"
   },
   "translation_loading": {
     "title": "한국어로 번역하고 있어요",
@@ -147,7 +148,10 @@
   "job_detail": {
     "apply": "지원하기",
     "submit_application": "지원하시겠어요?",
-    "application_submitted": "지원이 완료되었어요!"
+    "application_submitted": "지원이 완료되었어요!",
+    "cancel_application": "지원 취소하기",
+    "cancel_confirm": "정말 지원을 취소하시겠어요?",
+    "cancel_complete": "지원이 취소되었어요!"
   },
   "note": {
     "my_history": "내 기록",

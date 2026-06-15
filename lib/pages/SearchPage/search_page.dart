@@ -62,6 +62,28 @@ class _SearchPageState extends State<SearchPage> {
     super.dispose();
   }
 
+  /// 검색창에서 enter / 검색 키를 눌렀을 때.
+  /// - autoSave 가 켜져 있고 빈 문자열이 아니면 _recentSearches 상단에 삽입.
+  /// - 같은 단어가 이미 있으면 그것을 위로 끌어올리고 중복은 피한다.
+  /// - 최대 20개까지만 유지해서 무한히 늘어나는 것을 방지.
+  void _onSearchSubmitted(String raw) {
+    final term = raw.trim();
+    if (term.isEmpty) return;
+    if (_autoSave) {
+      setState(() {
+        _recentSearches.removeWhere(
+          (existing) => existing.toLowerCase() == term.toLowerCase(),
+        );
+        _recentSearches.insert(0, term);
+        if (_recentSearches.length > 20) {
+          _recentSearches.removeRange(20, _recentSearches.length);
+        }
+      });
+    }
+    // TODO: 실제 검색 결과 페이지로 이동. 현재는 데모 데이터만 보여주므로
+    // 검색어 저장만 처리하고 검색창에 입력값은 유지한다.
+  }
+
   @override
   Widget build(BuildContext context) {
     final route = ModalRoute.of(context);
@@ -106,6 +128,7 @@ class _SearchPageState extends State<SearchPage> {
                       controller: _searchController,
                       autofocus: true,
                       onChanged: (_) => setState(() {}),
+                      onSubmitted: _onSearchSubmitted,
                     ),
                   ),
                 ),
@@ -184,41 +207,60 @@ class _SearchPageState extends State<SearchPage> {
                         spacing: 8,
                         runSpacing: 8,
                         children: _recentSearches.map((term) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF0F0F0),
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                  color: const Color(0xFFE0E0E0)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                AutoTranslateText(
-                                  term,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF757575),
-                                    fontWeight: FontWeight.w400,
-                                  ),
+                              // 칩 본체 탭: 검색창에 키워드 채우고 검색 트리거.
+                              // _onSearchSubmitted 가 중복 제거 + 최상단 재배치까지 처리한다.
+                              onTap: () {
+                                _searchController.text = term;
+                                _searchController.selection =
+                                    TextSelection.collapsed(
+                                        offset: term.length);
+                                _onSearchSubmitted(term);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
                                 ),
-                                const SizedBox(width: 6),
-                                GestureDetector(
-                                  onTap: () {
-                                    setState(
-                                        () => _recentSearches.remove(term));
-                                  },
-                                  child: const Icon(
-                                    Icons.close,
-                                    size: 16,
-                                    color: Colors.black,
-                                  ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF0F0F0),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: const Color(0xFFE0E0E0)),
                                 ),
-                              ],
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    AutoTranslateText(
+                                      term,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Color(0xFF757575),
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    // 닫기(X) 는 별도 GestureDetector 로 두고
+                                    // 상위 InkWell 의 검색 트리거가 같이 호출되지
+                                    // 않도록 GestureDetector 기본 동작에 맡긴다.
+                                    GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () {
+                                        setState(() =>
+                                            _recentSearches.remove(term));
+                                      },
+                                      child: const Icon(
+                                        Icons.close,
+                                        size: 16,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           );
                         }).toList(),
@@ -272,7 +314,9 @@ class _SearchPageState extends State<SearchPage> {
                           child: InkWell(
                             onTap: () {
                               _searchController.text = title;
-                              setState(() {});
+                              // 인기 검색어를 누르면 검색을 수행한 것과 동일하게
+                              // 최근 검색어 상단에도 자동으로 쌓이도록 한다.
+                              _onSearchSubmitted(title);
                             },
                             child: Row(
                               children: [

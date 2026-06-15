@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
@@ -23,11 +25,14 @@ class SignupRepository {
   /// 회원가입 페이로드를 백엔드로 전송.
   /// 응답으로 생성된 user JSON 을 반환한다 (없으면 빈 map).
   ///
-  /// 백엔드 미준비 시: 페이로드를 로그로만 남기고 빈 map 반환.
+  /// **여기서는 절대 throw 하지 않는다.** 백엔드가 아직 안 떠 있거나
+  /// (timeout / network / 5xx) 응답이 깨져 있어도 빈 map 을 돌려서
+  /// SignupCompletePage → MainPage 진입이 막히지 않게 한다.
+  /// 백엔드가 붙으면 자동으로 정상 응답이 들어와 채워진다.
   static Future<Map<String, dynamic>> submit({
     required bool isEmployer,
     required Map<String, dynamic> payload,
-    String? googleIdToken, // 구글 토큰 파라미터 추가
+    String? googleIdToken,
   }) async {
     if (!enabled) {
       debugPrint(
@@ -44,7 +49,24 @@ class SignupRepository {
       headers['Authorization'] = 'Bearer $googleIdToken';
     }
 
-    // ApiClient 의 post 메서드에 header 를 넘겨서 전송
-    return ApiClient.post(path, body: payload, headers: headers);
+    try {
+      // ApiClient 기본 30초 timeout 은 사용자가 "Ready to Start" 누르고
+      // 한참 멈춘 것처럼 보이게 만든다. submit 단계만 더 짧게(8초) 감싸서
+      // 백엔드가 없으면 빠르게 빈 map 으로 떨어지도록 한다.
+      return await ApiClient.post(
+        path,
+        body: payload,
+        headers: headers,
+      ).timeout(const Duration(seconds: 8));
+    } on TimeoutException catch (e) {
+      debugPrint('[SignupRepository] backend timeout(8s) → 빈 응답으로 fallback: $e');
+      return <String, dynamic>{};
+    } on ApiException catch (e) {
+      debugPrint('[SignupRepository] backend unreachable → 빈 응답으로 fallback: $e');
+      return <String, dynamic>{};
+    } catch (e) {
+      debugPrint('[SignupRepository] unexpected → 빈 응답으로 fallback: $e');
+      return <String, dynamic>{};
+    }
   }
 }
