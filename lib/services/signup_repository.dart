@@ -32,21 +32,22 @@ class SignupRepository {
   static Future<Map<String, dynamic>> submit({
     required bool isEmployer,
     required Map<String, dynamic> payload,
-    String? googleIdToken,
+    String? firebaseIdToken,
   }) async {
     if (!enabled) {
       debugPrint(
-        '[SignupRepository] (stub, API_ENABLED=false) payload=$payload\ntoken=$googleIdToken',
+        '[SignupRepository] (stub, API_ENABLED=false) payload=$payload\ntoken=$firebaseIdToken',
       );
       return <String, dynamic>{};
     }
 
     final path = isEmployer ? _employerPath : _seekerPath;
 
-    // 헤더에 구글 토큰 세팅 (Bearer 방식 등 서버 스펙에 맞춰 수정 가능)
+    // 로그인(`auth/login`) 과 정확히 동일한 형식으로 Firebase ID Token 을
+    // Authorization 헤더에 싣는다. (백엔드에서 Firebase Admin SDK 로 동일하게 검증)
     final headers = <String, String>{};
-    if (googleIdToken != null && googleIdToken.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $googleIdToken';
+    if (firebaseIdToken != null && firebaseIdToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $firebaseIdToken';
     }
 
     try {

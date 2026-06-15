@@ -98,7 +98,8 @@
 
     "pick_profile": "프로필을 선택해주세요",
     "all_done": "가입 완료!",
-    "ready_to_start": "시작하기!"
+    "ready_to_start": "시작하기!",
+    "preparing_home": "홈 화면을 준비하는 중이에요…"
   },
   "interests": {
     "hospitality_fb": "숙박 & 식음료",

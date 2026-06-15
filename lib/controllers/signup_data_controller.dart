@@ -20,7 +20,10 @@ class SignupDataController extends GetxController {
   String? googleEmail;
   String? googleDisplayName;
   String? googleUid;
-  String? googleIdToken;
+  /// Google 로그인 직후 Firebase 가 발급한 ID Token.
+  /// 백엔드 `auth/login`, `auth/signup/...` 모두 동일하게
+  /// `Authorization: Bearer <firebaseIdToken>` 형식으로 사용한다.
+  String? firebaseIdToken;
 
   // --------------- 직군 선택 ---------------
   /// true: Employer, false: Job seeker, null: 아직 선택 전
@@ -91,7 +94,7 @@ class SignupDataController extends GetxController {
     if (email != null) googleEmail = email;
     if (displayName != null) googleDisplayName = displayName;
     if (uid != null) googleUid = uid;
-    if (idToken != null) googleIdToken = idToken;
+    if (idToken != null) firebaseIdToken = idToken;
   }
 
   void setUserType(bool employer) {
@@ -339,7 +342,7 @@ class SignupDataController extends GetxController {
     return SignupRepository.submit(
       isEmployer: isEmployer == true,
       payload: toPayload(),
-      googleIdToken: googleIdToken,
+      firebaseIdToken: firebaseIdToken,
     );
   }
 
@@ -348,7 +351,7 @@ class SignupDataController extends GetxController {
     googleEmail = null;
     googleDisplayName = null;
     googleUid = null;
-    googleIdToken = null;
+    firebaseIdToken = null;
     isEmployer = null;
     name = null;
     dateOfBirth = null;
