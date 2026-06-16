@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/env.dart';
+import '../utils/image_url.dart';
 import '../controllers/auth_controller.dart';
 import '../pages/MainPage/job_detail_page.dart';
 import '../pages/NotePage/employer_note_write_page.dart';
@@ -248,7 +249,10 @@ class NotePageController extends GetxController {
       final isDraft = _isDraftItem(item);
 
       final List<String> safePhotos =
-          (item['imageUrls'] as List?)?.map((e) => e.toString()).toList() ?? [];
+          (item['imageUrls'] as List?)
+              ?.map((e) => resolveImageUrl(e.toString()))
+              .toList() ??
+          [];
 
       // 💡 매핑 2: 백엔드의 employmentTag(구인자 단일 String) 또는 tags(구직자 List) 모두 대응
       String tagValue = 'Rookie';

@@ -13,6 +13,7 @@ import '../../controllers/user_profile_controller.dart';
 import '../../models/job_shift.dart';
 import '../../styles/colors.dart';
 import '../../utils/auto_localize.dart';
+import '../../utils/image_url.dart';
 import '../../utils/interest_ids.dart';
 import '../../widgets/auto_translate_text.dart';
 import '../MainPage/main_page.dart';
@@ -118,8 +119,16 @@ class _StartHiringPageState extends State<StartHiringPage> {
   String? _superannuation;
 
   // Application Settings
-  DateTime _calendarMonth = DateTime(2026, 2, 1);
-  DateTime? _selectedDate = DateTime(2026, 2, 19);
+  late DateTime _calendarMonth;
+  DateTime? _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _calendarMonth = DateTime(now.year, now.month, 1);
+    _selectedDate = DateTime(now.year, now.month, now.day);
+  }
 
   @override
   void dispose() {
@@ -183,7 +192,7 @@ class _StartHiringPageState extends State<StartHiringPage> {
     }
   }
 
-  void _onPublishPressed() {
+  Future<void> _onPublishPressed() async {
     for (int i = 0; i < _steps.length - 1; i++) {
       if (!_isStepComplete(i)) {
         setState(() {
@@ -237,18 +246,13 @@ class _StartHiringPageState extends State<StartHiringPage> {
 
     debugPrint('[StartHiring] ${jobPost.describeForDebug()}');
 
-    unawaited(
-      jobPost
-          .submitToBackend()
-          .then((created) {
-            debugPrint(
-              '[StartHiring] (bg) job submit 응답 — empty=${created.isEmpty}',
-            );
-          })
-          .catchError((Object e) {
-            debugPrint('[StartHiring] (bg) job submit error: $e');
-          }),
-    );
+    Map<String, dynamic> created = {};
+    try {
+      created = await jobPost.submitToBackend();
+      debugPrint('[StartHiring] job submit 응답 — empty=${created.isEmpty}');
+    } catch (e) {
+      debugPrint('[StartHiring] job submit error: $e');
+    }
 
     // 1) 화면 표시용 tags (i18n 라벨)
     final tags = <String>[
@@ -266,7 +270,13 @@ class _StartHiringPageState extends State<StartHiringPage> {
     final openingsText = _buildOpeningsText();
     final headCount = int.tryParse(_peopleCountController.text.trim()) ?? 1;
     final shifts = _buildShiftList();
-    final photos = List<String>.from(_photos);
+    final localPhotos = List<String>.from(_photos);
+    final serverPhotos = (created['imageUrls'] as List?)
+        ?.map((e) => resolveImageUrl(e.toString()))
+        .toList();
+    final photos = (serverPhotos != null && serverPhotos.isNotEmpty)
+        ? serverPhotos
+        : localPhotos;
 
     // 회사명은 로그인 시 입력한 employer 프로필에서 가져온다 (없으면 비워둠).
     String companyName = '';
@@ -280,7 +290,7 @@ class _StartHiringPageState extends State<StartHiringPage> {
     //    단위 timestamp 를 id 로 부여한다. NotePageController.addEmployerHiring
     //    의 중복 매칭이 id 우선이라, 같은 title 두 번 publish 해도 둘 다 보임.
     final card = <String, dynamic>{
-      'id': DateTime.now().microsecondsSinceEpoch,
+      'id': created['id'] ?? DateTime.now().microsecondsSinceEpoch,
       'title': title.isEmpty ? 'Untitled Posting' : title,
       'employer': companyName,
       'dDay': _dDayLabel(_selectedDate),

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:convert'; // 🌟 API JSON 파싱용 추가
 import 'package:http/http.dart' as http; // 🌟 API 통신용 추가
 import '../../config/env.dart';
+import '../../utils/image_url.dart';
 import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -22,6 +23,7 @@ class JobDetailPage extends StatefulWidget {
     this.title,
     this.companyName,
     this.description,
+    this.responsibility,
     this.tags,
     this.scheduleDate,
     this.scheduleShifts,
@@ -41,6 +43,7 @@ class JobDetailPage extends StatefulWidget {
   final String? title;
   final String? companyName;
   final String? description;
+  final String? responsibility;
   final List<String>? tags;
   final String? scheduleDate;
   final List<JobShift>? scheduleShifts;
@@ -74,6 +77,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
   String? _title;
   String? _companyName;
   String? _description;
+  String? _responsibility;
   List<String>? _tags;
   String? _scheduleDate;
   String? _location;
@@ -118,6 +122,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
     _title = widget.title;
     _companyName = widget.companyName;
     _description = widget.description;
+    _responsibility = widget.responsibility;
     _tags = widget.tags;
     _scheduleDate = widget.scheduleDate;
     _location = widget.location;
@@ -125,19 +130,9 @@ class _JobDetailPageState extends State<JobDetailPage> {
     _openingsText = widget.openingsText;
     _scheduleShifts = widget.scheduleShifts;
 
-    // 초기 이미지 데이터에도 도메인 결합
+    // photoUrls: 로컬 파일 경로는 그대로, 서버 상대 경로만 resolve
     if (widget.photoUrls != null && widget.photoUrls!.isNotEmpty) {
-      _fetchedPhotoUrls = widget.photoUrls!.map((e) {
-        final path = e.toString();
-
-        if (!path.startsWith('http')) {
-          return path.startsWith('/')
-              ? '${Env.serverBaseUrl}$path'
-              : '${Env.serverBaseUrl}/$path';
-        }
-
-        return path;
-      }).toList();
+      _fetchedPhotoUrls = widget.photoUrls!.map(resolveImageUrl).toList();
     }
 
     // 공고 상세 데이터 API 호출
@@ -176,6 +171,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
           }
 
           _description = data['description'] ?? _description;
+          _responsibility = data['responsibility'] ?? _responsibility;
           _location = data['jobAddress'] ?? _location;
 
           final wage = data['hourlyRates'];
@@ -199,17 +195,9 @@ class _JobDetailPageState extends State<JobDetailPage> {
           // 🌟 사진 이미지 리스트 파싱
           if (data['imageUrls'] != null &&
               (data['imageUrls'] as List).isNotEmpty) {
-            _fetchedPhotoUrls = (data['imageUrls'] as List).map((e) {
-              final path = e.toString();
-
-              if (!path.startsWith('http')) {
-                return path.startsWith('/')
-                    ? '${Env.serverBaseUrl}$path'
-                    : '${Env.serverBaseUrl}/$path';
-              }
-
-              return path;
-            }).toList();
+            _fetchedPhotoUrls = (data['imageUrls'] as List)
+                .map((e) => resolveImageUrl(e.toString()))
+                .toList();
           }
 
           final start = data['startDate']?.toString();
@@ -408,15 +396,37 @@ class _JobDetailPageState extends State<JobDetailPage> {
                         ),
                         const SizedBox(height: 24),
 
-                        AutoTranslateText(
-                          _description ??
-                              "Looking for someone to try my Malatang.",
-                          style: const TextStyle(
-                            fontSize: 14,
-                            height: 1.6,
-                            color: Color(0xFF696969),
+                        if (_responsibility != null &&
+                            _responsibility!.trim().isNotEmpty) ...[
+                          const AutoTranslateText(
+                            'Responsibilities',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          AutoTranslateText(
+                            _responsibility!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              height: 1.6,
+                              color: Color(0xFF696969),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        if (_description != null &&
+                            _description!.trim().isNotEmpty)
+                          AutoTranslateText(
+                            _description!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              height: 1.6,
+                              color: Color(0xFF696969),
+                            ),
+                          ),
                         const SizedBox(height: 14),
                         const Divider(
                           height: 1,
