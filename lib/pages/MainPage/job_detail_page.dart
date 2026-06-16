@@ -398,34 +398,17 @@ class _JobDetailPageState extends State<JobDetailPage> {
 
                         if (_responsibility != null &&
                             _responsibility!.trim().isNotEmpty) ...[
-                          const AutoTranslateText(
-                            'Responsibilities',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
+                          _buildDetailSection(
+                            title: 'Responsibilities',
+                            body: _responsibility!,
                           ),
-                          const SizedBox(height: 8),
-                          AutoTranslateText(
-                            _responsibility!,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              height: 1.6,
-                              color: Color(0xFF696969),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
                         ],
                         if (_description != null &&
                             _description!.trim().isNotEmpty)
-                          AutoTranslateText(
-                            _description!,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              height: 1.6,
-                              color: Color(0xFF696969),
-                            ),
+                          _buildDetailSection(
+                            title: 'Shift Details',
+                            body: _description!,
                           ),
                         const SizedBox(height: 14),
                         const Divider(
@@ -497,6 +480,31 @@ class _JobDetailPageState extends State<JobDetailPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDetailSection({required String title, required String body}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AutoTranslateText(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 8),
+        AutoTranslateText(
+          body,
+          style: const TextStyle(
+            fontSize: 14,
+            height: 1.6,
+            color: Color(0xFF696969),
+          ),
+        ),
+      ],
     );
   }
 

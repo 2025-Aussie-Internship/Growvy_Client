@@ -264,7 +264,8 @@ class _StartHiringPageState extends State<StartHiringPage> {
     ].where((s) => s.isNotEmpty).toList();
 
     final title = _jobTitleController.text.trim();
-    final description = _responsibilitiesController.text.trim();
+    final responsibility = _responsibilitiesController.text.trim();
+    final shiftDetails = _shiftDetailsController.text.trim();
     final scheduleDateText = _dateController.text.trim();
     final payText = _buildPayText();
     final openingsText = _buildOpeningsText();
@@ -302,7 +303,13 @@ class _StartHiringPageState extends State<StartHiringPage> {
       'location': '',
       'payText': payText,
       'openingsText': openingsText,
-      'description': description,
+      'responsibility':
+          created['responsibility']?.toString().trim().isNotEmpty == true
+          ? created['responsibility'].toString()
+          : responsibility,
+      'description': created['description']?.toString().trim().isNotEmpty == true
+          ? created['description'].toString()
+          : shiftDetails,
       'photos': photos,
       'scheduleShifts': shifts,
       'createdAt': DateTime.now().toIso8601String(),
