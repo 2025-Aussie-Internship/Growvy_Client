@@ -273,9 +273,13 @@ class NotePageController extends GetxController {
             ? 'Completed'
             : (item['dDay'] ?? _calculateDDay(item['endDate'])),
         'tag': tagValue,
+        'responsibility': item['responsibility']?.toString() ?? '',
+        'description': item['description']?.toString() ?? '',
         'hasContent':
-            item['description'] != null &&
-            item['description'].toString().isNotEmpty,
+            (item['responsibility'] != null &&
+                item['responsibility'].toString().isNotEmpty) ||
+            (item['description'] != null &&
+                item['description'].toString().isNotEmpty),
         'body': item['description'] ?? '',
         'photos': safePhotos,
         'hourlyWage': wage,

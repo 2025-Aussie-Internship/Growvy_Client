@@ -242,10 +242,8 @@ class NotePage extends GetView<NotePageController> {
           openingsText:
               item['openingsText'] as String? ??
               '${item['applicantsTotal'] ?? 3} openings.',
-          description:
-              item['description'] as String? ??
-              'People Needs Rabbit! is looking for a friendly, reliable team '
-                  'member who loves music, enjoys talking with customers.',
+          responsibility: _jobResponsibilityFromItem(item),
+          description: _jobShiftDetailsFromItem(item),
           isOwner: true,
           // StartHiringPage 에서 첨부한 사진을 owner detail 에서도 그대로 노출.
           photoUrls: photoUrls,
@@ -364,7 +362,8 @@ class NotePage extends GetView<NotePageController> {
           location: item['location'] as String?,
           payText: item['payText'] as String?,
           openingsText: item['openingsText'] as String?,
-          description: item['description'] as String?,
+          responsibility: _jobResponsibilityFromItem(item),
+          description: _jobShiftDetailsFromItem(item),
           isApplied: true,
           onCancelApplication: () {
             controller.removeSeekerApplied(item);
@@ -589,4 +588,25 @@ class NotePage extends GetView<NotePageController> {
       ),
     );
   }
+}
+
+String? _jobResponsibilityFromItem(Map<String, dynamic> item) {
+  final responsibility = item['responsibility'];
+  if (responsibility is String && responsibility.trim().isNotEmpty) {
+    return responsibility;
+  }
+  if (!item.containsKey('responsibility')) {
+    final legacy = item['description'];
+    if (legacy is String && legacy.trim().isNotEmpty) return legacy;
+  }
+  return null;
+}
+
+String? _jobShiftDetailsFromItem(Map<String, dynamic> item) {
+  if (!item.containsKey('responsibility')) return null;
+  final shiftDetails = item['description'];
+  if (shiftDetails is String && shiftDetails.trim().isNotEmpty) {
+    return shiftDetails;
+  }
+  return null;
 }
