@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-
+import 'dart:convert'; // 🌟 API JSON 파싱용 추가
+import 'package:http/http.dart' as http; // 🌟 API 통신용 추가
+import '../../config/env.dart';
 import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -11,6 +13,7 @@ import '../../widgets/auto_translate_text.dart';
 import '../../widgets/confirm_modal.dart';
 import '../../widgets/completion_modal.dart';
 import '../NotePage/employer_note_write_page.dart';
+import '../../services/token_storage.dart'; // 🌟 토큰 스토리지 (경로가 다르면 수정해주세요)
 
 class JobDetailPage extends StatefulWidget {
   const JobDetailPage({
@@ -34,55 +37,22 @@ class JobDetailPage extends StatefulWidget {
     this.photoUrls,
   });
 
-  /// 공고 ID. Apply 성공 시 이 값을 pop하여 호출측에서 리스트에서 제거할 수 있음.
   final dynamic postId;
-
-  /// 공고 작성 페이지에서 전달되는 값들. null일 경우 기본 더미 값을 보여준다.
   final String? title;
   final String? companyName;
   final String? description;
   final List<String>? tags;
   final String? scheduleDate;
-
-  /// 요일별 근무 시간 리스트. null 이면 dummy 7일 데이터 사용.
-  /// JobDetailPage 의 시계 영역이 이 리스트를 펼쳐 보여준다.
   final List<JobShift>? scheduleShifts;
-
   final String? location;
   final String? payText;
   final String? openingsText;
-
-  /// true 면 본인이 작성한 공고로 간주하고:
-  ///  - 상단 우측 share/bookmark 자리에 수정/삭제 아이콘 노출
-  ///  - 하단 버튼이 "Apply" 가 아니라 **"Hiring"** 으로 표시되어
-  ///    누르면 [onHiringTap] 콜백을 호출 (지원자 선택 모달 등에 사용).
   final bool isOwner;
-
-  /// true 면 구직자가 이미 지원한 공고로 간주하고,
-  /// 하단 버튼이 "Apply" 가 아니라 **"Cancel application"** 으로 표시된다.
-  /// 누르면 확인 모달 → Yes 시 [onCancelApplication] 콜백 호출.
-  ///
-  /// [isOwner] 와 동시에 true 면 isOwner 가 우선한다.
   final bool isApplied;
-
-  /// 수정 아이콘 탭. null 이면 기본 placeholder snackbar.
   final VoidCallback? onEdit;
-
-  /// 삭제 아이콘 탭. null 이면 기본 ConfirmModal 후 [postId] 와 함께 pop.
   final VoidCallback? onDelete;
-
-  /// "Hiring" 버튼(=isOwner 일 때 하단 버튼) 콜백.
-  /// 일반적으로 지원자 선택 모달 → 채팅 페이지 흐름을 호출 측에서 주입한다.
   final VoidCallback? onHiringTap;
-
-  /// "Cancel application" 버튼 (=isApplied 일 때 하단 버튼) 콜백.
-  /// 호출자가 controller 에서 지원 목록에서 제거 등 처리.
-  /// null 이면 단순히 [postId] 와 함께 pop 한다.
   final VoidCallback? onCancelApplication;
-
-  /// 상단 자동 슬라이드 영역에 보여 줄 사진 목록.
-  /// 항목은 `http(s)://` URL 이거나 단말 local 파일 경로(둘 다 지원).
-  /// null 또는 빈 리스트면 기본 더미 이미지가 노출된다.
   final List<String>? photoUrls;
 
   @override
@@ -97,16 +67,10 @@ class _JobDetailPageState extends State<JobDetailPage> {
   late Timer _imageTimer;
   int _imageCurrentPage = 1000;
 
-  /// 북마크(저장하기) 토글 상태.
   bool _isBookmarked = false;
-
-  /// 시계 영역(요일별 시간) 펼침 여부. 기본 펼쳐진 상태로 표시.
   bool _scheduleExpanded = true;
 
   // ---------------- 화면 표시용 mutable 상태 ----------------
-  // 수정 모달이 닫힌 직후 화면을 즉시 갱신하기 위해 widget.X 대신 이 변수들을
-  // 그린다. initState 에서 widget 값으로 초기화하고, 수정 결과(map)가 들어오면
-  // setState 로 교체한다.
   String? _title;
   String? _companyName;
   String? _description;
@@ -117,7 +81,10 @@ class _JobDetailPageState extends State<JobDetailPage> {
   String? _openingsText;
   int? _numberOfHires;
 
-  /// 호출 측에서 photoUrls 가 들어오면 그것만, 비어 있으면 기본 더미 4장.
+  // 🌟 API에서 받아올 사진 리스트 보관용
+  List<String>? _fetchedPhotoUrls;
+  List<JobShift>? _scheduleShifts;
+
   static const List<String> _defaultImageUrls = [
     "https://images.unsplash.com/photo-1542208998-f6dbbb27a72f?w=400",
     "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400",
@@ -126,13 +93,14 @@ class _JobDetailPageState extends State<JobDetailPage> {
   ];
 
   List<String> get _imageUrls {
+    // 🌟 API에서 사진을 받아왔다면 최우선으로 보여줌
+    if (_fetchedPhotoUrls != null && _fetchedPhotoUrls!.isNotEmpty)
+      return _fetchedPhotoUrls!;
     final injected = widget.photoUrls;
     if (injected != null && injected.isNotEmpty) return injected;
     return _defaultImageUrls;
   }
 
-  /// URL/파일 경로 모두 받아 자동 슬라이드용 한 장을 그린다.
-  /// http 면 NetworkImage, 그 외(=local 파일 경로) 면 FileImage.
   Widget _slideImage(String path) {
     if (path.startsWith('http')) {
       return Image.network(path, fit: BoxFit.cover);
@@ -143,6 +111,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
   @override
   void initState() {
     super.initState();
+
     _imageController = PageController(initialPage: _imageCurrentPage);
     _startImageTimer();
 
@@ -154,6 +123,167 @@ class _JobDetailPageState extends State<JobDetailPage> {
     _location = widget.location;
     _payText = widget.payText;
     _openingsText = widget.openingsText;
+    _scheduleShifts = widget.scheduleShifts;
+
+    // 초기 이미지 데이터에도 도메인 결합
+    if (widget.photoUrls != null && widget.photoUrls!.isNotEmpty) {
+      _fetchedPhotoUrls = widget.photoUrls!.map((e) {
+        final path = e.toString();
+
+        if (!path.startsWith('http')) {
+          return path.startsWith('/')
+              ? '${Env.serverBaseUrl}$path'
+              : '${Env.serverBaseUrl}/$path';
+        }
+
+        return path;
+      }).toList();
+    }
+
+    // 공고 상세 데이터 API 호출
+    _fetchJobDetail();
+  }
+
+  // 🌟 API 호출 및 데이터 매핑 메서드
+  Future<void> _fetchJobDetail() async {
+    if (widget.postId == null) return;
+
+    try {
+      final String? accessToken = await TokenStorage.readAccessToken();
+
+      final response = await http.get(
+        Uri.parse('${Env.apiBaseUrl}posts/posts/${widget.postId}'),
+        headers: {
+          if (accessToken != null) "Authorization": "Bearer $accessToken",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+
+        if (!mounted) return;
+
+        setState(() {
+          _title = data['title'] ?? _title;
+
+          if (data['companyName'] != null &&
+              data['companyName'].toString().trim().isNotEmpty) {
+            _companyName = data['companyName'].toString().trim();
+          } else if (data['employer'] is Map &&
+              data['employer']['name'] != null) {
+            _companyName = data['employer']['name'].toString().trim();
+          }
+
+          _description = data['description'] ?? _description;
+          _location = data['jobAddress'] ?? _location;
+
+          final wage = data['hourlyRates'];
+          if (wage != null) {
+            _payText = wage == 0 ? 'Volunteer' : '\$$wage per hour';
+          }
+
+          final count = data['count'];
+          if (count != null && count is int) {
+            _numberOfHires = count;
+            _openingsText =
+                '$_numberOfHires ${_numberOfHires == 1 ? "opening" : "openings"}.';
+          }
+
+          if (data['tags'] != null && (data['tags'] as List).isNotEmpty) {
+            _tags = (data['tags'] as List)
+                .map((t) => t is Map ? t['name'].toString() : t.toString())
+                .toList();
+          }
+
+          // 🌟 사진 이미지 리스트 파싱
+          if (data['imageUrls'] != null &&
+              (data['imageUrls'] as List).isNotEmpty) {
+            _fetchedPhotoUrls = (data['imageUrls'] as List).map((e) {
+              final path = e.toString();
+
+              if (!path.startsWith('http')) {
+                return path.startsWith('/')
+                    ? '${Env.serverBaseUrl}$path'
+                    : '${Env.serverBaseUrl}/$path';
+              }
+
+              return path;
+            }).toList();
+          }
+
+          final start = data['startDate']?.toString();
+          final end = data['endDate']?.toString();
+
+          String formatDate(String? dateStr) {
+            if (dateStr == null || dateStr.isEmpty) return '';
+            return dateStr.split('T')[0].replaceAll('-', '.');
+          }
+
+          if (start != null && end != null) {
+            _scheduleDate = '${formatDate(start)} - ${formatDate(end)}';
+          }
+
+          if (data['schedules'] != null &&
+              (data['schedules'] as List).isNotEmpty) {
+            _scheduleShifts = (data['schedules'] as List).map((s) {
+              String rawDay =
+                  s['dayOfWeek']?.toString().toUpperCase() ?? 'MONDAY';
+
+              int dayIndex = 1;
+
+              switch (rawDay) {
+                case 'SUNDAY':
+                  dayIndex = 0;
+                  break;
+                case 'MONDAY':
+                  dayIndex = 1;
+                  break;
+                case 'TUESDAY':
+                  dayIndex = 2;
+                  break;
+                case 'WEDNESDAY':
+                  dayIndex = 3;
+                  break;
+                case 'THURSDAY':
+                  dayIndex = 4;
+                  break;
+                case 'FRIDAY':
+                  dayIndex = 5;
+                  break;
+                case 'SATURDAY':
+                  dayIndex = 6;
+                  break;
+              }
+
+              TimeOfDay parseTime(String? timeStr) {
+                if (timeStr == null || timeStr.isEmpty) {
+                  return const TimeOfDay(hour: 0, minute: 0);
+                }
+
+                final parts = timeStr.split(':');
+
+                int hour = parts.isNotEmpty ? int.parse(parts[0]) : 0;
+
+                int minute = parts.length > 1 ? int.parse(parts[1]) : 0;
+
+                return TimeOfDay(hour: hour, minute: minute);
+              }
+
+              return JobShift(
+                dayIndex: dayIndex,
+                from: parseTime(s['startTime']?.toString()),
+                to: parseTime(s['endTime']?.toString()),
+              );
+            }).toList();
+          }
+        });
+      } else {
+        print("Detail Fetch Error: Status Code ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Detail Fetch Exception: $e");
+    }
   }
 
   @override
@@ -166,11 +296,13 @@ class _JobDetailPageState extends State<JobDetailPage> {
   void _startImageTimer() {
     _imageTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _imageCurrentPage++;
-      _imageController.animateToPage(
-        _imageCurrentPage,
-        duration: const Duration(milliseconds: 1000),
-        curve: Curves.easeInOut,
-      );
+      if (_imageController.hasClients) {
+        _imageController.animateToPage(
+          _imageCurrentPage,
+          duration: const Duration(milliseconds: 1000),
+          curve: Curves.easeInOut,
+        );
+      }
     });
   }
 
@@ -261,16 +393,14 @@ class _JobDetailPageState extends State<JobDetailPage> {
                           physics: const BouncingScrollPhysics(),
                           child: Row(
                             children: [
-                              for (int i = 0;
-                                  i <
-                                      (_tags ??
-                                              const ['D-10', 'Veteran'])
-                                          .length;
-                                  i++) ...[
+                              for (
+                                int i = 0;
+                                i < (_tags ?? const ['D-10', 'Veteran']).length;
+                                i++
+                              ) ...[
                                 if (i != 0) const SizedBox(width: 8),
                                 _buildTag(
-                                  (_tags ??
-                                      const ['D-10', 'Veteran'])[i],
+                                  (_tags ?? const ['D-10', 'Veteran'])[i],
                                 ),
                               ],
                             ],
@@ -342,11 +472,9 @@ class _JobDetailPageState extends State<JobDetailPage> {
                       ),
                       onPressed: () => Navigator.pop(context),
                     ),
-                    // Cancel 모드(isApplied=true) 일 때는 상단 액션은 viewer 와 동일.
                     widget.isOwner
                         ? _buildOwnerActions()
                         : _buildViewerActions(),
-
                   ],
                 ),
               ),
@@ -382,7 +510,6 @@ class _JobDetailPageState extends State<JobDetailPage> {
     );
   }
 
-  /// 상단 우측: 일반 시청자(구직자/타 employer) 용. 공유 + 북마크.
   Widget _buildViewerActions() {
     return Row(
       children: [
@@ -424,13 +551,6 @@ class _JobDetailPageState extends State<JobDetailPage> {
     );
   }
 
-  /// 상단 우측: 본인 공고용. 디자인 자체가 흰 원 배경 + 그림자까지 포함되어
-  /// 있으므로 별도 컨테이너 없이 SVG / PNG 를 그대로 보여 준다.
-  ///
-  /// 주의: `jobdetail_delete_icon.svg` 파일은 확장자만 .svg 이고 실제 내용이
-  /// PNG (Figma export 누락) 이므로 `Image.asset` 으로 그려야 한다.
-  /// `SvgPicture.asset` 으로 PNG 를 파싱하면 build 도중 예외가 발생해
-  /// 화면이 멈춘 것처럼 보일 수 있다.
   Widget _buildOwnerActions() {
     return Row(
       children: [
@@ -457,7 +577,6 @@ class _JobDetailPageState extends State<JobDetailPage> {
     );
   }
 
-  /// 원형 InkWell 로 감싸 탭 영역을 만들어 주는 단순 helper.
   Widget _circleAssetButton({
     required Widget child,
     required VoidCallback onTap,
@@ -477,11 +596,6 @@ class _JobDetailPageState extends State<JobDetailPage> {
     );
   }
 
-  /// 수정 흐름.
-  /// 1) 호출 측이 [JobDetailPage.onEdit] 콜백을 주면 그것을 우선 호출
-  ///    (NotePage 에서 들어온 경우 처럼 외부 컨트롤러를 갱신해야 할 때).
-  /// 2) 콜백이 없으면 (= StartHiringPage 직후 등) 곧장 EmployerNoteWritePage
-  ///    를 prefill 된 수정 모드로 띄우고, 결과 map 으로 화면을 즉시 갱신한다.
   Future<void> _handleEditTap() async {
     if (widget.onEdit != null) {
       widget.onEdit!();
@@ -508,12 +622,12 @@ class _JobDetailPageState extends State<JobDetailPage> {
           : _title;
       _description =
           (updated['description'] as String?)?.trim().isNotEmpty == true
-              ? updated['description'] as String
-              : _description;
+          ? updated['description'] as String
+          : _description;
       _scheduleDate =
           (updated['scheduleDate'] as String?)?.trim().isNotEmpty == true
-              ? updated['scheduleDate'] as String
-              : _scheduleDate;
+          ? updated['scheduleDate'] as String
+          : _scheduleDate;
       _location = (updated['location'] as String?)?.trim().isNotEmpty == true
           ? updated['location'] as String
           : _location;
@@ -555,7 +669,6 @@ class _JobDetailPageState extends State<JobDetailPage> {
       onAccept: () => Navigator.pop(context, true),
     );
     if (confirmed != true || !mounted) return;
-    // 삭제 완료 모달 → JobDetailPage 자체 pop. 호출 측이 결과로 알 수 있게.
     CompletionModal.show(
       context,
       message: 'Delete Complete!',
@@ -567,18 +680,18 @@ class _JobDetailPageState extends State<JobDetailPage> {
     );
   }
 
-  /// 요일별 시간 섹션. 헤더(시계 + 첫 줄 + 펼침 토글) + 펼침 시 7일 리스트.
   Widget _buildScheduleSection() {
-    final shifts = widget.scheduleShifts == null || widget.scheduleShifts!.isEmpty
+    // 🌟 수정됨: widget.scheduleShifts 대신 상태값 _scheduleShifts를 바라봄
+    final shifts = _scheduleShifts == null || _scheduleShifts!.isEmpty
         ? JobShift.sevenDayDummy
-        : widget.scheduleShifts!;
-    final headLabel = shifts.first.rangeLabel;
+        : _scheduleShifts!;
+
+    final headLabel = shifts.map((s) => s.dayShort).join(', ');
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 헤더: 시계 아이콘 + 대표 시간 + 펼침 토글
           InkWell(
             onTap: () => setState(() => _scheduleExpanded = !_scheduleExpanded),
             child: Row(
@@ -696,7 +809,6 @@ class _JobDetailPageState extends State<JobDetailPage> {
   }
 
   Widget _buildBottomButton(BuildContext context) {
-    // 1) 본인 공고(isOwner) → "Hiring" 버튼.
     if (widget.isOwner) {
       return _bottomBar(
         label: 'Hiring',
@@ -704,7 +816,6 @@ class _JobDetailPageState extends State<JobDetailPage> {
         onPressed: widget.onHiringTap ?? () {},
       );
     }
-    // 2) 이미 지원한 공고(isApplied) → "Cancel application" 버튼.
     if (widget.isApplied) {
       return _bottomBar(
         label: 'job_detail.cancel_application'.tr(),
@@ -712,7 +823,6 @@ class _JobDetailPageState extends State<JobDetailPage> {
         onPressed: () => _onCancelPressed(context),
       );
     }
-    // 3) 그 외 → 기존 "Apply" 흐름. employer 가 남의 공고를 보면 비활성.
     final isEmployer = AuthController.to.isEmployer.value;
     return _bottomBar(
       label: 'job_detail.apply'.tr(),
@@ -721,8 +831,6 @@ class _JobDetailPageState extends State<JobDetailPage> {
     );
   }
 
-  /// "Cancel application" 버튼 → 확인 모달 → Yes 시 콜백 호출.
-  /// 콜백이 없으면 단순히 postId 와 함께 pop 한다.
   void _onCancelPressed(BuildContext context) {
     ConfirmModal.show(
       context: context,
@@ -730,16 +838,13 @@ class _JobDetailPageState extends State<JobDetailPage> {
       cancelLabel: 'common.no'.tr(),
       acceptLabel: 'common.yes'.tr(),
       onAccept: () {
-        Navigator.pop(context); // 모달 닫기
+        Navigator.pop(context);
         if (!context.mounted) return;
         if (widget.onCancelApplication != null) {
           widget.onCancelApplication!();
           return;
         }
-        Navigator.pop(context, {
-          'cancelled': true,
-          'postId': widget.postId,
-        });
+        Navigator.pop(context, {'cancelled': true, 'postId': widget.postId});
       },
     );
   }
@@ -780,10 +885,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
             ),
             child: AutoTranslateText(
               label,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
           ),
         ),

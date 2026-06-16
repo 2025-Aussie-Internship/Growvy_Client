@@ -17,6 +17,7 @@ class Env {
 
   // --- API ---
   static String get apiBaseUrl => _require('API_BASE_URL');
+  static String get serverBaseUrl => _require('SERVER_BASE_URL');
 
   // --- Firebase: web ---
   static String get firebaseWebApiKey => _require('FIREBASE_WEB_API_KEY');
@@ -27,8 +28,7 @@ class Env {
   // --- Firebase: android ---
   static String get firebaseAndroidApiKey =>
       _require('FIREBASE_ANDROID_API_KEY');
-  static String get firebaseAndroidAppId =>
-      _require('FIREBASE_ANDROID_APP_ID');
+  static String get firebaseAndroidAppId => _require('FIREBASE_ANDROID_APP_ID');
 
   // --- Firebase: ios / macos ---
   static String get firebaseIosApiKey => _require('FIREBASE_IOS_API_KEY');
@@ -39,8 +39,7 @@ class Env {
   // --- Firebase: windows ---
   static String get firebaseWindowsApiKey =>
       _require('FIREBASE_WINDOWS_API_KEY');
-  static String get firebaseWindowsAppId =>
-      _require('FIREBASE_WINDOWS_APP_ID');
+  static String get firebaseWindowsAppId => _require('FIREBASE_WINDOWS_APP_ID');
   static String get firebaseWindowsMeasurementId =>
       _optional('FIREBASE_WINDOWS_MEASUREMENT_ID');
 
@@ -58,6 +57,5 @@ class MissingEnvException implements Exception {
   final String key;
 
   @override
-  String toString() =>
-      'MissingEnvException: .env 에 "$key" 가 설정되어 있지 않습니다.';
+  String toString() => 'MissingEnvException: .env 에 "$key" 가 설정되어 있지 않습니다.';
 }

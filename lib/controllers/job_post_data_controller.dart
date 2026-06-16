@@ -6,13 +6,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart'; // TimeOfDay
 import 'package:get/get.dart';
 import '../services/token_storage.dart';
+import '../config/env.dart';
 
 /// 공고 작성 다단계 폼의 단일 진실 원천(SSOT).
 /// StartHiringPage 각 step 에서 set* 메서드로 값을 누적하고,
 /// Publish 버튼에서 submitToBackend() 를 한 번만 호출한다.
 class JobPostDataController extends GetxController {
-  static const String _uploadUrl =
-      'https://growvy.mirim-it-show.site/api/posts/upload';
+  static String get _uploadUrl => "${Env.apiBaseUrl}posts/upload";
 
   // ── Basic Info ──────────────────────────────────────────────
   String _title = '';
