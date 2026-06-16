@@ -1,69 +1,53 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+import 'dart:convert';
+
+import 'package:dio/dio.dart' as dio;
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart'; // TimeOfDay
 import 'package:get/get.dart';
+import '../services/token_storage.dart';
 
-import '../services/job_post_repository.dart';
-import '../utils/interest_ids.dart';
-
-/// 공고 작성 흐름(StartHiringPage / EmployerNoteWritePage)에서 사용자가
-/// 입력한 값들을 한 곳에 누적했다가, 마지막 Publish 시점에 한 번에 백엔드로
-/// 보내는 컨트롤러. 회원가입의 [SignupDataController] 와 동일한 패턴이다.
-///
-/// [toPayload] 가 반환하는 JSON 은 백엔드 `POST /jobs` 가 그대로 한 행으로
-/// insert 할 수 있는 평탄한 Map.
+/// 공고 작성 다단계 폼의 단일 진실 원천(SSOT).
+/// StartHiringPage 각 step 에서 set* 메서드로 값을 누적하고,
+/// Publish 버튼에서 submitToBackend() 를 한 번만 호출한다.
 class JobPostDataController extends GetxController {
-  static JobPostDataController get to => Get.find<JobPostDataController>();
+  static const String _uploadUrl =
+      'https://growvy.mirim-it-show.site/api/posts/upload';
 
-  // ---------------- Basic Info ----------------
-  String? title;
+  // ── Basic Info ──────────────────────────────────────────────
+  String _title = '';
+  int? _employmentTypeId;
+  Set<int> _industryIds = {};
 
-  /// EMPLOYMENT id (31~35).
-  int? employmentTypeId;
+  // ── Job Details ─────────────────────────────────────────────
+  String _responsibilities = '';
+  String _shiftDetails = '';
+  String _scheduleDateRange = '';
+  int? _numberOfHires;
+  Set<int> _selectedDayIndices = {};
+  Map<int, ({TimeOfDay from, TimeOfDay to})> _dayTimes = {};
 
-  /// INDUSTRY id 들 (1~11).
-  final Set<int> industryIds = <int>{};
+  // ── Pay & Benefits ──────────────────────────────────────────
+  String _hourlyRate = '';
+  String _penaltyRate = '';
+  String? _superannuation;
 
-  // ---------------- Job Details ----------------
-  String? responsibilities;
-  String? shiftDetails;
+  // ── Application Settings ────────────────────────────────────
+  DateTime? _deadline;
 
-  /// "DD/MM/YYYY - DD/MM/YYYY" 형식의 화면 표시 문자열.
-  String? scheduleDateRange;
+  // ── Photos ──────────────────────────────────────────────────
+  List<String> _photoUrls = [];
 
-  int? numberOfHires;
-
-  /// 0=일, 1=월, ..., 6=토.
-  final Set<int> selectedDayIndices = <int>{};
-
-  /// 요일별 시작/종료 시간.
-  final Map<int, JobTimeRange> dayTimes = <int, JobTimeRange>{};
-
-  // ---------------- Pay & Benefits ----------------
-  String? hourlyRate;
-  String? penaltyRate;
-
-  /// 'Paid separately' | 'Included in rate' 등 백엔드 enum.
-  String? superannuation;
-
-  // ---------------- Application Settings ----------------
-  DateTime? applicationDeadline;
-
-  // ---------------- Photos (선택) ----------------
-  final List<String> photoUrls = <String>[];
-
-  // ---------------- Setters ----------------
+  // ── Setters ─────────────────────────────────────────────────
 
   void setBasicInfo({
     String? title,
     int? employmentTypeId,
-    Iterable<int>? industryIds,
+    Set<int>? industryIds,
   }) {
-    if (title != null) this.title = title;
-    if (employmentTypeId != null) this.employmentTypeId = employmentTypeId;
-    if (industryIds != null) {
-      this.industryIds
-        ..clear()
-        ..addAll(industryIds);
-    }
+    if (title != null) _title = title;
+    if (employmentTypeId != null) _employmentTypeId = employmentTypeId;
+    if (industryIds != null) _industryIds = Set.from(industryIds);
   }
 
   void setJobDetails({
@@ -71,23 +55,17 @@ class JobPostDataController extends GetxController {
     String? shiftDetails,
     String? scheduleDateRange,
     int? numberOfHires,
-    Iterable<int>? selectedDayIndices,
-    Map<int, JobTimeRange>? dayTimes,
+    Set<int>? selectedDayIndices,
+    Map<int, ({TimeOfDay from, TimeOfDay to})>? dayTimes,
   }) {
-    if (responsibilities != null) this.responsibilities = responsibilities;
-    if (shiftDetails != null) this.shiftDetails = shiftDetails;
-    if (scheduleDateRange != null) this.scheduleDateRange = scheduleDateRange;
-    if (numberOfHires != null) this.numberOfHires = numberOfHires;
+    if (responsibilities != null) _responsibilities = responsibilities;
+    if (shiftDetails != null) _shiftDetails = shiftDetails;
+    if (scheduleDateRange != null) _scheduleDateRange = scheduleDateRange;
+    if (numberOfHires != null) _numberOfHires = numberOfHires;
     if (selectedDayIndices != null) {
-      this.selectedDayIndices
-        ..clear()
-        ..addAll(selectedDayIndices);
+      _selectedDayIndices = Set.from(selectedDayIndices);
     }
-    if (dayTimes != null) {
-      this.dayTimes
-        ..clear()
-        ..addAll(dayTimes);
-    }
+    if (dayTimes != null) _dayTimes = Map.from(dayTimes);
   }
 
   void setPayBenefits({
@@ -95,148 +73,239 @@ class JobPostDataController extends GetxController {
     String? penaltyRate,
     String? superannuation,
   }) {
-    if (hourlyRate != null) this.hourlyRate = hourlyRate;
-    if (penaltyRate != null) this.penaltyRate = penaltyRate;
-    if (superannuation != null) this.superannuation = superannuation;
+    if (hourlyRate != null) _hourlyRate = hourlyRate;
+    if (penaltyRate != null) _penaltyRate = penaltyRate;
+    if (superannuation != null) _superannuation = superannuation;
   }
 
-  void setApplicationDeadline(DateTime? value) {
-    applicationDeadline = value;
+  void setApplicationDeadline(DateTime? deadline) {
+    _deadline = deadline;
   }
 
-  void setPhotos(Iterable<String> urls) {
-    photoUrls
-      ..clear()
-      ..addAll(urls);
+  void setPhotos(List<String> photos) {
+    _photoUrls = List.from(photos);
   }
 
-  // ---------------- Validation ----------------
+  // ── Submit ───────────────────────────────────────────────────
+  // ── Submit ───────────────────────────────────────────────────
+  Future<Map<String, dynamic>> submitToBackend() async {
+    try {
+      final formData = dio.FormData();
 
-  bool isBasicInfoValid() {
-    return (title ?? '').trim().isNotEmpty &&
-        employmentTypeId != null &&
-        industryIds.isNotEmpty;
-  }
+      // ── 1. 백엔드 'request' 파트에 보낼 JSON 데이터 구성 ────────────────────────
+      final Map<String, dynamic> requestData = {
+        'title': _title,
+        'responsibility': _responsibilities,
+      };
 
-  bool isJobDetailsValid() {
-    return (responsibilities ?? '').trim().isNotEmpty &&
-        (shiftDetails ?? '').trim().isNotEmpty &&
-        (scheduleDateRange ?? '').trim().isNotEmpty &&
-        (numberOfHires ?? 0) > 0 &&
-        selectedDayIndices.isNotEmpty;
-  }
+      if (_shiftDetails.isNotEmpty) {
+        requestData['description'] = _shiftDetails;
+      }
+      if (_numberOfHires != null) {
+        requestData['count'] = _numberOfHires; // int 타입 그대로 전송
+      }
+      if (_hourlyRate.isNotEmpty) {
+        requestData['hourlyRates'] = _hourlyRate;
+      }
+      if (_penaltyRate.isNotEmpty) {
+        requestData['penaltyRates'] = _penaltyRate;
+      }
+      if (_superannuation != null) {
+        requestData['superannuation'] = _superannuationToEnum(_superannuation!);
+      }
 
-  bool isPayBenefitsValid() {
-    return (hourlyRate ?? '').trim().isNotEmpty &&
-        (penaltyRate ?? '').trim().isNotEmpty &&
-        (superannuation ?? '').trim().isNotEmpty;
-  }
+      // 날짜 (백엔드 LocalDateTime 형식에 맞게 T00:00:00 추가)
+      final dates = _parseDateRange(_scheduleDateRange);
+      if (dates != null) {
+        requestData['startDate'] = '${dates[0]}T00:00:00';
+        requestData['endDate'] = '${dates[1]}T00:00:00';
+      }
 
-  bool isReadyForSubmit() {
-    return isBasicInfoValid() &&
-        isJobDetailsValid() &&
-        isPayBenefitsValid() &&
-        applicationDeadline != null;
-  }
+      if (_deadline != null) {
+        final y = _deadline!.year;
+        final m = _deadline!.month.toString().padLeft(2, '0');
+        final d = _deadline!.day.toString().padLeft(2, '0');
+        requestData['recruitmentDeadline'] = '$y-$m-${d}T00:00:00';
+      }
 
-  // ---------------- Serialization ----------------
-
-  /// 백엔드 `POST /jobs` body. 평탄한 구조 + 빈 값은 키 생략.
-  Map<String, dynamic> toPayload() {
-    final m = <String, dynamic>{};
-    void put(String key, Object? value) {
-      if (value == null) return;
-      if (value is String && value.trim().isEmpty) return;
-      if (value is int && value == 0) return;
-      m[key] = value;
-    }
-
-    put('title', title?.trim());
-    put('employmentTypeId', employmentTypeId);
-    if (industryIds.isNotEmpty) {
-      m['industryIds'] = (industryIds.toList()..sort());
-    }
-    put('responsibilities', responsibilities?.trim());
-    put('shiftDetails', shiftDetails?.trim());
-    put('scheduleDateRange', scheduleDateRange?.trim());
-    put('numberOfHires', numberOfHires);
-    if (selectedDayIndices.isNotEmpty) {
-      m['daysOfWeek'] = (selectedDayIndices.toList()..sort());
-    }
-    if (dayTimes.isNotEmpty) {
-      m['shifts'] = [
-        for (final entry in dayTimes.entries)
-          {
-            'dayIndex': entry.key,
-            'fromHour': entry.value.from.hour,
-            'fromMinute': entry.value.from.minute,
-            'toHour': entry.value.to.hour,
-            'toMinute': entry.value.to.minute,
-          },
+      // interestIds (리스트 형태)
+      final allIds = <int>[
+        if (_employmentTypeId != null) _employmentTypeId!,
+        ..._industryIds,
       ];
+      requestData['interestIds'] = allIds;
+
+      // schedules (객체 배열 형태)
+      const dayNames = [
+        'SUNDAY',
+        'MONDAY',
+        'TUESDAY',
+        'WEDNESDAY',
+        'THURSDAY',
+        'FRIDAY',
+        'SATURDAY',
+      ];
+
+      final List<Map<String, dynamic>> schedules = [];
+      for (final dayIndex in _selectedDayIndices) {
+        final range = _dayTimes[dayIndex];
+        if (range == null) continue;
+        schedules.add({
+          'dayOfWeek': dayNames[dayIndex],
+          'startTime': _toLocalTime(range.from),
+          'endTime': _toLocalTime(range.to),
+        });
+      }
+      requestData['schedules'] = schedules;
+
+      // ── 2. JSON 데이터를 'request' 파트로 FormData에 추가 ────────────────────
+      formData.files.add(
+        MapEntry(
+          'request',
+          dio.MultipartFile.fromString(
+            jsonEncode(requestData),
+            contentType: dio.DioMediaType('application', 'json'),
+          ),
+        ),
+      );
+
+      // ── 3. 이미지 파일 추가 (최대 4장) ─────────────────────────────────────────
+      int imgOrder = 0;
+      for (final path in _photoUrls) {
+        if (imgOrder >= 4) break;
+        if (path.startsWith('http')) {
+          debugPrint('[JobPost] remote URL skipped: $path');
+          continue;
+        }
+        final file = File(path);
+        if (!file.existsSync()) {
+          debugPrint('[JobPost] 파일 없음, 스킵: $path');
+          continue;
+        }
+        final ext = path.split('.').last.toLowerCase();
+        formData.files.add(
+          MapEntry(
+            'images',
+            await dio.MultipartFile.fromFile(
+              path,
+              contentType: dio.DioMediaType('image', _imgSubtype(ext)),
+            ),
+          ),
+        );
+        imgOrder++;
+      }
+
+      // ── 4. 전송 ─────────────────────────────────────────────────────────────
+      debugPrint('[JobPost] POST $_uploadUrl');
+      debugPrint('[JobPost] request JSON: ${jsonEncode(requestData)}');
+      debugPrint(
+        '[JobPost] files : ${formData.files.map((e) => e.value.filename)}',
+      );
+
+      // ★ [수정 완료된 부분] TokenStorage에서 직접 토큰을 꺼내옵니다.
+      String? jwtToken = await TokenStorage.readAccessToken();
+
+      if (jwtToken == null || jwtToken.isEmpty) {
+        jwtToken = await TokenStorage.readFirebaseIdToken();
+      }
+
+      debugPrint('[JobPost] 헤더에 들어갈 토큰 확인: $jwtToken');
+
+      final dioClient = dio.Dio(
+        dio.BaseOptions(
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 30),
+          validateStatus: (_) => true,
+          // ★ 여기서 헤더에 토큰이 들어갑니다.
+          headers: {
+            if (jwtToken != null && jwtToken.isNotEmpty)
+              'Authorization': 'Bearer $jwtToken',
+          },
+        ),
+      );
+
+      final response = await dioClient.post(_uploadUrl, data: formData);
+
+      debugPrint('[JobPost] status: ${response.statusCode}');
+      debugPrint('[JobPost] body  : ${response.data}');
+
+      final status = response.statusCode ?? 0;
+      if (status >= 200 && status < 300) {
+        if (response.data is Map<String, dynamic>) {
+          return response.data as Map<String, dynamic>;
+        }
+        return {'raw': response.data};
+      } else {
+        debugPrint('[JobPost] 서버 오류 $status: ${response.data}');
+        return {};
+      }
+    } catch (e, st) {
+      debugPrint('[JobPost] 예외: $e\n$st');
+      return {};
     }
-    put('hourlyRate', hourlyRate?.trim());
-    put('penaltyRate', penaltyRate?.trim());
-    put('superannuation', superannuation?.trim());
-    if (applicationDeadline != null) {
-      final d = applicationDeadline!;
-      m['applicationDeadline'] =
-          '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-    }
-    if (photoUrls.isNotEmpty) {
-      m['photoUrls'] = List<String>.from(photoUrls);
-    }
-    return m;
   }
+  // ── reset ────────────────────────────────────────────────────
 
-  /// [toPayload] 의 alias. 백엔드가 받자마자 DB jobs 테이블 한 행으로
-  /// insert 할 수 있는 평탄한 Map 임을 호출 측에 분명히 한다.
-  Map<String, dynamic> toDbRow() => toPayload();
-
-  /// 디버그/검증용: 카테고리 라벨로 묶어서 한 줄.
-  String describeForDebug() {
-    final p = toPayload();
-    final keys = p.keys.toList()..sort();
-    final empCat = employmentTypeId == null
-        ? 'EMPLOYMENT=null'
-        : 'EMPLOYMENT=${IdCatalog.byId(employmentTypeId!)?.englishLabel ?? '?'}';
-    final industryCats = industryIds
-        .map((id) => IdCatalog.byId(id)?.englishLabel ?? '?')
-        .join(', ');
-    return '[$empCat | INDUSTRY=$industryCats] '
-        '${keys.map((k) => '$k=${p[k]}').join(' | ')}';
-  }
-
-  /// 누적 페이로드를 한 번에 백엔드로 전송한다.
-  /// 응답으로 생성된 job JSON 을 반환 (없으면 빈 map).
-  Future<Map<String, dynamic>> submitToBackend() {
-    return JobPostRepository.submit(payload: toPayload());
-  }
-
-  /// 다음 공고 작성을 위해 누적값 초기화.
   void reset() {
-    title = null;
-    employmentTypeId = null;
-    industryIds.clear();
-    responsibilities = null;
-    shiftDetails = null;
-    scheduleDateRange = null;
-    numberOfHires = null;
-    selectedDayIndices.clear();
-    dayTimes.clear();
-    hourlyRate = null;
-    penaltyRate = null;
-    superannuation = null;
-    applicationDeadline = null;
-    photoUrls.clear();
+    _title = '';
+    _employmentTypeId = null;
+    _industryIds = {};
+    _responsibilities = '';
+    _shiftDetails = '';
+    _scheduleDateRange = '';
+    _numberOfHires = null;
+    _selectedDayIndices = {};
+    _dayTimes = {};
+    _hourlyRate = '';
+    _penaltyRate = '';
+    _superannuation = null;
+    _deadline = null;
+    _photoUrls = [];
   }
-}
 
-/// 요일별 근무 시작/종료 시간을 들고 다니는 단순 값 객체.
-/// (StartHiringPage 내부의 _TimeRange 와 동일한 의미, 다만 컨트롤러 외부에서도
-/// 참조할 수 있도록 public 으로 분리)
-class JobTimeRange {
-  const JobTimeRange({required this.from, required this.to});
-  final TimeOfDay from;
-  final TimeOfDay to;
+  // ── Debug ─────────────────────────────────────────────────────
+
+  String describeForDebug() =>
+      'title=$_title, emp=$_employmentTypeId, industries=$_industryIds, '
+      'days=$_selectedDayIndices, rate=$_hourlyRate, deadline=$_deadline, '
+      'photos=${_photoUrls.length}장';
+
+  // ── Helpers ───────────────────────────────────────────────────
+
+  String _superannuationToEnum(String display) =>
+      display.toUpperCase().replaceAll(' ', '_');
+
+  List<String>? _parseDateRange(String raw) {
+    final parts = raw.split(' - ');
+    if (parts.length != 2) return null;
+    final s = _dmyToIso(parts[0].trim());
+    final e = _dmyToIso(parts[1].trim());
+    if (s == null || e == null) return null;
+    return [s, e];
+  }
+
+  String? _dmyToIso(String dmy) {
+    final parts = dmy.split('/');
+    if (parts.length != 3) return null;
+    return '${parts[2]}-${parts[1].padLeft(2, '0')}-${parts[0].padLeft(2, '0')}';
+  }
+
+  String _toLocalTime(TimeOfDay t) {
+    final h = t.hour.toString().padLeft(2, '0');
+    final m = t.minute.toString().padLeft(2, '0');
+    return '$h:$m:00';
+  }
+
+  String _imgSubtype(String ext) {
+    switch (ext) {
+      case 'png':
+        return 'png';
+      case 'gif':
+        return 'gif';
+      case 'webp':
+        return 'webp';
+      default:
+        return 'jpeg';
+    }
+  }
 }
