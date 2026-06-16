@@ -8,12 +8,14 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart' hide Trans;
 import 'package:image_picker/image_picker.dart';
 import '../../controllers/job_post_data_controller.dart';
+import '../../controllers/note_page_controller.dart';
+import '../../controllers/user_profile_controller.dart';
 import '../../models/job_shift.dart';
 import '../../styles/colors.dart';
 import '../../utils/auto_localize.dart';
 import '../../utils/interest_ids.dart';
 import '../../widgets/auto_translate_text.dart';
-import '../MainPage/job_detail_page.dart';
+import '../MainPage/main_page.dart';
 
 class StartHiringPage extends StatefulWidget {
   const StartHiringPage({super.key});
@@ -248,6 +250,7 @@ class _StartHiringPageState extends State<StartHiringPage> {
           }),
     );
 
+    // 1) 화면 표시용 tags (i18n 라벨)
     final tags = <String>[
       if (_employmentTypeId != null)
         IdCatalog.byId(_employmentTypeId!)?.i18nKey.tr() ?? '',
@@ -256,25 +259,75 @@ class _StartHiringPageState extends State<StartHiringPage> {
       ),
     ].where((s) => s.isNotEmpty).toList();
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => JobDetailPage(
-          title: _jobTitleController.text.trim(),
-          companyName: '',
-          description: _responsibilitiesController.text.trim(),
-          tags: tags,
-          scheduleDate: _dateController.text.trim(),
-          scheduleShifts: _buildShiftList(),
-          location: '',
-          payText: _buildPayText(),
-          openingsText: _buildOpeningsText(),
-          isOwner: true,
-          photoUrls: List<String>.from(_photos),
-        ),
-      ),
-    );
+    final title = _jobTitleController.text.trim();
+    final description = _responsibilitiesController.text.trim();
+    final scheduleDateText = _dateController.text.trim();
+    final payText = _buildPayText();
+    final openingsText = _buildOpeningsText();
+    final headCount = int.tryParse(_peopleCountController.text.trim()) ?? 1;
+    final shifts = _buildShiftList();
+    final photos = List<String>.from(_photos);
 
+    // 회사명은 로그인 시 입력한 employer 프로필에서 가져온다 (없으면 비워둠).
+    String companyName = '';
+    try {
+      final user = Get.find<UserProfileController>();
+      companyName = user.profile.value?.companyName ?? '';
+    } catch (_) {}
+
+    // 2) NotePage 의 Hiring 탭에 카드로 등록.
+    //    여러 번 publish 해도 각각 다른 카드로 들어가도록 millisecond
+    //    단위 timestamp 를 id 로 부여한다. NotePageController.addEmployerHiring
+    //    의 중복 매칭이 id 우선이라, 같은 title 두 번 publish 해도 둘 다 보임.
+    final card = <String, dynamic>{
+      'id': DateTime.now().microsecondsSinceEpoch,
+      'title': title.isEmpty ? 'Untitled Posting' : title,
+      'employer': companyName,
+      'dDay': _dDayLabel(_selectedDate),
+      'tag': tags.isNotEmpty ? tags.first : 'Rookie',
+      'applicantsCurrent': 0,
+      'applicantsTotal': headCount,
+      'employerStatus': 'hiring',
+      'scheduleDate': scheduleDateText,
+      'location': '',
+      'payText': payText,
+      'openingsText': openingsText,
+      'description': description,
+      'photos': photos,
+      'scheduleShifts': shifts,
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+    if (Get.isRegistered<NotePageController>()) {
+      final noteCtrl = Get.find<NotePageController>()
+        ..addEmployerHiring(card)
+        ..setEmployerTab(0); // Hiring 탭으로
+      debugPrint(
+        '[StartHiring] addEmployerHiring '
+        'title=$title head=$headCount listLen=${noteCtrl.localEmployerHiring.length}',
+      );
+    }
+
+    // 3) 다음 입력을 위해 컨트롤러/로컬 상태 reset.
     jobPost.reset();
+
+    // 4) MainPage 의 Note(3) 탭을 곧장 열어 사용자가 바로 본인 카드를 확인.
+    Get.offAll(
+      () => const MainPage(initialTab: 3),
+      transition: Transition.fadeIn,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
+  /// 마감일(deadline) 기준 D-XX / D-Day / Expired 라벨.
+  String _dDayLabel(DateTime? deadline) {
+    if (deadline == null) return 'D-?';
+    final now = DateTime.now();
+    final t = DateTime(now.year, now.month, now.day);
+    final d = DateTime(deadline.year, deadline.month, deadline.day);
+    final diff = d.difference(t).inDays;
+    if (diff == 0) return 'D-Day';
+    if (diff < 0) return 'Expired';
+    return 'D-$diff';
   }
 
   List<JobShift> _buildShiftList() {

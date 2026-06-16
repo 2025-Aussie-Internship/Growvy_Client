@@ -23,7 +23,12 @@ import '../../widgets/main_logo_header.dart';
 import '../../widgets/search_overlay.dart';
 
 class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+  const MainPage({super.key, this.initialTab = 0});
+
+  /// 진입 시 미리 열어둘 하단 탭의 인덱스.
+  /// 0: Home / 1: Map / 2: Chat / 3: Note / 4: My.
+  /// 예) 공고 publish 직후 → `MainPage(initialTab: 3)` 로 곧장 Note(Hiring) 탭.
+  final int initialTab;
 
   @override
   State<MainPage> createState() => _MainPageState();
@@ -49,7 +54,7 @@ class _FabEndFloatLocation extends FloatingActionButtonLocation {
 }
 
 class _MainPageState extends State<MainPage> {
-  int _selectedIndex = 0;
+  late int _selectedIndex = widget.initialTab.clamp(0, 4);
   bool _regionPanelOpen = false;
   bool _isSearchActive = false;
   final GlobalKey<SearchOverlayState> _searchOverlayKey =

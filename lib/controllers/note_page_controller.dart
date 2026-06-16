@@ -478,15 +478,27 @@ class NotePageController extends GetxController {
     replaceIn(localEmployerDone);
   }
 
+  /// 새로 publish 된 공고를 Hiring 탭 맨 위에 삽입.
+  ///
+  /// `employerJobsForCurrentTab` 가 백엔드 데이터(`employerHiringList`) 가
+  /// 비어 있을 때만 로컬 더미(`localEmployerHiring`) 를 노출하므로, 백엔드 유
+  /// 무와 무관하게 사용자가 방금 만든 카드가 보이도록 두 리스트 모두에 동일한
+  /// item 을 삽입한다. (id 가 같은 동일 카드가 두 리스트에 모두 들어 있어도
+  /// `employerJobOpenings` getter 가 합칠 때 자연스럽게 한 번만 그려진다.)
+  ///
+  /// 같은 id 가 이미 있는 경우만 중복 삽입을 거른다. id 가 없거나 다르면
+  /// 같은 title/employer 라도 별개 카드로 인정해 모두 보이게 한다 (사용자가
+  /// 같은 제목으로 여러 번 publish 한 경우 대응).
   void addEmployerHiring(Map<String, dynamic> item) {
-    bool isSame(Map<String, dynamic> e) {
-      if (item['id'] != null && e['id'] != null) return e['id'] == item['id'];
-      return e['title'] == item['title'] && e['employer'] == item['employer'];
-    }
+    bool isSameId(Map<String, dynamic> e) =>
+        item['id'] != null && e['id'] != null && e['id'] == item['id'];
 
-    if (employerHiringList.any(isSame)) return;
-    if (localEmployerHiring.any(isSame)) return;
-    localEmployerHiring.insert(0, item);
+    if (!employerHiringList.any(isSameId)) {
+      employerHiringList.insert(0, item);
+    }
+    if (!localEmployerHiring.any(isSameId)) {
+      localEmployerHiring.insert(0, item);
+    }
   }
 
   void removeSeekerApplied(Map<String, dynamic> item) {
