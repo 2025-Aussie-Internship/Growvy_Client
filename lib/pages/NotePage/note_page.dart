@@ -15,6 +15,7 @@ import '../MainPage/job_detail_page.dart';
 import '../MyPage/review_detail_page.dart';
 import 'employer_note_write_page.dart';
 import 'seeker_note_write_page.dart';
+import '../../widgets/review_worker_list_modal.dart';
 
 /// Note 목록 View (GetX MVVM). write만 직업별(employer_note_write / seeker_note_write)로 분리.
 /// employer/seeker 모두 동일한 NoteTabBar + My History + 카드 스타일을 공유한다.
@@ -449,20 +450,32 @@ class NotePage extends GetView<NotePageController> {
   /// 수정된 호출부
   Future<void> _openHiringApplicants(
     BuildContext context, {
-    required int postId, // 🌟 이제 개수 대신 postId를 필수로 받습니다.
+    required int postId,
   }) async {
-    // 🌟 수정: applicantCount: applicantCount 를 postId: postId 로 변경
     final accepted = await JobApplicationListModal.show(
       context,
       postId: postId,
+      onAcceptSuccess: () {
+        // 🌟 여기가 핵심! 모든 데이터를 서버에서 다시 불러옵니다.
+        controller.fetchAllData();
+      },
     );
 
     if (!context.mounted) return;
     if (accepted == null) return;
 
+    // 🌟 모달에서 넘어온 roomId를 정수로 변환 (없으면 null 처리 등으로 방어)
+    final roomIdStr = accepted['roomId'];
+    final roomId = roomIdStr != null ? int.tryParse(roomIdStr) : null;
+    if (roomId == null) {
+      debugPrint('🚨 에러: 새로 생성된 채팅방 roomId가 없습니다. 백엔드 응답을 확인하세요!');
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChatDetailPage(
+          roomId: roomId,
           peerName: accepted['name'],
           peerProfileImagePath: accepted['profileImagePath'],
         ),
@@ -515,15 +528,16 @@ class NotePage extends GetView<NotePageController> {
     BuildContext context,
     Map<String, dynamic> item,
   ) async {
-    // 🌟 수정: 더미용 파라미터는 제거하고, 실제 postId를 전달
-    final applicant = await JobApplicationListModal.show(
+    // 🌟 1. 옛날 모달 지우고, 방금 만든 리뷰 전용 모달 호출!
+    final targetUser = await ReviewTargetListModal.show(
       context,
       postId: item['id'], // 🌟 해당 공고의 ID를 넘겨줍니다.
     );
 
     if (!context.mounted) return;
-    if (applicant == null) return;
+    if (targetUser == null) return; // 모달을 그냥 닫았거나, 버튼을 안 누른 경우
 
+    // 🌟 2. 선택한 사람의 데이터를 ReviewDetailPage로 넘깁니다.
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ReviewDetailPage(
@@ -531,8 +545,10 @@ class NotePage extends GetView<NotePageController> {
           rating: 5,
           body: '',
           isEditable: true,
-          peerName: applicant['name'],
-          peerProfileImagePath: applicant['profileImagePath'],
+          peerName: targetUser['name'], // 모달에서 받아온 이름
+          peerProfileImagePath: targetUser['profileImagePath'], // 모달에서 받아온 프사
+          targetUserId: targetUser['targetUserId'],
+          postId: item['id'] as int?,
         ),
       ),
     );

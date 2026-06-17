@@ -1,21 +1,20 @@
-import '../i18n/app_translations.dart';
+import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../styles/colors.dart';
-import '../styles/modal_theme.dart';
-import 'auto_translate_text.dart';
+import '../../styles/colors.dart';
+import '../../styles/modal_theme.dart';
+import '../../widgets/auto_translate_text.dart';
 import '../../utils/image_url.dart';
 import '../../config/env.dart';
 
 import 'package:dio/dio.dart' as dio;
-import '../services/token_storage.dart';
+import '../../services/token_storage.dart';
 
-/// 구인자용 Job Application List 모달. 아래에서 위로 슬라이드, 신청한 구직자 중 선택 후 Accept로 새 채팅방 생성.
-class JobApplicationListModal {
+/// 구인자용 Review Target List 모달. (Job Application 모달과 100% 동일한 레이아웃)
+class ReviewTargetListModal {
   static Future<Map<String, dynamic>?> show(
     BuildContext context, {
     required int postId,
-    VoidCallback? onAcceptSuccess, // 🌟 부모 페이지(Hiring 목록) 새로고침을 위한 콜백 파라미터 추가
   }) async {
     return showModalBottomSheet<Map<String, dynamic>>(
       context: context,
@@ -23,16 +22,13 @@ class JobApplicationListModal {
       isScrollControlled: true,
       builder: (context) => Theme(
         data: modalTheme(context),
-        child: _JobApplicationListContent(
-          postId: postId,
-          onAcceptSuccess: onAcceptSuccess, // 🌟 전달
-        ),
+        child: _ReviewTargetListContent(postId: postId),
       ),
     );
   }
 }
 
-void showApplicantProfileModal(BuildContext context, _ApplicantItem applicant) {
+void showTargetProfileModal(BuildContext context, _TargetItem target) {
   showDialog<void>(
     context: context,
     barrierColor: Colors.black54,
@@ -43,7 +39,7 @@ void showApplicantProfileModal(BuildContext context, _ApplicantItem applicant) {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Material(
             color: Colors.transparent,
-            child: _ApplicantProfileSheetContent(applicant: applicant),
+            child: _TargetProfileSheetContent(target: target),
           ),
         ),
       ),
@@ -51,32 +47,34 @@ void showApplicantProfileModal(BuildContext context, _ApplicantItem applicant) {
   );
 }
 
-class _ApplicantItem {
-  final int applicationId;
+class _TargetItem {
+  final int targetUserId;
   final String name;
   final String profileImagePath;
   final int rating;
+  final bool isReviewed;
 
-  _ApplicantItem({
-    required this.applicationId,
+  _TargetItem({
+    required this.targetUserId,
     required this.name,
     required this.profileImagePath,
     this.rating = 5,
+    this.isReviewed = false,
   });
 }
 
-class _ApplicantProfileSheetContent extends StatefulWidget {
-  const _ApplicantProfileSheetContent({required this.applicant});
+class _TargetProfileSheetContent extends StatefulWidget {
+  const _TargetProfileSheetContent({required this.target});
 
-  final _ApplicantItem applicant;
+  final _TargetItem target;
 
   @override
-  State<_ApplicantProfileSheetContent> createState() =>
-      _ApplicantProfileSheetContentState();
+  State<_TargetProfileSheetContent> createState() =>
+      _TargetProfileSheetContentState();
 }
 
-class _ApplicantProfileSheetContentState
-    extends State<_ApplicantProfileSheetContent> {
+class _TargetProfileSheetContentState
+    extends State<_TargetProfileSheetContent> {
   bool _expanded = false;
 
   static final List<Map<String, dynamic>> _dummyReviews = [
@@ -97,12 +95,6 @@ class _ApplicantProfileSheetContentState
       'rating': 5,
       'body':
           'Best gig I\'ve done through the app. On-time payment, friendly staff, and the venue was easy to get to. Highly recommend.',
-    },
-    {
-      'title': 'Promotional Staff',
-      'rating': 4,
-      'body':
-          'Fun atmosphere and the brand team was nice. Long standing hours but they provided snacks and water. Would do again.',
     },
   ];
 
@@ -150,7 +142,7 @@ class _ApplicantProfileSheetContentState
         mainAxisSize: MainAxisSize.min,
         children: [
           AutoTranslateText(
-            widget.applicant.name,
+            widget.target.name,
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 18,
@@ -211,10 +203,10 @@ class _ApplicantProfileSheetContentState
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 image: DecorationImage(
-                  image: widget.applicant.profileImagePath.startsWith('http')
-                      ? NetworkImage(widget.applicant.profileImagePath)
+                  image: widget.target.profileImagePath.startsWith('http')
+                      ? NetworkImage(widget.target.profileImagePath)
                             as ImageProvider
-                      : AssetImage(widget.applicant.profileImagePath),
+                      : AssetImage(widget.target.profileImagePath),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -232,7 +224,7 @@ class _ApplicantProfileSheetContentState
         mainAxisSize: MainAxisSize.min,
         children: [
           AutoTranslateText(
-            widget.applicant.name,
+            widget.target.name,
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 18,
@@ -267,30 +259,15 @@ class _ApplicantProfileSheetContentState
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SvgPicture.asset(
-                'assets/icon/score_filled_icon.svg',
-                width: 28,
-                height: 28,
-              ),
-              const SizedBox(width: 6),
-              SvgPicture.asset(
-                'assets/icon/score_filled_icon.svg',
-                width: 28,
-                height: 28,
-              ),
-              const SizedBox(width: 6),
-              SvgPicture.asset(
-                'assets/icon/score_filled_icon.svg',
-                width: 28,
-                height: 28,
-              ),
-              const SizedBox(width: 6),
-              SvgPicture.asset(
-                'assets/icon/score_filled_icon.svg',
-                width: 28,
-                height: 28,
-              ),
-              const SizedBox(width: 6),
+              for (int i = 0; i < 4; i++)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: SvgPicture.asset(
+                    'assets/icon/score_filled_icon.svg',
+                    width: 28,
+                    height: 28,
+                  ),
+                ),
               SvgPicture.asset(
                 'assets/icon/score_not_icon.svg',
                 width: 28,
@@ -337,16 +314,13 @@ class _ApplicantProfileSheetContentState
           ..._dummyReviews.map((r) => _buildReviewCard(r)),
           const SizedBox(height: 6),
           Center(
-            child: GestureDetector(
-              onTap: () {},
-              child: Text(
-                'common.see_more'.tr(),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF931515),
-                  decoration: TextDecoration.underline,
-                ),
+            child: Text(
+              'common.see_more'.tr(),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF931515),
+                decoration: TextDecoration.underline,
               ),
             ),
           ),
@@ -356,9 +330,6 @@ class _ApplicantProfileSheetContentState
   }
 
   Widget _buildReviewCard(Map<String, dynamic> item) {
-    final rating = item['rating'] as int;
-    final title = item['title'] as String;
-    final body = item['body'] as String;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
@@ -383,7 +354,7 @@ class _ApplicantProfileSheetContentState
             children: [
               Expanded(
                 child: AutoTranslateText(
-                  title,
+                  item['title'] as String,
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -391,12 +362,12 @@ class _ApplicantProfileSheetContentState
                   ),
                 ),
               ),
-              _buildCardStarRating(rating),
+              _buildCardStarRating(item['rating'] as int),
             ],
           ),
           const SizedBox(height: 5),
           AutoTranslateText(
-            body,
+            item['body'] as String,
             style: const TextStyle(
               fontSize: 11,
               color: Color(0xFF4E2121),
@@ -434,33 +405,28 @@ class _ApplicantProfileSheetContentState
   }
 }
 
-class _JobApplicationListContent extends StatefulWidget {
-  const _JobApplicationListContent({
-    required this.postId,
-    this.onAcceptSuccess, // 🌟 추가
-  });
+class _ReviewTargetListContent extends StatefulWidget {
+  const _ReviewTargetListContent({required this.postId});
 
   final int postId;
-  final VoidCallback? onAcceptSuccess;
 
   @override
-  State<_JobApplicationListContent> createState() =>
-      _JobApplicationListContentState();
+  State<_ReviewTargetListContent> createState() =>
+      _ReviewTargetListContentState();
 }
 
-class _JobApplicationListContentState
-    extends State<_JobApplicationListContent> {
-  List<_ApplicantItem> _applicants = [];
+class _ReviewTargetListContentState extends State<_ReviewTargetListContent> {
+  List<_TargetItem> _targets = [];
   bool _isLoading = true;
   int? _selectedIndex;
 
   @override
   void initState() {
     super.initState();
-    _fetchApplicants();
+    _fetchTargets();
   }
 
-  Future<void> _fetchApplicants() async {
+  Future<void> _fetchTargets() async {
     try {
       String? token = await TokenStorage.readAccessToken();
       if (token == null || token.isEmpty) {
@@ -469,7 +435,7 @@ class _JobApplicationListContentState
 
       final dioClient = dio.Dio();
       final response = await dioClient.get(
-        '${Env.apiBaseUrl}employer/posts/${widget.postId}/applicants',
+        '${Env.apiBaseUrl}employer/posts/${widget.postId}/review-targets',
         options: dio.Options(
           headers: {if (token != null) 'Authorization': 'Bearer $token'},
         ),
@@ -478,25 +444,30 @@ class _JobApplicationListContentState
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
         setState(() {
-          _applicants = data
+          _targets = data
               .map(
-                (e) => _ApplicantItem(
-                  applicationId: (e['applicationId'] as num).toInt(),
+                (e) => _TargetItem(
+                  targetUserId: (e['targetUserId'] as num).toInt(),
                   name: e['name']?.toString() ?? 'Unknown',
                   profileImagePath: e['profileImage'] != null
                       ? resolveImageUrl(e['profileImage'].toString())
                       : 'assets/image/test_profile1.png',
-                  rating: (e['averageRating'] ?? 5).toInt(),
+                  rating: 5,
+                  // 🌟 Jackson의 자동 네이밍 변환(isReviewed -> reviewed) 이슈 완벽 방어
+                  isReviewed: e['isReviewed'] == true || e['reviewed'] == true,
                 ),
               )
+              // 🌟 [핵심 변경] 이미 리뷰를 완수한 사람은 목록에 안 뜨도록 원천 차단!
+              .where((target) => !target.isReviewed)
               .toList();
           _isLoading = false;
+          _selectedIndex = null; // 인덱스 초기화
         });
       } else {
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      debugPrint('지원자 목록 로드 에러: $e');
+      debugPrint('리뷰 대상자 목록 로드 에러: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -526,7 +497,7 @@ class _JobApplicationListContentState
             ),
             const SizedBox(height: 24),
             const AutoTranslateText(
-              'Job Application List',
+              'Select Member to Review',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -542,10 +513,10 @@ class _JobApplicationListContentState
                         color: AppColors.mainColor,
                       ),
                     )
-                  : _applicants.isEmpty
+                  : _targets.isEmpty
                   ? const Center(
                       child: Text(
-                        'No applicants yet.',
+                        'No members available.',
                         style: TextStyle(color: Colors.grey),
                       ),
                     )
@@ -555,15 +526,11 @@ class _JobApplicationListContentState
                         horizontal: 20,
                         vertical: 12,
                       ),
-                      itemCount: _applicants.length,
+                      itemCount: _targets.length,
                       itemBuilder: (context, index) {
-                        final applicant = _applicants[index];
+                        final target = _targets[index];
                         final isSelected = _selectedIndex == index;
-                        return _buildApplicantTile(
-                          index,
-                          applicant,
-                          isSelected,
-                        );
+                        return _buildTargetTile(index, target, isSelected);
                       },
                     ),
             ),
@@ -575,50 +542,17 @@ class _JobApplicationListContentState
                 width: 358,
                 height: 51,
                 child: ElevatedButton(
-                  onPressed: () async {
-                    if (_selectedIndex == null || _applicants.isEmpty) return;
+                  onPressed: () {
+                    if (_selectedIndex == null || _targets.isEmpty) return;
 
-                    final applicant = _applicants[_selectedIndex!];
+                    final target = _targets[_selectedIndex!];
+                    if (target.isReviewed) return;
 
-                    try {
-                      String? token = await TokenStorage.readAccessToken();
-                      final dioClient = dio.Dio();
-                      final response = await dioClient.post(
-                        '${Env.apiBaseUrl}employer/posts/${widget.postId}/select',
-                        data: {
-                          'applicationIds': [applicant.applicationId],
-                        },
-                        options: dio.Options(
-                          headers: {
-                            if (token != null) 'Authorization': 'Bearer $token',
-                            'Content-Type': 'application/json',
-                          },
-                        ),
-                      );
-
-                      if (response.statusCode == 200) {
-                        // 🌟 [핵심 변경] 수락이 성공했으므로 부모 페이지(Hiring 목록) 리프레시 함수를 먼저 실행시킵니다.
-                        widget.onAcceptSuccess?.call();
-
-                        final newRoomId =
-                            response.data['roomId'] ??
-                            response.data['chatRoomId'] ??
-                            response.data['id'];
-
-                        if (context.mounted) {
-                          // 🌟 여기서 <String, dynamic> 을 명시해줍니다!
-                          Navigator.pop(context, <String, dynamic>{
-                            'name': applicant.name,
-                            'profileImagePath': applicant.profileImagePath,
-                            'roomId': newRoomId?.toString(),
-                          });
-                        }
-                      } else {
-                        debugPrint('❌ select 실패: ${response.statusCode}');
-                      }
-                    } catch (e) {
-                      debugPrint('❌ select 에러: $e');
-                    }
+                    Navigator.pop(context, <String, dynamic>{
+                      'targetUserId': target.targetUserId,
+                      'name': target.name,
+                      'profileImagePath': target.profileImagePath,
+                    });
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFC6340),
@@ -628,12 +562,9 @@ class _JobApplicationListContentState
                     ),
                     elevation: 0,
                   ),
-                  child: Text(
-                    'common.accept'.tr(),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: const Text(
+                    'Review',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -644,29 +575,23 @@ class _JobApplicationListContentState
     );
   }
 
-  Widget _buildApplicantTile(
-    int index,
-    _ApplicantItem applicant,
-    bool isSelected,
-  ) {
+  Widget _buildTargetTile(int index, _TargetItem target, bool isSelected) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
           Expanded(
             child: InkWell(
-              onTap: () => showApplicantProfileModal(context, applicant),
+              onTap: () => showTargetProfileModal(context, target),
               borderRadius: BorderRadius.circular(12),
               child: Row(
                 children: [
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: Colors.grey[200],
-                    backgroundImage:
-                        applicant.profileImagePath.startsWith('http')
-                        ? NetworkImage(applicant.profileImagePath)
-                              as ImageProvider
-                        : AssetImage(applicant.profileImagePath),
+                    backgroundImage: target.profileImagePath.startsWith('http')
+                        ? NetworkImage(target.profileImagePath) as ImageProvider
+                        : AssetImage(target.profileImagePath),
                     onBackgroundImageError: (_, __) {},
                   ),
                   const SizedBox(width: 16),
@@ -675,7 +600,7 @@ class _JobApplicationListContentState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         AutoTranslateText(
-                          applicant.name,
+                          target.name,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -685,7 +610,7 @@ class _JobApplicationListContentState
                         const SizedBox(height: 6),
                         Row(
                           children: List.generate(5, (i) {
-                            final filled = i < applicant.rating;
+                            final filled = i < target.rating;
                             return Padding(
                               padding: const EdgeInsets.only(right: 2),
                               child: SvgPicture.asset(
@@ -706,26 +631,47 @@ class _JobApplicationListContentState
             ),
           ),
           const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => setState(() => _selectedIndex = index),
-            child: Container(
-              width: 24,
-              height: 24,
+          if (target.isReviewed)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.transparent,
-                border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFFFC6340)
-                      : Colors.grey[400]!,
-                  width: 2,
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Reviewed',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              child: isSelected
-                  ? const Icon(Icons.check, size: 16, color: Color(0xFFFC6340))
-                  : null,
+            )
+          else
+            GestureDetector(
+              onTap: () => setState(() => _selectedIndex = index),
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.transparent,
+                  border: Border.all(
+                    color: isSelected
+                        ? const Color(0xFFFC6340)
+                        : Colors.grey[400]!,
+                    width: 2,
+                  ),
+                ),
+                child: isSelected
+                    ? const Icon(
+                        Icons.check,
+                        size: 16,
+                        color: Color(0xFFFC6340),
+                      )
+                    : null,
+              ),
             ),
-          ),
         ],
       ),
     );

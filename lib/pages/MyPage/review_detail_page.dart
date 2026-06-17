@@ -1,3 +1,8 @@
+import 'dart:convert'; // 🌟 API 연동용
+import 'package:http/http.dart' as http; // 🌟 API 연동용
+import '../../services/token_storage.dart'; // 🌟 API 연동용
+import '../../utils/image_url.dart'; // 🌟 프로필 이미지 주소 변환용 유틸 추가
+
 import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -6,6 +11,7 @@ import '../../widgets/auto_translate_text.dart';
 import '../../widgets/confirm_modal.dart';
 import '../../widgets/completion_modal.dart';
 import '../../widgets/safe_back_app_bar.dart';
+import '../../config/env.dart';
 
 /// My Review 수정 페이지. 티켓 배경 위에 별점·리뷰 내용 표시·수정.
 /// [isEditable] false면 Received Reviews용 읽기 전용.
@@ -24,6 +30,8 @@ class ReviewDetailPage extends StatefulWidget {
     this.isEditable = true,
     this.peerName,
     this.peerProfileImagePath,
+    this.targetUserId,
+    this.postId, // 🌟 리뷰 API에 필요한 postId 파라미터 추가
   });
 
   final String title;
@@ -31,6 +39,8 @@ class ReviewDetailPage extends StatefulWidget {
   final String body;
   final int? index;
   final bool isEditable;
+  final int? targetUserId;
+  final int? postId; // 🌟 추가됨
 
   /// 누구에 대한 리뷰인지 (구인자 → 지원자 리뷰 흐름에서만 사용).
   final String? peerName;
@@ -44,6 +54,7 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
   TextEditingController? _bodyController;
   late final String _initialBody;
   int _rating = 1;
+  bool _isSubmitting = false; // 🌟 중복 클릭 방지용 플래그
 
   @override
   void initState() {
@@ -66,18 +77,62 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
       (_bodyController != null && _bodyController!.text != _initialBody ||
           _rating != widget.rating);
 
-  void _onSaveChanges() {
+  // 🌟 API 연동 로직 적용 (디자인/레이아웃 수정 없음)
+  Future<void> _onSaveChanges() async {
     if (!widget.isEditable || _bodyController == null) return;
-    final result = <String, dynamic>{
-      if (widget.index != null) 'index': widget.index,
-      'body': _bodyController!.text,
-      'rating': _rating,
-    };
-    CompletionModal.show(
-      context,
-      message: 'Change Saved!',
-      onDismiss: () => Navigator.of(context).pop(result),
-    );
+
+    // API에 필요한 값이 없으면 중단
+    if (widget.postId == null || widget.targetUserId == null) {
+      debugPrint('🚨 에러: postId 또는 targetUserId가 없습니다.');
+      return;
+    }
+
+    if (_isSubmitting) return; // 중복 전송 방지
+    setState(() => _isSubmitting = true);
+
+    try {
+      final token = await TokenStorage.readAccessToken();
+      final url = '${Env.apiBaseUrl}employer/posts/${widget.postId}/reviews';
+
+      final requestBody = jsonEncode({
+        'targetUserId': widget.targetUserId,
+        'rating': _rating,
+        'comment': _bodyController!.text,
+      });
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: requestBody,
+      );
+
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+        final result = <String, dynamic>{
+          if (widget.index != null) 'index': widget.index,
+          'body': _bodyController!.text,
+          'rating': _rating,
+        };
+        // 완료 모달 띄우기 및 닫기
+        CompletionModal.show(
+          context,
+          message: 'Review Saved!',
+          onDismiss: () => Navigator.of(context).pop(result),
+        );
+      } else {
+        debugPrint('❌ 리뷰 작성 실패: ${response.statusCode} - ${response.body}');
+        // 필요한 경우 여기에 에러 스낵바 추가 가능
+      }
+    } catch (e) {
+      debugPrint('❌ 리뷰 작성 네트워크 에러: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   void _onClose() {
@@ -114,17 +169,17 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 24),
-              Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: maxTicketWidth),
-                  child: ClipRect(
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/image/review_background.png',
-                          fit: BoxFit.contain,
-                        ),
+            Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxTicketWidth),
+                child: ClipRect(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/image/review_background.png',
+                        fit: BoxFit.contain,
+                      ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
@@ -208,12 +263,16 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                                     style: FilledButton.styleFrom(
                                       backgroundColor: AppColors.mainColor,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(26),
                                       ),
                                     ),
-                                    child: const AutoTranslateText('Save Changes'),
+                                    child: const AutoTranslateText(
+                                      'Save Changes',
+                                    ),
                                   ),
                                 ),
                               ),
@@ -224,26 +283,26 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                           ],
                         ),
                       ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              Center(
-                child: GestureDetector(
-                  onTap: _onClose,
-                  child: SvgPicture.asset(
-                    'assets/icon/close_button.svg',
-                    width: 50,
-                    height: 50,
-                  ),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: GestureDetector(
+                onTap: _onClose,
+                child: SvgPicture.asset(
+                  'assets/icon/close_button.svg',
+                  width: 50,
+                  height: 50,
                 ),
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            ),
+            const SizedBox(height: 24),
+          ],
         ),
+      ),
     );
   }
 
@@ -252,6 +311,10 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
   Widget _buildPeerHeader() {
     final name = widget.peerName ?? '';
     final imagePath = widget.peerProfileImagePath;
+
+    // 🌟 전달받은 이미지 경로를 유틸 함수로 미리 변환 처리
+    final resolvedPath = imagePath != null ? resolveImageUrl(imagePath) : '';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -270,15 +333,17 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
             ),
           ),
           const SizedBox(width: 8),
-          if (imagePath != null && imagePath.isNotEmpty)
+          if (resolvedPath.isNotEmpty)
             CircleAvatar(
               radius: 11,
               backgroundColor: const Color(0xFFEFEFEF),
-              backgroundImage: AssetImage(imagePath),
+              // 🌟 주소가 http로 시작하면 NetworkImage, 아니면 로컬 에셋(AssetImage) 처리
+              backgroundImage: resolvedPath.startsWith('http')
+                  ? NetworkImage(resolvedPath) as ImageProvider
+                  : AssetImage(resolvedPath),
               onBackgroundImageError: (_, __) {},
             ),
-          if (imagePath != null && imagePath.isNotEmpty)
-            const SizedBox(width: 6),
+          if (resolvedPath.isNotEmpty) const SizedBox(width: 6),
           AutoTranslateText(
             name,
             style: const TextStyle(
@@ -300,7 +365,9 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
         final star = Padding(
           padding: const EdgeInsets.only(right: 4),
           child: SvgPicture.asset(
-            filled ? 'assets/icon/score_filled_icon.svg' : 'assets/icon/score_not_icon.svg',
+            filled
+                ? 'assets/icon/score_filled_icon.svg'
+                : 'assets/icon/score_not_icon.svg',
             width: 44,
             height: 44,
             colorFilter: ColorFilter.mode(

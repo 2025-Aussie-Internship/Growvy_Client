@@ -1,14 +1,17 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../services/token_storage.dart';
+import '../../config/env.dart';
+
 import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:get/get.dart';
 import '../../styles/colors.dart';
 import '../../widgets/auto_translate_text.dart';
 import '../../widgets/employer_note_tab_bar.dart';
 import 'review_detail_page.dart';
 
-/// 프로필 하위 리뷰 화면. MyPage 안에서 인라인으로 표시되어
-/// 하단 네비게이션 바가 유지되도록 Scaffold를 사용하지 않는다.
-/// 뒤로가기는 nav 바에서 Profile 탭을 다시 누르면 발생한다.
 class ReviewPage extends StatefulWidget {
   const ReviewPage({super.key});
 
@@ -19,79 +22,57 @@ class ReviewPage extends StatefulWidget {
 class _ReviewPageState extends State<ReviewPage> {
   int _selectedTab = 0;
 
-  // i18n 키 → tr 로 변환된 라벨이 NoteTabBar 에 전달됨.
-  static const List<String> _tabKeys = ['my_page.my_reviews', 'my_page.received'];
+  // 🌟 API 데이터 저장용 리스트
+  List<dynamic> _myReviews = [];
+  List<dynamic> _receivedReviews = [];
+  bool _isLoading = true;
 
-  /// 본문 배경: #F4BFB3 @ 11% (헤더와 탭바는 흰색 유지)
+  static const List<String> _tabKeys = [
+    'my_page.my_reviews',
+    'my_page.received',
+  ];
+
   static final Color _bodyBg = const Color(0xFFF4BFB3).withValues(alpha: 0.11);
 
-  final List<Map<String, dynamic>> _myReviews = [
-    {
-      'title': 'Event Staff',
-      'rating': 5,
-      'body':
-          'Really well organized event. The team lead was clear with instructions and the hours were as posted. Would work here again.',
-    },
-    {
-      'title': 'Café Crew',
-      'rating': 4,
-      'body':
-          'Busy shift but the manager was supportive. Only downside was the break room was a bit cramped. Good pay for the day.',
-    },
-    {
-      'title': 'Retail Assistant',
-      'rating': 3,
-      'body':
-          'Decent experience. Training was quick so I had to ask a lot of questions. Could have used one more person on the floor during peak hours.',
-    },
-    {
-      'title': 'Festival Staff',
-      'rating': 5,
-      'body':
-          'Best gig I\'ve done through the app. On-time payment, friendly staff, and the venue was easy to get to. Highly recommend.',
-    },
-    {
-      'title': 'Warehouse Helper',
-      'rating': 2,
-      'body':
-          'Schedule changed last minute and the site was farther than expected. The work itself was okay but communication could be better.',
-    },
-    {
-      'title': 'Promotional Staff',
-      'rating': 4,
-      'body':
-          'Fun atmosphere and the brand team was nice. Long standing hours but they provided snacks and water. Would do again.',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchAllReviews();
+  }
 
-  final List<Map<String, dynamic>> _receivedReviews = [
-    {
-      'title': 'Concierge',
-      'rating': 5,
-      'body':
-          'Showed up on time and picked up tasks quickly. Handled the rush hour well. We\'d love to have them back next time.',
-    },
-    {
-      'title': 'Store Associate',
-      'rating': 4,
-      'body':
-          'Reliable and polite with customers. Only small note: a bit more product training would help, but overall great help for the day.',
-    },
-    {
-      'title': 'Conference Helper',
-      'rating': 5,
-      'body':
-          'Outstanding. Took initiative, stayed until breakdown was done, and the guests had good things to say. Will definitely request again.',
-    },
-    {
-      'title': 'Inventory Assistant',
-      'rating': 3,
-      'body':
-          'Got the job done. A few mix-ups with the packing list but they fixed it when we pointed it out. Would consider for future shifts.',
-    },
-  ];
+  // 🌟 API 연동: 내가 쓴 리뷰 & 받은 리뷰 가져오기
+  Future<void> _fetchAllReviews() async {
+    try {
+      final token = await TokenStorage.readAccessToken();
+      final baseUrl = '${Env.apiBaseUrl}reviews';
+      // 병렬로 API 호출
+      final results = await Future.wait([
+        http.get(
+          Uri.parse('$baseUrl/written'),
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+        http.get(
+          Uri.parse('$baseUrl/received'),
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      ]);
 
-  List<Map<String, dynamic>> get _currentList =>
+      if (mounted) {
+        setState(() {
+          if (results[0].statusCode == 200)
+            _myReviews = jsonDecode(utf8.decode(results[0].bodyBytes));
+          if (results[1].statusCode == 200)
+            _receivedReviews = jsonDecode(utf8.decode(results[1].bodyBytes));
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ 리뷰 로딩 에러: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  List<dynamic> get _currentList =>
       _selectedTab == 0 ? _myReviews : _receivedReviews;
 
   @override
@@ -101,29 +82,34 @@ class _ReviewPageState extends State<ReviewPage> {
         NoteTabBar(
           selectedIndex: _selectedTab,
           onTabSelected: (index) => setState(() => _selectedTab = index),
-          tabs: _tabKeys.map((k) => k.tr()).toList(),
+          // 🌟 에러 해결: AppStringTr(k).tr() 로 어떤 tr을 쓸지 명확하게 지정합니다.
+          tabs: _tabKeys.map((k) => AppStringTr(k).tr()).toList(),
           indicatorWidth: 179,
         ),
         Expanded(
-          child: Container(
-            color: _bodyBg,
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              itemCount: _currentList.length,
-              itemBuilder: (context, index) {
-                return _buildReviewCard(_currentList[index], index);
-              },
-            ),
-          ),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Container(
+                  color: _bodyBg,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                    itemCount: _currentList.length,
+                    itemBuilder: (context, index) {
+                      return _buildReviewCard(_currentList[index], index);
+                    },
+                  ),
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildReviewCard(Map<String, dynamic> item, int index) {
+  Widget _buildReviewCard(dynamic item, int index) {
+    // 🌟 API 응답 필드명에 맞게 매핑
     final rating = item['rating'] as int;
     final title = item['title'] as String;
     final body = item['body'] as String;
+    final reviewId = item['reviewId'] as int; // 상세 이동 시 사용 가능
     final isMyReviews = _selectedTab == 0;
 
     return GestureDetector(
@@ -135,22 +121,16 @@ class _ReviewPageState extends State<ReviewPage> {
               title: title,
               rating: rating,
               body: body,
-              index: isMyReviews ? index : null,
+              index: index, // 로컬 인덱스 사용
               isEditable: isMyReviews,
             ),
           ),
         );
-        if (result != null &&
-            result.containsKey('index') &&
-            isMyReviews &&
-            mounted) {
+        // 수정 후 반영 로직은 기존과 동일하게 유지
+        if (result != null && isMyReviews && mounted) {
           setState(() {
-            if (result.containsKey('body')) {
-              _myReviews[result['index']!]['body'] = result['body'];
-            }
-            if (result.containsKey('rating')) {
-              _myReviews[result['index']!]['rating'] = result['rating'];
-            }
+            _myReviews[index]['body'] = result['body'];
+            _myReviews[index]['rating'] = result['rating'];
           });
         }
       },

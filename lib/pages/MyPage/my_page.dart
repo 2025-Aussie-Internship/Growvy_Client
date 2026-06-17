@@ -1,3 +1,9 @@
+import 'dart:convert'; // 🌟 API 연동용
+import 'package:http/http.dart' as http; // 🌟 API 연동용
+import '../../services/token_storage.dart'; // 🌟 API 연동용
+import '../../utils/image_url.dart'; // 🌟 이미지 경로 변환용
+import '../../config/env.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -20,14 +26,12 @@ class MyPage extends StatefulWidget {
 }
 
 class MyPageState extends State<MyPage> {
-  /// 외부(예: 하단 nav바의 Profile 재선택)에서 리뷰 화면을 닫고
-  /// 기본 프로필 화면으로 되돌아갈 때 호출한다.
-  void closeReviews() {
-    if (!mounted) return;
-    if (_isViewingReviews) {
-      setState(() => _isViewingReviews = false);
-    }
-  }
+  // 🌟 API에서 받아올 내 정보 상태 변수
+  String _userName = 'User Name';
+  String _gender = '';
+  double _averageRating = 0.0;
+  int? _fetchedImageId;
+  String? _profileImageUrl;
 
   bool _isEditingProfile = false;
   bool _isViewingReviews = false;
@@ -46,10 +50,57 @@ class MyPageState extends State<MyPage> {
     AssetImage('assets/image/test_profile9.png'),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _fetchMyInfo(); // 🌟 초기화 시 API 호출
+  }
+
+  // 🌟 내 기본 정보 조회 API 연동
+  Future<void> _fetchMyInfo() async {
+    try {
+      final token = await TokenStorage.readAccessToken();
+
+      final response = await http.get(
+        Uri.parse('${Env.apiBaseUrl}auth/me'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        if (mounted) {
+          setState(() {
+            _userName = data['name'] ?? 'User Name';
+            // 성별 텍스트 변환 (MALE -> He/Him, FEMALE -> She/Her 등 필요시 수정 가능)
+            _gender = data['gender'] ?? 'Not Specified';
+            _averageRating = (data['averageRating'] as num?)?.toDouble() ?? 0.0;
+            _fetchedImageId = data['profileImageId'];
+            _profileImageUrl = data['profileImageUrl'];
+          });
+        }
+      } else {
+        debugPrint('❌ 내 정보 불러오기 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('❌ 내 정보 네트워크 에러: $e');
+    }
+  }
+
+  /// 외부(예: 하단 nav바의 Profile 재선택)에서 리뷰 화면을 닫고
+  /// 기본 프로필 화면으로 되돌아갈 때 호출한다.
+  void closeReviews() {
+    if (!mounted) return;
+    if (_isViewingReviews) {
+      setState(() => _isViewingReviews = false);
+    }
+  }
+
   /// 현재 사용자 프로필의 사진 index (1-based id - 1).
-  /// 컨트롤러에 없으면 0.
   int get _currentProfileIndex {
-    final id = UserProfileController.to.profile.value?.profileImageId;
+    final id = _fetchedImageId;
     if (id == null || id <= 0) return 0;
     return (id - 1).clamp(0, _profileImages.length - 1);
   }
@@ -62,15 +113,14 @@ class MyPageState extends State<MyPage> {
     final newIndex = result['profileIndex'] as int? ?? _currentProfileIndex;
     final newName = result['userName'] as String?;
     final newPronouns = result['pronouns'] as String?;
-    // 프로필 컨트롤러에 변경 사항 반영 → MyPage 전체가 Obx 로 자동 갱신.
-    UserProfileController.to.applyEdit(
-      profileImageId: newIndex + 1,
-      profileImageAsset: 'assets/image/test_profile${newIndex + 1}.png',
-      name: newName,
-      pronouns: newPronouns,
-    );
-    setState(() => _isEditingProfile = false);
-    // TODO: 백엔드 연동 후 UserRepository.updateMe(profile.toJson()) 호출.
+
+    setState(() {
+      _fetchedImageId = newIndex + 1;
+      if (newName != null) _userName = newName;
+      if (newPronouns != null) _gender = newPronouns;
+      _isEditingProfile = false;
+    });
+    // TODO: 백엔드 연동 후 프로필 수정 API 호출 로직 추가.
   }
 
   @override
@@ -93,113 +143,105 @@ class MyPageState extends State<MyPage> {
           );
         },
         child: _isViewingReviews
-            ? const KeyedSubtree(
-                key: ValueKey('reviews'),
-                child: ReviewPage(),
-              )
+            ? const KeyedSubtree(key: ValueKey('reviews'), child: ReviewPage())
             : KeyedSubtree(
                 key: const ValueKey('profile'),
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-          if (_isEditingProfile)
-            Obx(() {
-              final p = UserProfileController.to.profile.value;
-              return ProfileEditContent(
-                profileImages: _profileImages,
-                initialProfileIndex: _currentProfileIndex,
-                initialUserName: p?.displayLabel ?? 'User Name',
-                initialPronouns: p?.pronouns ?? 'She/Her',
-                onApply: _applyProfileEdit,
-                onClose: () => setState(() => _isEditingProfile = false),
-              );
-            })
-          else ...[
-            // 시안: 사진 → 이름 → 부제 → 별점카드 가 위쪽으로 모이도록 간격 축소.
-            // Edit Profile 진입 pill 버튼은 제거하고, 사진을 누르면 곧바로
-            // 편집 화면으로 진입한다.
-            const SizedBox(height: 16),
-            Obx(() {
-              final image = UserProfileController.to.profile.value
-                      ?.profileImageProvider ??
-                  _profileImages[_currentProfileIndex];
-              return GestureDetector(
-                onTap: _openProfileEdit,
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    image: DecorationImage(image: image, fit: BoxFit.cover),
+                      if (_isEditingProfile)
+                        ProfileEditContent(
+                          profileImages: _profileImages,
+                          initialProfileIndex: _currentProfileIndex,
+                          initialUserName: _userName,
+                          initialPronouns: _gender,
+                          onApply: _applyProfileEdit,
+                          onClose: () =>
+                              setState(() => _isEditingProfile = false),
+                        )
+                      else ...[
+                        const SizedBox(height: 16),
+                        // 🌟 API 데이터로 렌더링 (분기 제거됨)
+                        GestureDetector(
+                          onTap: _openProfileEdit,
+                          child: Container(
+                            width: 120,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              image: DecorationImage(
+                                image:
+                                    _profileImageUrl != null &&
+                                        _profileImageUrl!.isNotEmpty
+                                    ? NetworkImage(
+                                            resolveImageUrl(_profileImageUrl!),
+                                          )
+                                          as ImageProvider
+                                    : _profileImages[_currentProfileIndex],
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        AutoTranslateText(
+                          _userName, // 🌟 API 이름 적용
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        AutoTranslateText(
+                          _gender, // 🌟 API 성별 적용 (분기 제거)
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        _buildRatingCard(), // 🌟 별점 렌더링 함수에 API 평점 반영
+                        const SizedBox(height: 16),
+                        // 메뉴 항목: 구인자/구직자에 따라 다르게 노출.
+                        Obx(() {
+                          final isEmployer = AuthController.to.isEmployer.value;
+                          final items = isEmployer
+                              ? const [
+                                  'My Job Posts',
+                                  'Applicants',
+                                  'Interviews',
+                                  'Billing',
+                                  'Support',
+                                ]
+                              : const [
+                                  'Customer Service Center',
+                                  'Notice',
+                                  'Settings',
+                                  'Account Deletion',
+                                ];
+                          return _buildMenuCard(items);
+                        }),
+                        const SizedBox(height: 20),
+                        const _SectionDivider(),
+                        const SizedBox(height: 14),
+                        GestureDetector(
+                          onTap: _onLogOutTap,
+                          child: AutoTranslateText(
+                            'Log Out',
+                            style: TextStyle(
+                              decoration: TextDecoration.underline,
+                              color: Colors.grey[400],
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 120,
+                        ), // Bottom padding for nav bar
+                      ],
+                    ],
                   ),
-                ),
-              );
-            }),
-            const SizedBox(height: 12),
-            Obx(() {
-              final p = UserProfileController.to.profile.value;
-              return AutoTranslateText(
-                p?.displayLabel ?? 'User Name',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              );
-            }),
-            const SizedBox(height: 2),
-            // 구직자: She/Her 같은 성별 표시.
-            // 구인자: 업종(Hospitality 등) 표시. 임시로 'Hospitality' 고정.
-            Obx(() {
-              final isEmployer = AuthController.to.isEmployer.value;
-              final pronouns =
-                  UserProfileController.to.profile.value?.pronouns ?? 'She/Her';
-              final subtitle = isEmployer ? 'Hospitality' : pronouns;
-              return AutoTranslateText(
-                subtitle,
-                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-              );
-            }),
-            const SizedBox(height: 18),
-            _buildRatingCard(),
-            const SizedBox(height: 16),
-            // 메뉴 항목: 구인자/구직자에 따라 다르게 노출.
-            Obx(() {
-              final isEmployer = AuthController.to.isEmployer.value;
-              final items = isEmployer
-                  ? const [
-                      'My Job Posts',
-                      'Applicants',
-                      'Interviews',
-                      'Billing',
-                      'Support',
-                    ]
-                  : const [
-                      'Customer Service Center',
-                      'Notice',
-                      'Settings',
-                      'Account Deletion',
-                    ];
-              return _buildMenuCard(items);
-            }),
-            const SizedBox(height: 20),
-            const _SectionDivider(),
-            const SizedBox(height: 14),
-            GestureDetector(
-              onTap: _onLogOutTap,
-              child: AutoTranslateText(
-                'Log Out',
-                style: TextStyle(
-                  decoration: TextDecoration.underline,
-                  color: Colors.grey[400],
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            const SizedBox(height: 120), // Bottom padding for nav bar
-          ],
-        ],
-      ),
                 ),
               ),
       ),
@@ -208,6 +250,9 @@ class MyPageState extends State<MyPage> {
 
   Widget _buildRatingCard() {
     Widget star(String asset) => SvgPicture.asset(asset, width: 28, height: 28);
+    // 🌟 API로 받아온 평점(_averageRating)을 반올림하여 별 렌더링
+    final int filledStars = _averageRating.round().clamp(0, 5);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
@@ -220,17 +265,17 @@ class MyPageState extends State<MyPage> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              star('assets/icon/score_filled_icon.svg'),
-              const SizedBox(width: 6),
-              star('assets/icon/score_filled_icon.svg'),
-              const SizedBox(width: 6),
-              star('assets/icon/score_filled_icon.svg'),
-              const SizedBox(width: 6),
-              star('assets/icon/score_filled_icon.svg'),
-              const SizedBox(width: 6),
-              star('assets/icon/score_not_icon.svg'),
-            ],
+            children: List.generate(5, (index) {
+              final isFilled = index < filledStars;
+              return Padding(
+                padding: EdgeInsets.only(right: index < 4 ? 6 : 0),
+                child: star(
+                  isFilled
+                      ? 'assets/icon/score_filled_icon.svg'
+                      : 'assets/icon/score_not_icon.svg',
+                ),
+              );
+            }),
           ),
           const SizedBox(height: 8),
           Material(
@@ -312,22 +357,6 @@ class MyPageState extends State<MyPage> {
     );
   }
 
-  /// MyPage 의 큰 섹션 사이를 나누는 옅은 회색 가로 라인.
-  /// (시안의 사진/별점/메뉴/로그아웃을 구분하는 얇은 회색 선)
-  /// — 외부 위젯 클래스로 분리해 SafeArea 안에서 const 로 재사용한다.
-  /// 아래 [_SectionDivider] 참고.
-
-  /// Log Out 텍스트 탭 → 확인 모달 → 한영 선택 → 웰컴 → 신규 가입 흐름
-  /// (역할 선택 → 이름/연락처 등 입력 → 가입 완료) 으로 이동.
-  ///
-  /// 사용자 요청: "로그아웃을 눌러도 구글 계정을 다시 선택할 필요 없이,
-  /// 한영 선택부터 새로 가입하듯 흐름이 진행되도록."
-  ///
-  /// 따라서 Firebase 세션은 그대로 두고 (= 같은 구글 계정 토큰 재활용),
-  /// 로컬에 누적된 역할/프로필/회원가입 입력값만 초기화한 뒤 isExistingUser=false
-  /// 로 한영 선택을 다시 보여준다. SignupCompletePage 의 백엔드 submit 가
-  /// 다시 동작하도록 SignupDataController 에 현재 Firebase 사용자 정보를
-  /// 다시 채워 둔다.
   Future<void> _onLogOutTap() async {
     final confirmed = await ConfirmModal.show<bool>(
       context: context,
@@ -337,13 +366,9 @@ class MyPageState extends State<MyPage> {
     );
     if (confirmed != true || !mounted) return;
 
-    // 1) 로컬 역할/프로필 캐시 비우기 → 신규 가입처럼 동작.
     await Get.find<AuthController>().clearUserType();
     await UserProfileController.to.clear();
 
-    // 2) 회원가입 누적 데이터 reset + 현재 Firebase 사용자 정보로 재시드.
-    //    재시드는 SignupCompletePage 의 submitToBackend 가 firebaseIdToken /
-    //    googleEmail / googleUid / displayName 을 다시 쓰기 때문.
     final signupData = Get.find<SignupDataController>();
     signupData.reset();
     final user = FirebaseAuth.instance.currentUser;
@@ -356,13 +381,10 @@ class MyPageState extends State<MyPage> {
           uid: user.uid,
           idToken: idToken,
         );
-      } catch (_) {
-        // 토큰 재발급에 실패해도 가입 흐름 자체는 진행되도록 무시.
-      }
+      } catch (_) {}
     }
     if (!mounted) return;
 
-    // 3) 한영 선택 → 웰컴 → SignInPage(역할 선택) → ... 의 신규 가입 흐름.
     Get.offAll(
       () => const LanguagePickerPage(isExistingUser: false),
       transition: Transition.fadeIn,

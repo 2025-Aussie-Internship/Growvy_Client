@@ -65,6 +65,8 @@ class _MainPageState extends State<MainPage> {
   final GlobalKey<MyPageState> _myPageKey = GlobalKey<MyPageState>();
   final GlobalKey<_HomePageContentState> _homeKey =
       GlobalKey<_HomePageContentState>();
+  final GlobalKey<ChatListPageState> _chatListKey =
+      GlobalKey<ChatListPageState>();
   late final List<Widget> _pages;
 
   @override
@@ -77,7 +79,8 @@ class _MainPageState extends State<MainPage> {
         onRegionPanelChanged: _onRegionPanelChanged,
         onSearchTap: _openSearch,
       ),
-      const ChatListPage(),
+
+      ChatListPage(key: _chatListKey),
       const NoteTabPage(),
       MyPage(key: _myPageKey),
     ];
@@ -113,6 +116,11 @@ class _MainPageState extends State<MainPage> {
         _homeKey.currentState?.refreshJobs();
       }
     }
+    // 🌟 채팅 탭(2) 클릭 시 새로고침 호출
+    if (index == 2) {
+      _chatListKey.currentState?.refreshChatList();
+    }
+
     if (_selectedIndex != index) {
       setState(() => _selectedIndex = index);
     }

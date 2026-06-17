@@ -1,14 +1,20 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+// 🌟 추가된 STOMP 패키지
+import 'package:stomp_dart_client/stomp_dart_client.dart';
+import '../../services/token_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../utils/auto_localize.dart';
 import '../../widgets/auto_translate_text.dart';
+import '../../config/env.dart';
 
 /// 채팅 메시지 데이터
 class ChatMessage {
   final String text;
   final bool isMe;
   final DateTime time;
-  final bool isUnread; // 본인 메시지 중 상대가 안 읽었을 때 true
+  final bool isUnread;
 
   ChatMessage({
     required this.text,
@@ -21,13 +27,13 @@ class ChatMessage {
 class ChatDetailPage extends StatefulWidget {
   const ChatDetailPage({
     super.key,
+    this.roomId,
     this.peerName,
     this.peerProfileImagePath,
   });
 
-  /// 선택한 지원자(채팅 상대) 이름. 없으면 'Name'.
+  final int? roomId;
   final String? peerName;
-  /// 선택한 지원자 프로필 이미지 경로.
   final String? peerProfileImagePath;
 
   @override
@@ -36,43 +42,130 @@ class ChatDetailPage extends StatefulWidget {
 
 class _ChatDetailPageState extends State<ChatDetailPage> {
   final TextEditingController _textController = TextEditingController();
-  final List<ChatMessage> _messages = [
-    ChatMessage(
-      text: 'Text',
-      isMe: false,
-      time: DateTime.now().subtract(const Duration(hours: 2)),
-    ),
-    ChatMessage(
-      text: 'Text',
-      isMe: false,
-      time: DateTime.now().subtract(const Duration(hours: 1)),
-    ),
-    ChatMessage(
-      text: 'Text',
-      isMe: true,
-      time: DateTime.now().subtract(const Duration(minutes: 50)),
-      isUnread: false,
-    ),
-    ChatMessage(
-      text: 'Text',
-      isMe: false,
-      time: DateTime.now().subtract(const Duration(minutes: 40)),
-    ),
-    ChatMessage(
-      text: 'Text',
-      isMe: true,
-      time: DateTime.now().subtract(const Duration(minutes: 30)),
-      isUnread: true,
-    ),
-  ];
+  final List<ChatMessage> _messages = [];
+  bool _isLoading = true;
+
+  // 🌟 실시간 수신을 위한 STOMP 클라이언트와 중복 방지 리스트
+  StompClient? _stompClient;
+  final List<String> _recentlySent = [];
+
+  static String get _baseUrl => Env.apiBaseUrl;
+  // 🌟 백엔드 웹소켓 주소 (SockJS를 사용할 경우 뒤에 /websocket을 붙이는 것이 플러터 표준입니다)
+  static const String _wsUrl =
+      'wss://growvy.mirim-it-show.site/ws-stomp/websocket';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.roomId != null) {
+      _fetchMessages().then((_) {
+        _initStomp(); // 과거 메시지를 다 불러온 뒤 웹소켓 연결!
+      });
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // ==========================================
+  // 🚀 [추가됨] 웹소켓(STOMP) 연결 및 수신 로직
+  // ==========================================
+  void _initStomp() {
+    _stompClient = StompClient(
+      config: StompConfig(
+        url: _wsUrl,
+        onConnect: _onConnect,
+        onWebSocketError: (dynamic error) => debugPrint('❌ 웹소켓 에러: $error'),
+      ),
+    );
+    _stompClient?.activate();
+  }
+
+  void _onConnect(StompFrame frame) {
+    debugPrint('✅ STOMP 연결 성공!');
+    // 내 채팅방 번호 구독 시작
+    _stompClient?.subscribe(
+      destination: '/sub/chat/room/${widget.roomId}',
+      callback: (StompFrame frame) {
+        if (frame.body != null) {
+          final Map<String, dynamic> msg = jsonDecode(frame.body!);
+          final receivedText = msg['content']?.toString() ?? '';
+
+          // 내가 방금 보낸 메시지가 웹소켓으로 돌아온 경우 무시 (화면에 두 번 뜨는 것 방지)
+          if (_recentlySent.contains(receivedText)) {
+            _recentlySent.remove(receivedText);
+            return;
+          }
+
+          // 상대방이 보낸 새로운 메시지라면 화면에 즉시 추가!
+          if (mounted) {
+            setState(() {
+              _messages.add(
+                ChatMessage(
+                  text: receivedText,
+                  isMe: false, // 상대방 메시지
+                  time: DateTime.now(),
+                ),
+              );
+            });
+          }
+        }
+      },
+    );
+  }
+
+  // ==========================================
+  // 기존 로직들 유지
+  // ==========================================
+  Future<void> _fetchMessages() async {
+    try {
+      final token = await TokenStorage.readAccessToken();
+      final resp = await http
+          .get(
+            Uri.parse('${_baseUrl}chat/rooms/${widget.roomId}/messages'),
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null && token.isNotEmpty)
+                'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (resp.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(resp.body);
+        if (mounted) {
+          setState(() {
+            _messages.clear();
+            _messages.addAll(
+              data.map(
+                (m) => ChatMessage(
+                  text: (m['content'] as String?) ?? '',
+                  // 🌟 앞서 해결한 isMe 파싱 유지
+                  isMe: (m['isMine'] ?? m['mine'] ?? false) as bool,
+                  time:
+                      DateTime.tryParse(m['createdAt'] ?? '') ?? DateTime.now(),
+                  isUnread: false,
+                ),
+              ),
+            );
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('❌ 메시지 fetch 에러: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   void dispose() {
+    _stompClient?.deactivate(); // 🌟 페이지 나갈 때 웹소켓 연결 해제
     _textController.dispose();
     super.dispose();
   }
 
-  /// 말풍선 옆: 시간만 (예: 3:08 PM)
   String _formatTime(DateTime dt) {
     final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
     final ampm = dt.hour >= 12 ? 'PM' : 'AM';
@@ -80,9 +173,15 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return '$hour:$min $ampm';
   }
 
-  void _sendMessage() {
+  // ==========================================
+  // 🚀 [수정됨] HTTP API로 메시지 전송 로직
+  // ==========================================
+  Future<void> _sendMessage() async {
     final text = _textController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || widget.roomId == null) return;
+
+    // 1. 화면에 내 메시지 즉시 띄우기 (Optimistic UI - 기다림 없이 바로 보여줌!)
+    _recentlySent.add(text);
     setState(() {
       _messages.add(
         ChatMessage(
@@ -94,16 +193,31 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       );
       _textController.clear();
     });
+
+    // 2. 서버 DB에 저장 요청 (이후 서버가 구독자들에게 웹소켓을 쏴줌)
+    try {
+      final token = await TokenStorage.readAccessToken();
+      await http.post(
+        Uri.parse('$_baseUrl/chat/rooms/${widget.roomId}/messages'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'chatRoomId': widget.roomId, 'message': text}),
+      );
+    } catch (e) {
+      debugPrint('❌ 메시지 전송 API 에러: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // UI 로직 100% 동일 유지 (수정 없음)
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // 헤더
             Padding(
               padding: const EdgeInsets.only(
                 left: 8,
@@ -136,23 +250,20 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 ],
               ),
             ),
-            // 이름 아래 구분선
             const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-
-            // 채팅 메시지 리스트 (날짜 바뀔 때 구분선)
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 24,
-                  bottom: 8,
-                ),
-                children: _buildMessageListWithDateDividers(),
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView(
+                      padding: const EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 24,
+                        bottom: 8,
+                      ),
+                      children: _buildMessageListWithDateDividers(),
+                    ),
             ),
-
-            // 입력 영역
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: _buildInputArea(),
@@ -163,7 +274,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
-  /// 날짜 구분선: yyyy.mm.dd
   String _formatDate(DateTime dt) {
     final y = dt.year;
     final m = dt.month.toString().padLeft(2, '0');
@@ -232,14 +342,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             children: [
               if (msg.isMe) ...[
                 if (msg.isUnread)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 4),
+                  const Padding(
+                    padding: EdgeInsets.only(right: 4),
                     child: Text(
                       '1',
-                      style: TextStyle(
-                        color: const Color(0xFF931515),
-                        fontSize: 10,
-                      ),
+                      style: TextStyle(color: Color(0xFF931515), fontSize: 10),
                     ),
                   ),
                 Text(
@@ -334,7 +441,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                             fontWeight: FontWeight.w400,
                           ),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                          ),
                         ),
                         onSubmitted: (_) => _sendMessage(),
                       ),
