@@ -4,16 +4,18 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../styles/colors.dart';
 import '../styles/modal_theme.dart';
 import 'auto_translate_text.dart';
+import '../../utils/image_url.dart'; // 상단에 추가
+
+// 🌟 API 연동을 위해 추가된 패키지
+import 'package:dio/dio.dart' as dio;
+import '../services/token_storage.dart';
 
 /// 구인자용 Job Application List 모달. 아래에서 위로 슬라이드, 신청한 구직자 중 선택 후 Accept로 새 채팅방 생성.
 /// Accept 시 선택한 지원자 정보를 반환. [name], [profileImagePath].
-///
-/// [applicantCount] 가 주어지면 더미 풀에서 해당 수만큼만(부족하면 반복으로 채워서)
-/// 리스트로 표시한다. 카드의 `applicantsCurrent` 와 모달이 일치해야 자연스럽다.
 class JobApplicationListModal {
   static Future<Map<String, String>?> show(
     BuildContext context, {
-    int? applicantCount,
+    required int postId, // 🌟 더미 개수 대신 실제 공고 ID(postId)를 받습니다.
   }) async {
     return showModalBottomSheet<Map<String, String>>(
       context: context,
@@ -21,7 +23,7 @@ class JobApplicationListModal {
       isScrollControlled: true,
       builder: (context) => Theme(
         data: modalTheme(context),
-        child: _JobApplicationListContent(applicantCount: applicantCount),
+        child: _JobApplicationListContent(postId: postId),
       ),
     );
   }
@@ -47,11 +49,13 @@ void showApplicantProfileModal(BuildContext context, _ApplicantItem applicant) {
 }
 
 class _ApplicantItem {
+  final int applicationId; // ← 추가
   final String name;
   final String profileImagePath;
   final int rating;
 
   _ApplicantItem({
+    required this.applicationId, // ← 추가
     required this.name,
     required this.profileImagePath,
     this.rating = 5,
@@ -204,8 +208,12 @@ class _ApplicantProfileSheetContentState
               height: _profileSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
+                // 🌟 API에서 받아온 이미지 URL 처리 (URL이면 NetworkImage, 아니면 로컬 AssetImage)
                 image: DecorationImage(
-                  image: AssetImage(widget.applicant.profileImagePath),
+                  image: widget.applicant.profileImagePath.startsWith('http')
+                      ? NetworkImage(widget.applicant.profileImagePath)
+                            as ImageProvider
+                      : AssetImage(widget.applicant.profileImagePath),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -244,7 +252,6 @@ class _ApplicantProfileSheetContentState
     );
   }
 
-  /// 마이페이지와 동일 스타일, 패딩/간격만 축소 (h 337 맞춤)
   Widget _buildRatingCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
@@ -259,15 +266,35 @@ class _ApplicantProfileSheetContentState
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SvgPicture.asset('assets/icon/score_filled_icon.svg', width: 28, height: 28),
+              SvgPicture.asset(
+                'assets/icon/score_filled_icon.svg',
+                width: 28,
+                height: 28,
+              ),
               const SizedBox(width: 6),
-              SvgPicture.asset('assets/icon/score_filled_icon.svg', width: 28, height: 28),
+              SvgPicture.asset(
+                'assets/icon/score_filled_icon.svg',
+                width: 28,
+                height: 28,
+              ),
               const SizedBox(width: 6),
-              SvgPicture.asset('assets/icon/score_filled_icon.svg', width: 28, height: 28),
+              SvgPicture.asset(
+                'assets/icon/score_filled_icon.svg',
+                width: 28,
+                height: 28,
+              ),
               const SizedBox(width: 6),
-              SvgPicture.asset('assets/icon/score_filled_icon.svg', width: 28, height: 28),
+              SvgPicture.asset(
+                'assets/icon/score_filled_icon.svg',
+                width: 28,
+                height: 28,
+              ),
               const SizedBox(width: 6),
-              SvgPicture.asset('assets/icon/score_not_icon.svg', width: 28, height: 28),
+              SvgPicture.asset(
+                'assets/icon/score_not_icon.svg',
+                width: 28,
+                height: 28,
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -277,7 +304,10 @@ class _ApplicantProfileSheetContentState
               onTap: () => setState(() => _expanded = true),
               borderRadius: BorderRadius.circular(8),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 child: Center(
                   child: AutoTranslateText(
                     'Check reviews',
@@ -297,7 +327,6 @@ class _ApplicantProfileSheetContentState
     );
   }
 
-  /// 리뷰 리스트만 스크롤 (배너·프로필·이름·성별은 위에서 고정)
   Widget _buildReviewListOnly(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
@@ -405,44 +434,74 @@ class _ApplicantProfileSheetContentState
 }
 
 class _JobApplicationListContent extends StatefulWidget {
-  const _JobApplicationListContent({this.applicantCount});
+  const _JobApplicationListContent({
+    required this.postId,
+  }); // 🌟 더미 개수 대신 postId로 변경
 
-  /// 표시할 지원자 수. null 이면 전체 더미 풀을 보여준다.
-  final int? applicantCount;
+  final int postId;
 
   @override
   State<_JobApplicationListContent> createState() =>
       _JobApplicationListContentState();
 }
 
-class _JobApplicationListContentState extends State<_JobApplicationListContent> {
-  static final List<_ApplicantItem> _dummyPool = [
-    _ApplicantItem(name: 'Joy', profileImagePath: 'assets/image/test_profile1.png', rating: 5),
-    _ApplicantItem(name: 'Sadie', profileImagePath: 'assets/image/test_profile2.png', rating: 4),
-    _ApplicantItem(name: 'Nia', profileImagePath: 'assets/image/test_profile3.png', rating: 3),
-    _ApplicantItem(name: 'Rio', profileImagePath: 'assets/image/test_profile4.png', rating: 5),
-    _ApplicantItem(name: 'Seongyun', profileImagePath: 'assets/image/test_profile5.png', rating: 2),
-    _ApplicantItem(name: 'Julee', profileImagePath: 'assets/image/test_profile6.png', rating: 4),
-  ];
+class _JobApplicationListContentState
+    extends State<_JobApplicationListContent> {
+  // 🌟 API 연동을 위한 상태 변수 추가
+  List<_ApplicantItem> _applicants = [];
+  bool _isLoading = true;
+  int? _selectedIndex;
 
-  /// 실제 표시되는 지원자 리스트. applicantCount 가 주어지면 그 수에 맞게
-  /// 풀에서 반복으로 잘라낸다.
-  late final List<_ApplicantItem> _dummyApplicants = _resolveApplicants();
-
-  List<_ApplicantItem> _resolveApplicants() {
-    final n = widget.applicantCount;
-    if (n == null || n <= 0) return _dummyPool;
-    if (n <= _dummyPool.length) {
-      return _dummyPool.take(n).toList();
-    }
-    // 카드의 applicantsCurrent 가 가분수(8/3 같은) 일 수도 있어
-    // 풀보다 많이 요청되면 풀을 순환해 채워준다.
-    return [
-      for (int i = 0; i < n; i++) _dummyPool[i % _dummyPool.length],
-    ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchApplicants(); // 🌟 초기화 시 API 호출
   }
 
-  int? _selectedIndex;
+  // 🌟 백엔드 서버에서 지원자 목록을 가져오는 함수
+  Future<void> _fetchApplicants() async {
+    try {
+      String? token = await TokenStorage.readAccessToken();
+      debugPrint('🔑 토큰: $token');
+      if (token == null || token.isEmpty) {
+        token = await TokenStorage.readFirebaseIdToken();
+      }
+
+      final dioClient = dio.Dio();
+      final response = await dioClient.get(
+        'https://growvy.mirim-it-show.site/api/employer/posts/${widget.postId}/applicants',
+        options: dio.Options(
+          headers: {if (token != null) 'Authorization': 'Bearer $token'},
+        ),
+      );
+
+      debugPrint('📡 상태코드: ${response.statusCode}');
+      debugPrint('📡 응답 데이터: ${response.data}');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+        setState(() {
+          _applicants = data
+              .map(
+                (e) => _ApplicantItem(
+                  applicationId: (e['applicationId'] as num).toInt(), // ← 추가
+                  name: e['name']?.toString() ?? 'Unknown',
+                  profileImagePath: e['profileImage'] != null
+                      ? resolveImageUrl(e['profileImage'].toString())
+                      : 'assets/image/test_profile1.png',
+                  rating: (e['averageRating'] ?? 5).toInt(),
+                ),
+              )
+              .toList();
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('지원자 목록 로드 에러: $e');
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -480,16 +539,37 @@ class _JobApplicationListContentState extends State<_JobApplicationListContent> 
             const SizedBox(height: 16),
             Divider(height: 1, thickness: 1, color: Colors.grey[300]),
             Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                itemCount: _dummyApplicants.length,
-                itemBuilder: (context, index) {
-                  final applicant = _dummyApplicants[index];
-                  final isSelected = _selectedIndex == index;
-                  return _buildApplicantTile(index, applicant, isSelected);
-                },
-              ),
+              // 🌟 API 호출 중일 때는 로딩 표시, 데이터가 없을 때는 텍스트 표시
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.mainColor,
+                      ),
+                    )
+                  : _applicants.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No applicants yet.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      itemCount: _applicants.length,
+                      itemBuilder: (context, index) {
+                        final applicant = _applicants[index];
+                        final isSelected = _selectedIndex == index;
+                        return _buildApplicantTile(
+                          index,
+                          applicant,
+                          isSelected,
+                        );
+                      },
+                    ),
             ),
             Divider(height: 1, thickness: 1, color: const Color(0xFFD9D9D9)),
             const SizedBox(height: 16),
@@ -499,13 +579,39 @@ class _JobApplicationListContentState extends State<_JobApplicationListContent> 
                 width: 358,
                 height: 51,
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (_selectedIndex != null) {
-                      final applicant = _dummyApplicants[_selectedIndex!];
-                      Navigator.pop(context, {
-                        'name': applicant.name,
-                        'profileImagePath': applicant.profileImagePath,
-                      });
+                  onPressed: () async {
+                    if (_selectedIndex == null || _applicants.isEmpty) return;
+
+                    final applicant = _applicants[_selectedIndex!];
+
+                    try {
+                      String? token = await TokenStorage.readAccessToken();
+                      final dioClient = dio.Dio();
+                      final response = await dioClient.post(
+                        'https://growvy.mirim-it-show.site/api/employer/posts/${widget.postId}/select',
+                        data: {
+                          'applicationIds': [applicant.applicationId],
+                        }, // ← 객체로 감싸기
+                        options: dio.Options(
+                          headers: {
+                            if (token != null) 'Authorization': 'Bearer $token',
+                            'Content-Type': 'application/json',
+                          },
+                        ),
+                      );
+
+                      if (response.statusCode == 200) {
+                        if (context.mounted) {
+                          Navigator.pop(context, {
+                            'name': applicant.name,
+                            'profileImagePath': applicant.profileImagePath,
+                          });
+                        }
+                      } else {
+                        debugPrint('❌ select 실패: ${response.statusCode}');
+                      }
+                    } catch (e) {
+                      debugPrint('❌ select 에러: $e');
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -518,7 +624,10 @@ class _JobApplicationListContentState extends State<_JobApplicationListContent> 
                   ),
                   child: Text(
                     'common.accept'.tr(),
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -529,7 +638,11 @@ class _JobApplicationListContentState extends State<_JobApplicationListContent> 
     );
   }
 
-  Widget _buildApplicantTile(int index, _ApplicantItem applicant, bool isSelected) {
+  Widget _buildApplicantTile(
+    int index,
+    _ApplicantItem applicant,
+    bool isSelected,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -541,43 +654,48 @@ class _JobApplicationListContentState extends State<_JobApplicationListContent> 
               child: Row(
                 children: [
                   CircleAvatar(
-                  radius: 28,
-                  backgroundColor: Colors.grey[200],
-                  backgroundImage: AssetImage(applicant.profileImagePath),
-                  onBackgroundImageError: (_, __) {},
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AutoTranslateText(
-                        applicant.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: List.generate(5, (i) {
-                          final filled = i < applicant.rating;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 2),
-                            child: SvgPicture.asset(
-                              filled
-                                  ? 'assets/icon/score_filled_icon.svg'
-                                  : 'assets/icon/score_not_icon.svg',
-                              width: 16,
-                              height: 16,
-                            ),
-                          );
-                        }),
-                      ),
-                    ],
+                    radius: 28,
+                    backgroundColor: Colors.grey[200],
+                    // 🌟 URL인 경우 NetworkImage 사용
+                    backgroundImage:
+                        applicant.profileImagePath.startsWith('http')
+                        ? NetworkImage(applicant.profileImagePath)
+                              as ImageProvider
+                        : AssetImage(applicant.profileImagePath),
+                    onBackgroundImageError: (_, __) {},
                   ),
-                ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AutoTranslateText(
+                          applicant.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: List.generate(5, (i) {
+                            final filled = i < applicant.rating;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 2),
+                              child: SvgPicture.asset(
+                                filled
+                                    ? 'assets/icon/score_filled_icon.svg'
+                                    : 'assets/icon/score_not_icon.svg',
+                                width: 16,
+                                height: 16,
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -592,7 +710,9 @@ class _JobApplicationListContentState extends State<_JobApplicationListContent> 
                 shape: BoxShape.circle,
                 color: Colors.transparent,
                 border: Border.all(
-                  color: isSelected ? const Color(0xFFFC6340) : Colors.grey[400]!,
+                  color: isSelected
+                      ? const Color(0xFFFC6340)
+                      : Colors.grey[400]!,
                   width: 2,
                 ),
               ),

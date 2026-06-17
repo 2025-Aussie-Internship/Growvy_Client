@@ -147,7 +147,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
       final String? accessToken = await TokenStorage.readAccessToken();
 
       final response = await http.get(
-        Uri.parse('${Env.apiBaseUrl}posts/posts/${widget.postId}'),
+        Uri.parse('${Env.apiBaseUrl}posts/${widget.postId}'),
         headers: {
           if (accessToken != null) "Authorization": "Bearer $accessToken",
           "Content-Type": "application/json",
@@ -911,15 +911,59 @@ class _JobDetailPageState extends State<JobDetailPage> {
     );
   }
 
+  // ── Apply API ─────────────────────────────────────────────
+
+  Future<bool> _callApplyApi() async {
+    if (widget.postId == null) return false;
+    try {
+      final token = await TokenStorage.readAccessToken();
+      final resp = await http
+          .post(
+            Uri.parse(
+              '${Env.apiBaseUrl}jobseeker/posts/${widget.postId}/apply',
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null && token.isNotEmpty)
+                'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (resp.statusCode == 200 || resp.statusCode == 201) return true;
+
+      // 이미 지원한 경우 서버가 400/409 등으로 내려올 때 메시지 파싱
+      final body = jsonDecode(resp.body);
+      final msg = body['message'] ?? body['error'] ?? 'Failed to apply.';
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg.toString())));
+      }
+      return false;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Network error: $e')));
+      }
+      return false;
+    }
+  }
+
   void _onApplyPressed(BuildContext context) {
     ConfirmModal.show(
       context: context,
       message: 'job_detail.submit_application'.tr(),
       cancelLabel: 'common.cancel'.tr(),
       acceptLabel: 'common.apply'.tr(),
-      onAccept: () {
-        Navigator.pop(context);
+      onAccept: () async {
+        Navigator.pop(context); // 확인 모달 닫기
         if (!context.mounted) return;
+
+        final success = await _callApplyApi();
+        if (!success || !context.mounted) return;
+
         CompletionModal.show(
           context,
           message: 'job_detail.application_submitted'.tr(),

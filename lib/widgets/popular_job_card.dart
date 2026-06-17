@@ -6,6 +6,7 @@ class PopularJobCard extends StatelessWidget {
   final String title;
   final String company;
   final String dDay;
+  final List<String> tags;
   final VoidCallback? onTap;
 
   const PopularJobCard({
@@ -13,6 +14,7 @@ class PopularJobCard extends StatelessWidget {
     required this.title,
     required this.company,
     required this.dDay,
+    required this.tags,
     this.onTap,
   });
 
@@ -60,18 +62,44 @@ class PopularJobCard extends StatelessWidget {
             ),
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEE9D8),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    dDay,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF931515),
+                // Container(
+                //   padding: const EdgeInsets.symmetric(
+                //     horizontal: 8,
+                //     vertical: 4,
+                //   ),
+                //   decoration: BoxDecoration(
+                //     color: const Color(0xFFFEE9D8),
+                //     borderRadius: BorderRadius.circular(4),
+                //   ),
+                //   child: Text(
+                //     dDay,
+                //     style: const TextStyle(
+                //       fontSize: 14,
+                //       fontWeight: FontWeight.w500,
+                //       color: Color(0xFF931515),
+                //     ),
+                //   ),
+                // ),
+                ...tags.map(
+                  (tag) => Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE9D8),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: AutoTranslateText(
+                        tag,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF931515),
+                        ),
+                      ),
                     ),
                   ),
                 ),

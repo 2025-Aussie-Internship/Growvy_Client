@@ -307,7 +307,8 @@ class _StartHiringPageState extends State<StartHiringPage> {
           created['responsibility']?.toString().trim().isNotEmpty == true
           ? created['responsibility'].toString()
           : responsibility,
-      'description': created['description']?.toString().trim().isNotEmpty == true
+      'description':
+          created['description']?.toString().trim().isNotEmpty == true
           ? created['description'].toString()
           : shiftDetails,
       'photos': photos,
@@ -327,12 +328,8 @@ class _StartHiringPageState extends State<StartHiringPage> {
     // 3) 다음 입력을 위해 컨트롤러/로컬 상태 reset.
     jobPost.reset();
 
-    // 4) MainPage 의 Note(3) 탭을 곧장 열어 사용자가 바로 본인 카드를 확인.
-    Get.offAll(
-      () => const MainPage(initialTab: 3),
-      transition: Transition.fadeIn,
-      duration: const Duration(milliseconds: 300),
-    );
+    // 🌟 4) 수정된 부분: Get.offAll 대신 이전 목록 화면으로 돌아가면서 'true' 신호 전달!
+    Get.back(result: true);
   }
 
   /// 마감일(deadline) 기준 D-XX / D-Day / Expired 라벨.

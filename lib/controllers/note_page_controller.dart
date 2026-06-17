@@ -10,6 +10,7 @@ import '../pages/NotePage/employer_note_write_page.dart';
 import '../pages/NotePage/seeker_note_write_page.dart';
 import '../services/user_service.dart';
 import '../services/token_storage.dart';
+import '../../services/token_storage.dart';
 
 class NotePageController extends GetxController {
   final selectedTab = 0.obs;
@@ -269,9 +270,10 @@ class NotePageController extends GetxController {
         'title': item['title'] ?? '',
         'employer': item['companyName'] ?? '',
         // 💡 매핑 3: 백엔드에서 미리 계산해 넘겨준 dDay 문자열 우선 사용 (없으면 기존 방식)
-        'dDay': isDone
-            ? 'Completed'
-            : (item['dDay'] ?? _calculateDDay(item['endDate'])),
+        // 'dDay': isDone
+        //     ? 'Completed'
+        //     : (item['dDay'] ?? _calculateDDay(item['recruitmentDeadline'])),
+        'dDay': item['dDay'] ?? item['dday'],
         'tag': tagValue,
         'responsibility': item['responsibility']?.toString() ?? '',
         'description': item['description']?.toString() ?? '',

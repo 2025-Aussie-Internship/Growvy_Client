@@ -213,6 +213,7 @@ class NotePage extends GetView<NotePageController> {
   ///  - 삭제 버튼 → 확인 모달 → Yes 시 controller 에서 카드 제거
   ///  - 하단 "Hiring" 버튼 → 지원자 모달(카드의 applicantsCurrent 수와 동일하게)
   void _openOwnerJobDetail(BuildContext context, Map<String, dynamic> item) {
+    debugPrint('🔍 item 전체: $item');
     final applicantCount = item['applicantsCurrent'] as int?;
     final rawPhotos = item['photos'];
     final photoUrls = rawPhotos is List
@@ -249,9 +250,10 @@ class NotePage extends GetView<NotePageController> {
           photoUrls: photoUrls,
           onEdit: () => _onOwnerEdit(innerContext, item),
           onDelete: () => _onOwnerDelete(innerContext, item),
+          // 변경 후
           onHiringTap: () => _openHiringApplicants(
             innerContext,
-            applicantCount: applicantCount,
+            postId: item['id'] as int, // ← postId 추가
           ),
         ),
       ),
@@ -444,17 +446,20 @@ class NotePage extends GetView<NotePageController> {
   }
 
   /// Hiring 탭 카드 탭 시 노출되는 지원자 선택 모달 → 수락 시 채팅 페이지로 이동.
-  /// [applicantCount] 가 주어지면 모달에 그 수만큼의 더미 지원자가 노출된다.
+  /// 수정된 호출부
   Future<void> _openHiringApplicants(
     BuildContext context, {
-    int? applicantCount,
+    required int postId, // 🌟 이제 개수 대신 postId를 필수로 받습니다.
   }) async {
+    // 🌟 수정: applicantCount: applicantCount 를 postId: postId 로 변경
     final accepted = await JobApplicationListModal.show(
       context,
-      applicantCount: applicantCount,
+      postId: postId,
     );
+
     if (!context.mounted) return;
     if (accepted == null) return;
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChatDetailPage(
@@ -510,9 +515,15 @@ class NotePage extends GetView<NotePageController> {
     BuildContext context,
     Map<String, dynamic> item,
   ) async {
-    final applicant = await JobApplicationListModal.show(context);
+    // 🌟 수정: 더미용 파라미터는 제거하고, 실제 postId를 전달
+    final applicant = await JobApplicationListModal.show(
+      context,
+      postId: item['id'], // 🌟 해당 공고의 ID를 넘겨줍니다.
+    );
+
     if (!context.mounted) return;
     if (applicant == null) return;
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ReviewDetailPage(
