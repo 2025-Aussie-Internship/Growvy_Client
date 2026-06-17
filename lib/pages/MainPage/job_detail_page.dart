@@ -147,7 +147,7 @@ class _JobDetailPageState extends State<JobDetailPage> {
       final String? accessToken = await TokenStorage.readAccessToken();
 
       final response = await http.get(
-        Uri.parse('${Env.apiBaseUrl}posts/posts/${widget.postId}'),
+        Uri.parse('${Env.apiBaseUrl}posts/${widget.postId}'),
         headers: {
           if (accessToken != null) "Authorization": "Bearer $accessToken",
           "Content-Type": "application/json",
