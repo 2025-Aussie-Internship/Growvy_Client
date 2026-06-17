@@ -34,13 +34,17 @@ class _ProfilePickerPageState extends State<ProfilePickerPage> {
   @override
   void initState() {
     super.initState();
+    final data = Get.find<SignupDataController>();
+    final imageId = data.profileImageId ?? 1;
+    final startPage = 10000 + (imageId - 1).clamp(0, _profileImages.length - 1);
+    _currentPage = startPage.toDouble();
     _pageController = PageController(
       viewportFraction: 0.18,
-      initialPage: 10000,
+      initialPage: startPage,
     );
     _pageController.addListener(() {
       setState(() {
-        _currentPage = _pageController.page ?? 10000.0;
+        _currentPage = _pageController.page ?? startPage.toDouble();
       });
     });
   }

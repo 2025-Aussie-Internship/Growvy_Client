@@ -130,31 +130,56 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
+  Future<void> _refreshSearch() async {
+    final q = _searchController.text.trim();
+    if (q.isEmpty) return;
+    final results = await SearchRepository.search(q);
+    if (!mounted) return;
+    setState(() => _results = results);
+  }
+
   Widget _buildResults() {
     if (_isSearching) {
       return const Center(child: CircularProgressIndicator());
     }
     if (_results.isEmpty) {
-      return const Center(
-        child: AutoTranslateText(
-          'No results found',
-          style: TextStyle(fontSize: 14, color: Color(0xFFBDBDBD)),
+      return RefreshIndicator(
+        color: AppColors.mainColor,
+        onRefresh: _refreshSearch,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.sizeOf(context).height * 0.35,
+              child: const Center(
+                child: AutoTranslateText(
+                  'No results found',
+                  style: TextStyle(fontSize: 14, color: Color(0xFFBDBDBD)),
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      itemCount: _results.length,
-      itemBuilder: (context, index) {
-        final item = _results[index];
-        return SearchResultCard(
-          title: item['title'] as String,
-          company: item['company'] as String,
-          tags: List<String>.from(item['tags'] as List),
-          onTap: () => _openResultDetail(item),
-          onApply: () => _openResultDetail(item),
-        );
-      },
+    return RefreshIndicator(
+      color: AppColors.mainColor,
+      onRefresh: _refreshSearch,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        itemCount: _results.length,
+        itemBuilder: (context, index) {
+          final item = _results[index];
+          return SearchResultCard(
+            title: item['title'] as String,
+            company: item['company'] as String,
+            tags: List<String>.from(item['tags'] as List),
+            onTap: () => _openResultDetail(item),
+            onApply: () => _openResultDetail(item),
+          );
+        },
+      ),
     );
   }
 

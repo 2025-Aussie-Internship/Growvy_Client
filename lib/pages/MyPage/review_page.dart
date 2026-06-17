@@ -6,7 +6,6 @@ import '../../config/env.dart';
 import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:get/get.dart';
 import '../../styles/colors.dart';
 import '../../widgets/auto_translate_text.dart';
 import '../../widgets/employer_note_tab_bar.dart';
@@ -105,11 +104,12 @@ class _ReviewPageState extends State<ReviewPage> {
   }
 
   Widget _buildReviewCard(dynamic item, int index) {
-    // 🌟 API 응답 필드명에 맞게 매핑
-    final rating = item['rating'] as int;
-    final title = item['title'] as String;
-    final body = item['body'] as String;
-    final reviewId = item['reviewId'] as int; // 상세 이동 시 사용 가능
+    final map = Map<String, dynamic>.from(item as Map);
+    final rating = (map['rating'] as num?)?.toInt() ?? 0;
+    final title = map['title']?.toString() ?? '';
+    final body =
+        map['body']?.toString() ?? map['comment']?.toString() ?? '';
+    final displayName = _extractReviewName(map, isWrittenTab: _selectedTab == 0);
     final isMyReviews = _selectedTab == 0;
 
     return GestureDetector(
@@ -121,8 +121,9 @@ class _ReviewPageState extends State<ReviewPage> {
               title: title,
               rating: rating,
               body: body,
-              index: index, // 로컬 인덱스 사용
+              index: index,
               isEditable: isMyReviews,
+              peerName: displayName.isEmpty ? null : displayName,
             ),
           ),
         );
@@ -157,15 +158,24 @@ class _ReviewPageState extends State<ReviewPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: AutoTranslateText(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.pointColor,
-                    ),
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      AutoTranslateText(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.pointColor,
+                        ),
+                      ),
+                      if (displayName.isNotEmpty) _buildNameBadge(displayName),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 _buildStarRating(rating),
               ],
             ),
@@ -183,6 +193,86 @@ class _ReviewPageState extends State<ReviewPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildNameBadge(String name) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDE2E2),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        name,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: AppColors.pointColor,
+        ),
+      ),
+    );
+  }
+
+  String _extractReviewName(Map<String, dynamic> item, {required bool isWrittenTab}) {
+    final nestedKeys = isWrittenTab
+        ? ['targetUser', 'reviewee', 'receiver', 'user']
+        : ['reviewer', 'writer', 'author', 'user'];
+
+    for (final key in nestedKeys) {
+      final nested = _nameFromValue(item[key]);
+      if (nested.isNotEmpty) return nested;
+    }
+
+    final flatKeys = isWrittenTab
+        ? [
+            'targetUserName',
+            'target_user_name',
+            'targetName',
+            'target_name',
+            'revieweeName',
+            'reviewee_name',
+            'receiverName',
+            'receiver_name',
+            'userName',
+            'user_name',
+            'displayName',
+            'display_name',
+            'nickname',
+            'name',
+            'partnerName',
+          ]
+        : [
+            'reviewerName',
+            'reviewer_name',
+            'writerName',
+            'writer_name',
+            'authorName',
+            'author_name',
+            'userName',
+            'user_name',
+            'displayName',
+            'display_name',
+            'nickname',
+            'name',
+            'writtenBy',
+          ];
+
+    for (final key in flatKeys) {
+      final value = item[key]?.toString().trim();
+      if (value != null && value.isNotEmpty) return value;
+    }
+
+    return '';
+  }
+
+  String _nameFromValue(dynamic value) {
+    if (value is Map) {
+      return (value['name'] ?? value['displayName'] ?? value['userName'])
+              ?.toString()
+              .trim() ??
+          '';
+    }
+    return value?.toString().trim() ?? '';
   }
 
   Widget _buildStarRating(int rating) {

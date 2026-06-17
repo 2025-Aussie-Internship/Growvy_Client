@@ -377,15 +377,35 @@ class SearchOverlayState extends State<SearchOverlay>
     );
   }
 
+  Future<void> _refreshSearch() async {
+    final q = _searchController.text.trim();
+    if (q.isEmpty) return;
+    final results = await SearchRepository.search(q);
+    if (!mounted) return;
+    setState(() => _results = results);
+  }
+
   Widget _buildResults() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
     if (_results.isEmpty) {
-      return Center(
-        child: const AutoTranslateText(
-          'No results found',
-          style: TextStyle(fontSize: 14, color: Color(0xFFBDBDBD)),
+      return RefreshIndicator(
+        color: AppColors.mainColor,
+        onRefresh: _refreshSearch,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.sizeOf(context).height * 0.35,
+              child: const Center(
+                child: AutoTranslateText(
+                  'No results found',
+                  style: TextStyle(fontSize: 14, color: Color(0xFFBDBDBD)),
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -410,9 +430,13 @@ class SearchOverlayState extends State<SearchOverlay>
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-            itemCount: _results.length,
+          child: RefreshIndicator(
+            color: AppColors.mainColor,
+            onRefresh: _refreshSearch,
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+              itemCount: _results.length,
             itemBuilder: (context, index) {
               final item = _results[index];
               return SearchResultCard(
@@ -423,6 +447,7 @@ class SearchOverlayState extends State<SearchOverlay>
                 onApply: () => _openResultDetail(item),
               );
             },
+            ),
           ),
         ),
       ],

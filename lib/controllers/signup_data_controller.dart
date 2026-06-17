@@ -1,7 +1,10 @@
 import 'package:get/get.dart';
 
+import '../models/user_profile.dart';
 import '../services/signup_repository.dart';
+import '../services/job_seeker_profile_repository.dart';
 import '../utils/interest_ids.dart';
+import '../utils/profile_image_helper.dart';
 
 /// 회원가입 단계마다 사용자가 입력한 값을 한 곳에 누적했다가
 /// 마지막 SignupCompletePage 에서 한 번에 서버(DB)로 보낼 수 있게 해 주는 컨트롤러.
@@ -29,6 +32,12 @@ class SignupDataController extends GetxController {
   // --------------- 직군 선택 ---------------
   /// true: Employer, false: Job seeker, null: 아직 선택 전
   bool? isEmployer;
+
+  /// 구직자 로그아웃 후 관심사~프로필만 다시 받아 PATCH 로 갱신하는 흐름.
+  bool isSeekerProfileUpdate = false;
+
+  /// 프로필 갱신 흐름 시작 전 기존 프로필 스냅샷 (이름·이메일 등 유지용).
+  UserProfile? profileUpdateBaseline;
 
   // --------------- 공통 정보 (CommonSignUpPage) ---------------
   String? name;
@@ -81,6 +90,32 @@ class SignupDataController extends GetxController {
 
   void setUserType(bool employer) {
     isEmployer = employer;
+  }
+
+  void enableSeekerProfileUpdate() {
+    isSeekerProfileUpdate = true;
+    isEmployer = false;
+  }
+
+  /// 로그아웃 직전 [auth/me] 또는 [UserProfileController] 에서 받은 값을
+  /// 갱신 폼의 초기값으로 복사한다.
+  void applyProfileUpdateBaseline(UserProfile profile) {
+    profileUpdateBaseline = profile;
+    if (profile.profileImageId != null) {
+      profileImageId = profile.profileImageId;
+      profileImageAsset =
+          profile.profileImageAsset ??
+          assetFromProfileImageId(profile.profileImageId);
+    }
+    if (profile.career != null && profile.career!.trim().isNotEmpty) {
+      career = profile.career;
+    }
+    if (profile.introduction != null && profile.introduction!.trim().isNotEmpty) {
+      introduction = profile.introduction;
+    }
+    interestIds
+      ..clear()
+      ..addAll(profile.interestIds.where((id) => id >= 1 && id <= 11));
   }
 
   void setBasicInfo({
@@ -277,6 +312,30 @@ class SignupDataController extends GetxController {
     return m;
   }
 
+  /// `PATCH auth/jobseeker/profile` 용 payload.
+  Map<String, dynamic> toJobSeekerProfileUpdatePayload() {
+    final m = <String, dynamic>{};
+    void put(String key, Object? value) {
+      if (value == null) return;
+      if (value is String && value.trim().isEmpty) return;
+      if (value is int && value == 0) return;
+      m[key] = value;
+    }
+
+    put('profileImageId', profileImageId);
+    put('career', career?.trim());
+    put('bio', introduction?.trim());
+    final ids = interestIds.toSet().toList()..sort();
+    if (ids.isNotEmpty) m['interestIds'] = ids;
+    return m;
+  }
+
+  bool isReadyForProfileUpdate() {
+    return isProfileImagePicked() &&
+        isCareerValid() &&
+        isInterestOrSurveyValid();
+  }
+
   /// 디버그/검증: 누적된 interestIds 가 각각 어느 카테고리인지 사람 읽기용으로.
   /// (예: [1, 3, 18] → 'INDUSTRY, INDUSTRY, SOCIAL_PREFERENCE')
   String describeInterestCategories() {
@@ -335,6 +394,12 @@ class SignupDataController extends GetxController {
     );
   }
 
+  Future<Map<String, dynamic>> updateProfileToBackend() async {
+    return JobSeekerProfileRepository.updateProfile(
+      toJobSeekerProfileUpdatePayload(),
+    );
+  }
+
   /// 다음 회원가입 시도를 위해 누적된 값을 초기화한다.
   void reset() {
     googleEmail = null;
@@ -356,5 +421,7 @@ class SignupDataController extends GetxController {
     surveyAnswers.clear();
     career = null;
     introduction = null;
+    isSeekerProfileUpdate = false;
+    profileUpdateBaseline = null;
   }
 }

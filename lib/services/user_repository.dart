@@ -13,6 +13,17 @@ class UserRepository {
       bool.fromEnvironment('API_ENABLED', defaultValue: false);
 
   static const String _mePath = '/api/users/me';
+  static const String _authMePath = 'auth/me';
+
+  /// GET auth/me → 현재 로그인된 사용자 프로필 (MyPage·프로필 갱신 흐름).
+  static Future<Map<String, dynamic>> fetchAuthMe() async {
+    try {
+      return await ApiClient.get(_authMePath);
+    } catch (e) {
+      debugPrint('[UserRepository] fetchAuthMe failed: $e');
+      return <String, dynamic>{};
+    }
+  }
 
   /// GET /api/users/me → 현재 로그인된 사용자의 프로필 전체.
   static Future<Map<String, dynamic>> fetchMe() async {

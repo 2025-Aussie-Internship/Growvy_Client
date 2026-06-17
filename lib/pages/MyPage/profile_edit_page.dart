@@ -26,6 +26,11 @@ class ProfileEditContent extends StatefulWidget {
     required this.initialProfileIndex,
     this.initialUserName = 'User Name',
     this.initialPronouns = 'She/Her',
+    this.initialCareer = '',
+    this.initialIntroduction = '',
+    this.initialHomeAddress = '',
+    this.initialPhone = '',
+    this.initialInterestKeys = const <String>{},
     required this.onApply,
     required this.onClose,
   });
@@ -34,6 +39,11 @@ class ProfileEditContent extends StatefulWidget {
   final int initialProfileIndex;
   final String initialUserName;
   final String initialPronouns;
+  final String initialCareer;
+  final String initialIntroduction;
+  final String initialHomeAddress;
+  final String initialPhone;
+  final Set<String> initialInterestKeys;
   final void Function(Map<String, dynamic> result) onApply;
   final VoidCallback onClose;
 
@@ -53,7 +63,7 @@ class _ProfileEditContentState extends State<ProfileEditContent> {
   late TextEditingController _businessAddressController;
 
   /// 구직자 Preference (관심사) — 다중 선택 가능. 시안의 11개 카테고리.
-  final Set<String> _selectedInterestKeys = <String>{'interests.events_festivals'};
+  late final Set<String> _selectedInterestKeys;
 
   /// 시안의 11개 관심사 (interest_i18n.dart 와 매핑 동일)
   static const List<String> _interestKeys = <String>[
@@ -78,12 +88,15 @@ class _ProfileEditContentState extends State<ProfileEditContent> {
     _profileIndex = widget.initialProfileIndex;
     _pronouns = widget.initialPronouns;
     _nameController = TextEditingController(text: widget.initialUserName);
-    _phoneController = TextEditingController();
-    _homeAddressController = TextEditingController();
-    _careerController = TextEditingController();
-    _introController = TextEditingController();
+    _phoneController = TextEditingController(text: widget.initialPhone);
+    _homeAddressController = TextEditingController(text: widget.initialHomeAddress);
+    _careerController = TextEditingController(text: widget.initialCareer);
+    _introController = TextEditingController(text: widget.initialIntroduction);
     _companyNameController = TextEditingController();
     _businessAddressController = TextEditingController();
+    _selectedInterestKeys = widget.initialInterestKeys.isNotEmpty
+        ? Set<String>.from(widget.initialInterestKeys)
+        : <String>{'interests.events_festivals'};
   }
 
   @override

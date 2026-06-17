@@ -79,6 +79,14 @@ class InterestI18n {
         if (_i18nKeyById[id] != null) _i18nKeyById[id]!.tr(),
     ];
   }
+
+  /// 백엔드 interest id → i18n 키 목록 (UI prefill 용).
+  static List<String> keysFromIds(Iterable<int> ids) {
+    return [
+      for (final id in ids)
+        if (_i18nKeyById[id] != null) _i18nKeyById[id]!,
+    ];
+  }
 }
 
 /// 'MALE' / 'FEMALE' enum 을 현재 locale 의 라벨로 변환.
