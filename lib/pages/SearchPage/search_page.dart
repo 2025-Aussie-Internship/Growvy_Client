@@ -1,12 +1,13 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Trans;
 import '../../controllers/recent_searches_controller.dart';
+import '../../pages/MainPage/job_detail_page.dart';
+import '../../services/search_repository.dart';
 import '../../styles/colors.dart';
 import '../../widgets/auto_translate_text.dart';
 import '../../widgets/job_search_bar.dart';
 import '../../widgets/safe_back_app_bar.dart';
+import '../../widgets/search_result_card.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -40,7 +41,8 @@ class _SearchPageState extends State<SearchPage> {
   bool _autoSave = true;
   bool _recentExpanded = true;
   bool _isSearching = false;
-  Timer? _searchingTimer;
+  bool _showResults = false;
+  List<Map<String, dynamic>> _results = [];
 
   /// 페이지 외부에 살아있는 single source-of-truth.
   /// 메인으로 나갔다가 다시 들어와도 동일한 칩 목록이 보인다.
@@ -70,7 +72,6 @@ class _SearchPageState extends State<SearchPage> {
     _searchFocus.removeListener(_handleFocusChange);
     _searchFocus.dispose();
     _searchController.dispose();
-    _searchingTimer?.cancel();
     super.dispose();
   }
 
@@ -82,17 +83,19 @@ class _SearchPageState extends State<SearchPage> {
   /// 검색창에서 enter / 검색 키를 눌렀을 때 또는 칩을 탭했을 때.
   /// 1) recent 목록에 저장 (중복 제거 + 최상단 정렬 + 20개 캡)
   /// 2) 검색 중임을 알리는 짧은 spinner 피드백 (실제 결과 페이지는 추후)
-  void _onSearchSubmitted(String raw) {
+  Future<void> _onSearchSubmitted(String raw) async {
     final term = _saveCurrentTerm(raw);
     if (term == null) return;
-    // 검색이 실제로 일어났다는 시각 피드백.
-    _searchingTimer?.cancel();
-    setState(() => _isSearching = true);
-    _searchingTimer = Timer(const Duration(milliseconds: 500), () {
-      if (mounted) setState(() => _isSearching = false);
+    setState(() {
+      _isSearching = true;
+      _showResults = true;
     });
-    // TODO: 실제 검색 결과 페이지로 이동. 데모 단계라 검색어 저장과
-    // 시각 피드백만 처리한다.
+    final results = await SearchRepository.search(term);
+    if (!mounted) return;
+    setState(() {
+      _results = results;
+      _isSearching = false;
+    });
   }
 
   /// 현재 입력을 recent 목록에 저장한다. 저장이 일어났다면 그 term 을, 아니면 null.
@@ -101,6 +104,58 @@ class _SearchPageState extends State<SearchPage> {
     if (term.isEmpty) return null;
     if (_autoSave) _recents.add(term);
     return term;
+  }
+
+  void _openResultDetail(Map<String, dynamic> item) {
+    final tagsRaw = item['tags'];
+    final tags = tagsRaw is List
+        ? tagsRaw.map((e) => e.toString()).toList()
+        : <String>[];
+    final rawPhotos = item['photoUrls'];
+    final photoUrls = rawPhotos is List
+        ? rawPhotos.map((e) => e.toString()).toList()
+        : null;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => JobDetailPage(
+          postId: item['id'],
+          title: item['title'] as String?,
+          companyName: item['company'] as String?,
+          tags: tags,
+          description: item['description'] as String?,
+          payText: item['payText'] as String?,
+          photoUrls: photoUrls,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResults() {
+    if (_isSearching) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_results.isEmpty) {
+      return const Center(
+        child: AutoTranslateText(
+          'No results found',
+          style: TextStyle(fontSize: 14, color: Color(0xFFBDBDBD)),
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      itemCount: _results.length,
+      itemBuilder: (context, index) {
+        final item = _results[index];
+        return SearchResultCard(
+          title: item['title'] as String,
+          company: item['company'] as String,
+          tags: List<String>.from(item['tags'] as List),
+          onTap: () => _openResultDetail(item),
+          onApply: () => _openResultDetail(item),
+        );
+      },
+    );
   }
 
   @override
@@ -157,7 +212,9 @@ class _SearchPageState extends State<SearchPage> {
             ),
           ),
           Expanded(
-            child: FadeTransition(
+            child: _showResults
+                ? _buildResults()
+                : FadeTransition(
               opacity: Tween<double>(begin: 0, end: 1).animate(bottomFade),
               child: SlideTransition(
                 position: Tween<Offset>(

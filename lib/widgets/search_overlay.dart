@@ -4,6 +4,7 @@ import 'package:get/get.dart' hide Trans;
 
 import '../controllers/recent_searches_controller.dart';
 import '../pages/MainPage/job_detail_page.dart';
+import '../services/search_repository.dart';
 import '../styles/colors.dart';
 import 'auto_translate_text.dart';
 import 'job_search_bar.dart';
@@ -32,90 +33,12 @@ class SearchOverlayState extends State<SearchOverlay>
 
   /// 검색을 제출했을 때 결과 화면으로 전환되는 상태값.
   bool _showResults = false;
+  bool _isLoading = false;
+  List<Map<String, dynamic>> _results = [];
 
   /// 접힌 상태에서 보여줄 태그 갯수 (두 줄 이내 기준)
   static const int _collapsedTagCount = 5;
 
-  /// 임시 검색 결과 데이터 — 추후 API 연동.
-  /// 각 카드를 탭하면 [_openResultDetail] 가 이 map 의 필드를 그대로 JobDetailPage
-  /// 에 전달한다. (백엔드 연동 전이라 location/payText/openingsText/description
-  /// 같은 보조 필드도 의도적으로 채워서 디테일 페이지가 풍성하게 보이게 함.)
-  final List<Map<String, dynamic>> _results = const [
-    {
-      'title': 'Restaurant staff',
-      'company': 'Aussie Bite',
-      'tags': ['NEW', 'D-32', 'Veteran'],
-      'scheduleDate': 'Feb 02, 2026 - Feb 28, 2026',
-      'location': '88 King St, Sydney NSW 2000',
-      'payText': '\$30 / hour',
-      'openingsText': '2 openings.',
-      'description':
-          'Busy modern Australian restaurant looking for friendly front-of-'
-          'house staff for the dinner shift.',
-    },
-    {
-      'title': 'Farm work',
-      'company': "Will's fram",
-      'tags': ['NEW', 'D-22', 'Veteran'],
-      'scheduleDate': 'Feb 10, 2026 - Apr 10, 2026',
-      'location': 'Mildura VIC 3500',
-      'payText': '\$28 / hour',
-      'openingsText': '5 openings.',
-      'description':
-          'Seasonal fruit picking on a family-run farm. Accommodation can be '
-          'arranged. Backpackers welcome.',
-    },
-    {
-      'title': 'Café job',
-      'company': 'This is for you Jane',
-      'tags': ['NEW', 'D-11', 'Rookie'],
-      'scheduleDate': 'Feb 12, 2026 - May 12, 2026',
-      'location': '210 Chapel St, South Yarra VIC 3141',
-      'payText': '\$27 / hour',
-      'openingsText': '2 openings.',
-      'description':
-          'Cosy specialty cafe hiring weekend baristas + cashiers. Training '
-          'provided for the right person.',
-    },
-    {
-      'title': 'Record Shop Employee',
-      'company': 'People needs Rabbit!',
-      'tags': ['HOT', 'D-8', 'Rookie'],
-      'scheduleDate': 'Feb 03, 2026 - Aug 03, 2026',
-      'location': '15 King Street, Newtown NSW 2042',
-      'payText': '\$26 / hour',
-      'openingsText': '1 opening.',
-      'description':
-          "Newtown's favourite indie record shop is looking for a music lover "
-          'to help our customers find their next favourite album.',
-    },
-    {
-      'title': 'Restaurant Staff',
-      'company': 'Hopkins Night',
-      'tags': ['NEW', 'D-16', 'Veteran'],
-      'scheduleDate': 'Feb 06, 2026 - Mar 30, 2026',
-      'location': '99 Hardware Lane, Melbourne VIC 3000',
-      'payText': '\$31 / hour',
-      'openingsText': '3 openings.',
-      'description':
-          'Upmarket steakhouse hiring experienced floor staff for the dinner '
-          'service (Wed–Sun).',
-    },
-    {
-      'title': 'Babysitter',
-      'company': 'Dustin Byers',
-      'tags': ['NEW', 'D-13', 'Rookie'],
-      'scheduleDate': 'Feb 14, 2026 - Apr 14, 2026',
-      'location': 'Bondi Beach NSW 2026',
-      'payText': '\$32 / hour',
-      'openingsText': '1 opening.',
-      'description':
-          'Looking for a kind, reliable babysitter for two kids (5, 7) on '
-          'weekday evenings.',
-    },
-  ];
-
-  /// 페이지 외부에 살아있는 single source-of-truth.
   /// SearchPage 와 같은 인스턴스를 공유해, 메인으로 나갔다가 다시 검색을 열어도
   /// 사용자가 입력했던 키워드 ("ㅇㅇ" 등) 가 그대로 칩으로 남아 있다.
   RecentSearchesController get _recents => RecentSearchesController.to;
@@ -170,10 +93,19 @@ class SearchOverlayState extends State<SearchOverlay>
     if (mounted) widget.onClose();
   }
 
-  void _submitSearch(String query) {
+  Future<void> _submitSearch(String query) async {
     final q = _saveTerm(query);
     if (q == null) return;
-    setState(() => _showResults = true);
+    setState(() {
+      _showResults = true;
+      _isLoading = true;
+    });
+    final results = await SearchRepository.search(q);
+    if (!mounted) return;
+    setState(() {
+      _results = results;
+      _isLoading = false;
+    });
   }
 
   /// 입력값을 recent 목록 맨 위에 추가한다. 컨트롤러가 중복 제거 + 최대
@@ -196,17 +128,20 @@ class SearchOverlayState extends State<SearchOverlay>
     final tags = tagsRaw is List
         ? tagsRaw.map((e) => e.toString()).toList()
         : <String>[];
+    final rawPhotos = item['photoUrls'];
+    final photoUrls = rawPhotos is List
+        ? rawPhotos.map((e) => e.toString()).toList()
+        : null;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => JobDetailPage(
+          postId: item['id'],
           title: item['title'] as String?,
           companyName: item['company'] as String?,
           tags: tags,
-          scheduleDate: item['scheduleDate'] as String?,
-          location: item['location'] as String?,
-          payText: item['payText'] as String?,
-          openingsText: item['openingsText'] as String?,
           description: item['description'] as String?,
+          payText: item['payText'] as String?,
+          photoUrls: photoUrls,
         ),
       ),
     );
@@ -443,6 +378,17 @@ class SearchOverlayState extends State<SearchOverlay>
   }
 
   Widget _buildResults() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_results.isEmpty) {
+      return Center(
+        child: const AutoTranslateText(
+          'No results found',
+          style: TextStyle(fontSize: 14, color: Color(0xFFBDBDBD)),
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
