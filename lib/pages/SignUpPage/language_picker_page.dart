@@ -15,12 +15,17 @@ import 'welcome_page.dart';
 /// - 현재는 저장 로직을 의도적으로 비활성화해서, 앱을 재실행하면
 ///   매번 이 화면이 다시 노출된다.
 class LanguagePickerPage extends StatefulWidget {
-  const LanguagePickerPage({super.key, this.isExistingUser = false});
+  const LanguagePickerPage({
+    super.key,
+    this.isExistingUser = false,
+    this.isSeekerProfileUpdate = false,
+  });
 
   /// 구글 로그인 후 진입했을 때 기존 회원이면 true.
-  /// 이 값은 그대로 [TranslationLoadingPage] → [WelcomePage] 로 전달되어
-  /// 웰컴 직후 MainPage 로 갈지 SignInPage 로 갈지를 결정한다.
   final bool isExistingUser;
+
+  /// 구직자 로그아웃 후 프로필(관심사·경력·프사)만 갱신하는 흐름.
+  final bool isSeekerProfileUpdate;
 
   // ----- 저장 로직 (잠시 꺼둠) -----
   // 다음 실행에도 같은 언어를 자동 적용하고 싶어지면 아래 주석을 풀고
@@ -137,6 +142,7 @@ class _LanguagePickerPageState extends State<LanguagePickerPage>
           transitionDuration: const Duration(milliseconds: 380),
           pageBuilder: (_, _, _) => TranslationLoadingPage(
             isExistingUser: widget.isExistingUser,
+            isSeekerProfileUpdate: widget.isSeekerProfileUpdate,
           ),
           transitionsBuilder: (_, animation, _, child) =>
               FadeTransition(opacity: animation, child: child),
@@ -148,6 +154,7 @@ class _LanguagePickerPageState extends State<LanguagePickerPage>
           transitionDuration: const Duration(milliseconds: 380),
           pageBuilder: (_, _, _) => WelcomePage(
             isExistingUser: widget.isExistingUser,
+            isSeekerProfileUpdate: widget.isSeekerProfileUpdate,
           ),
           transitionsBuilder: (_, animation, _, child) =>
               FadeTransition(opacity: animation, child: child),

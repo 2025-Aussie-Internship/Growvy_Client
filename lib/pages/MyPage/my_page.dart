@@ -1,6 +1,7 @@
 import 'dart:convert'; // 🌟 API 연동용
 import 'package:http/http.dart' as http; // 🌟 API 연동용
 import '../../services/token_storage.dart'; // 🌟 API 연동용
+import '../../services/auth_repository.dart';
 import '../../utils/image_url.dart'; // 🌟 이미지 경로 변환용
 import '../../config/env.dart';
 
@@ -12,6 +13,9 @@ import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/signup_data_controller.dart';
 import '../../controllers/user_profile_controller.dart';
+import '../../models/user_profile.dart';
+import '../../services/user_profile_cache.dart';
+import '../../utils/interest_i18n.dart';
 import '../../widgets/auto_translate_text.dart';
 import '../../widgets/confirm_modal.dart';
 import '../SignUpPage/language_picker_page.dart';
@@ -35,6 +39,7 @@ class MyPageState extends State<MyPage> {
 
   bool _isEditingProfile = false;
   bool _isViewingReviews = false;
+  bool _fetchMyInfoInFlight = false;
 
   /// 회원가입 시 선택 가능한 9종 프로필 사진. 인덱스는 1-based id - 1.
   /// ProfileEdit 모달에서 동일 목록을 carousel 로 보여준다.
@@ -53,40 +58,124 @@ class MyPageState extends State<MyPage> {
   @override
   void initState() {
     super.initState();
-    _fetchMyInfo(); // 🌟 초기화 시 API 호출
+    _syncFromProfileController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncFromProfileController(rebuild: true);
+      _fetchMyInfo();
+    });
+  }
+
+  /// [UserProfileController] 에 갱신 직후 값이 있으면 로컬 상태에 반영한다.
+  void _syncFromProfileController({bool rebuild = false}) {
+    if (!Get.isRegistered<UserProfileController>()) return;
+    final profile = UserProfileController.to.profile.value;
+    if (profile == null) return;
+    _userName = profile.displayLabel;
+    if (profile.gender != null && profile.gender!.isNotEmpty) {
+      _gender = profile.gender!;
+    }
+    if (profile.profileImageId != null) {
+      _fetchedImageId = profile.profileImageId;
+    }
+    final useAsset = profile.profileImageAsset != null &&
+        profile.profileImageAsset!.isNotEmpty;
+    _profileImageUrl = useAsset ? null : profile.profileImageUrl;
+    if (rebuild && mounted) setState(() {});
+  }
+
+  /// 프로필 탭 재진입·갱신 완료 후 외부에서 호출.
+  void refreshMyInfo() {
+    if (!mounted) return;
+    _syncFromProfileController(rebuild: true);
+    _fetchMyInfo();
   }
 
   // 🌟 내 기본 정보 조회 API 연동
   Future<void> _fetchMyInfo() async {
+    if (_fetchMyInfoInFlight) return;
+    _fetchMyInfoInFlight = true;
     try {
       final token = await TokenStorage.readAccessToken();
 
-      final response = await http.get(
-        Uri.parse('${Env.apiBaseUrl}auth/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse('${Env.apiBaseUrl}auth/me'),
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
         if (mounted) {
-          setState(() {
-            _userName = data['name'] ?? 'User Name';
-            // 성별 텍스트 변환 (MALE -> He/Him, FEMALE -> She/Her 등 필요시 수정 가능)
-            _gender = data['gender'] ?? 'Not Specified';
-            _averageRating = (data['averageRating'] as num?)?.toDouble() ?? 0.0;
-            _fetchedImageId = data['profileImageId'];
-            _profileImageUrl = data['profileImageUrl'];
-          });
+          _applyMeData(data);
         }
       } else {
         debugPrint('❌ 내 정보 불러오기 실패: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('❌ 내 정보 네트워크 에러: $e');
+    } finally {
+      _fetchMyInfoInFlight = false;
     }
+  }
+
+  void _applyMeData(Map<String, dynamic> data) {
+    final fromApi = UserProfile.fromJson(data);
+    UserProfile merged = fromApi;
+    if (Get.isRegistered<UserProfileController>()) {
+      final local = UserProfileController.to.profile.value;
+      if (local != null) {
+        final useLocalImage = local.profileImageAsset != null &&
+            local.profileImageAsset!.isNotEmpty;
+        merged = UserProfile(
+          id: fromApi.id ?? local.id,
+          email: fromApi.email ?? local.email,
+          displayName: fromApi.displayName ?? local.displayName,
+          name: fromApi.name ?? local.name,
+          gender: fromApi.gender ?? local.gender,
+          pronouns: fromApi.pronouns,
+          phoneNumber: fromApi.phoneNumber ?? local.phoneNumber,
+          birthDate: fromApi.birthDate ?? local.birthDate,
+          isEmployer: fromApi.isEmployer,
+          profileImageId: local.profileImageId ?? fromApi.profileImageId,
+          profileImageAsset: local.profileImageAsset ?? fromApi.profileImageAsset,
+          profileImageUrl: useLocalImage
+              ? null
+              : (fromApi.profileImageUrl ?? local.profileImageUrl),
+          bannerImageId: fromApi.bannerImageId ?? local.bannerImageId,
+          companyName: fromApi.companyName ?? local.companyName,
+          businessAddress: fromApi.businessAddress ?? local.businessAddress,
+          homeAddress: fromApi.homeAddress ?? local.homeAddress,
+          career: local.career ?? fromApi.career,
+          introduction: local.introduction ?? fromApi.introduction,
+          interestIds: local.interestIds.isNotEmpty
+              ? local.interestIds
+              : fromApi.interestIds,
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (!Get.isRegistered<UserProfileController>()) return;
+          UserProfileController.to.profile.value = merged;
+          UserProfileCache.save(merged);
+        });
+      }
+    }
+
+    setState(() {
+      _userName = merged.displayLabel;
+      _gender = merged.gender ?? data['gender']?.toString() ?? 'Not Specified';
+      _averageRating = (data['averageRating'] as num?)?.toDouble() ?? 0.0;
+      _fetchedImageId = merged.profileImageId ?? data['profileImageId'] as int?;
+      final useAsset = merged.profileImageAsset != null &&
+          merged.profileImageAsset!.isNotEmpty;
+      _profileImageUrl = useAsset
+          ? null
+          : (merged.profileImageUrl ?? data['profileImageUrl'] as String?);
+    });
   }
 
   /// 외부(예: 하단 nav바의 Profile 재선택)에서 리뷰 화면을 닫고
@@ -105,8 +194,56 @@ class MyPageState extends State<MyPage> {
     return (id - 1).clamp(0, _profileImages.length - 1);
   }
 
+  /// 프로필 탭에 표시할 이미지. 방금 고른 asset/id 를 API URL 보다 우선한다.
+  ImageProvider get _displayProfileImage {
+    if (Get.isRegistered<UserProfileController>()) {
+      final profile = UserProfileController.to.profile.value;
+      if (profile != null) {
+        return _profileImageFromUserProfile(profile);
+      }
+    }
+    if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+      return NetworkImage(resolveImageUrl(_profileImageUrl!));
+    }
+    return _profileImages[_currentProfileIndex];
+  }
+
+  ImageProvider _profileImageFromUserProfile(UserProfile profile) {
+    if (profile.profileImageAsset != null &&
+        profile.profileImageAsset!.isNotEmpty) {
+      return AssetImage(profile.profileImageAsset!);
+    }
+    if (profile.profileImageId != null && profile.profileImageId! > 0) {
+      final index =
+          (profile.profileImageId! - 1).clamp(0, _profileImages.length - 1);
+      return _profileImages[index];
+    }
+    if (profile.profileImageUrl != null &&
+        profile.profileImageUrl!.isNotEmpty) {
+      return NetworkImage(resolveImageUrl(profile.profileImageUrl!));
+    }
+    return _profileImages[_currentProfileIndex];
+  }
+
   void _openProfileEdit() {
     setState(() => _isEditingProfile = true);
+  }
+
+  Map<String, dynamic> _profileEditInitials() {
+    UserProfile? profile;
+    if (Get.isRegistered<UserProfileController>()) {
+      profile = UserProfileController.to.profile.value;
+    }
+    final interestKeys = profile != null && profile.interestIds.isNotEmpty
+        ? InterestI18n.keysFromIds(profile.interestIds)
+        : <String>[];
+    return {
+      'career': profile?.career ?? '',
+      'introduction': profile?.introduction ?? '',
+      'homeAddress': profile?.homeAddress ?? '',
+      'phone': profile?.phoneNumber ?? '',
+      'interestKeys': interestKeys,
+    };
   }
 
   void _applyProfileEdit(Map<String, dynamic> result) {
@@ -149,19 +286,33 @@ class MyPageState extends State<MyPage> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      if (_isEditingProfile)
-                        ProfileEditContent(
-                          profileImages: _profileImages,
-                          initialProfileIndex: _currentProfileIndex,
-                          initialUserName: _userName,
-                          initialPronouns: _gender,
-                          onApply: _applyProfileEdit,
-                          onClose: () =>
-                              setState(() => _isEditingProfile = false),
-                        )
+                      if (_isEditingProfile) ...[
+                        Builder(
+                          builder: (context) {
+                            final initials = _profileEditInitials();
+                            return ProfileEditContent(
+                              profileImages: _profileImages,
+                              initialProfileIndex: _currentProfileIndex,
+                              initialUserName: _userName,
+                              initialPronouns: _gender,
+                              initialCareer: initials['career'] as String,
+                              initialIntroduction:
+                                  initials['introduction'] as String,
+                              initialHomeAddress:
+                                  initials['homeAddress'] as String,
+                              initialPhone: initials['phone'] as String,
+                              initialInterestKeys: Set<String>.from(
+                                initials['interestKeys'] as List<String>,
+                              ),
+                              onApply: _applyProfileEdit,
+                              onClose: () =>
+                                  setState(() => _isEditingProfile = false),
+                            );
+                          },
+                        ),
+                      ]
                       else ...[
                         const SizedBox(height: 16),
-                        // 🌟 API 데이터로 렌더링 (분기 제거됨)
                         GestureDetector(
                           onTap: _openProfileEdit,
                           child: Container(
@@ -170,14 +321,7 @@ class MyPageState extends State<MyPage> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               image: DecorationImage(
-                                image:
-                                    _profileImageUrl != null &&
-                                        _profileImageUrl!.isNotEmpty
-                                    ? NetworkImage(
-                                            resolveImageUrl(_profileImageUrl!),
-                                          )
-                                          as ImageProvider
-                                    : _profileImages[_currentProfileIndex],
+                                image: _displayProfileImage,
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -185,7 +329,7 @@ class MyPageState extends State<MyPage> {
                         ),
                         const SizedBox(height: 12),
                         AutoTranslateText(
-                          _userName, // 🌟 API 이름 적용
+                          _userName,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -194,7 +338,7 @@ class MyPageState extends State<MyPage> {
                         ),
                         const SizedBox(height: 2),
                         AutoTranslateText(
-                          _gender, // 🌟 API 성별 적용 (분기 제거)
+                          _gender,
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey[500],
@@ -366,8 +510,17 @@ class MyPageState extends State<MyPage> {
     );
     if (confirmed != true || !mounted) return;
 
+    final wasSeeker = !AuthController.to.isEmployer.value;
+
+    UserProfile? baseline;
+    if (Get.isRegistered<UserProfileController>()) {
+      baseline = UserProfileController.to.profile.value;
+    }
+
     await Get.find<AuthController>().clearUserType();
-    await UserProfileController.to.clear();
+    if (Get.isRegistered<UserProfileController>()) {
+      await UserProfileController.to.clear();
+    }
 
     final signupData = Get.find<SignupDataController>();
     signupData.reset();
@@ -381,12 +534,27 @@ class MyPageState extends State<MyPage> {
           uid: user.uid,
           idToken: idToken,
         );
+        if (idToken != null && idToken.isNotEmpty) {
+          await TokenStorage.saveFirebaseIdToken(idToken);
+          await AuthRepository.exchangeFirebaseTokenForAccess(idToken);
+        }
       } catch (_) {}
     }
+
+    if (wasSeeker) {
+      signupData.enableSeekerProfileUpdate();
+      if (baseline != null) {
+        signupData.applyProfileUpdateBaseline(baseline);
+      }
+    }
+
     if (!mounted) return;
 
     Get.offAll(
-      () => const LanguagePickerPage(isExistingUser: false),
+      () => LanguagePickerPage(
+        isExistingUser: false,
+        isSeekerProfileUpdate: wasSeeker,
+      ),
       transition: Transition.fadeIn,
       duration: const Duration(milliseconds: 320),
     );

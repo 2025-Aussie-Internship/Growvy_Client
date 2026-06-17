@@ -46,14 +46,14 @@ class NotePage extends GetView<NotePageController> {
         child: Obx(() {
           final isEmployer = controller.isEmployerObs.value;
           return isEmployer
-              ? _buildBody(isEmployer: true)
-              : _buildBody(isEmployer: false);
+              ? _buildBody(context: context, isEmployer: true)
+              : _buildBody(context: context, isEmployer: false);
         }),
       ),
     );
   }
 
-  Widget _buildBody({required bool isEmployer}) {
+  Widget _buildBody({required BuildContext context, required bool isEmployer}) {
     return Column(
       children: [
         Obx(
@@ -90,29 +90,42 @@ class NotePage extends GetView<NotePageController> {
                   ),
                 ),
                 Expanded(
-                  child: jobs.isEmpty
-                      ? Center(
-                          child: Text(
-                            isEmployer
-                                ? 'note.no_postings'.tr()
-                                : 'note.no_history'.tr(),
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[500],
-                            ),
+                  child: RefreshIndicator(
+                    color: AppColors.mainColor,
+                    onRefresh: controller.fetchAllData,
+                    child: jobs.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height: MediaQuery.sizeOf(context).height * 0.35,
+                                child: Center(
+                                  child: Text(
+                                    isEmployer
+                                        ? 'note.no_postings'.tr()
+                                        : 'note.no_history'.tr(),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[500],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: jobs.length,
+                            itemBuilder: (context, index) {
+                              return _buildHistoryCard(
+                                context,
+                                jobs[index],
+                                isEmployer: isEmployer,
+                              );
+                            },
                           ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: jobs.length,
-                          itemBuilder: (context, index) {
-                            return _buildHistoryCard(
-                              context,
-                              jobs[index],
-                              isEmployer: isEmployer,
-                            );
-                          },
-                        ),
+                  ),
                 ),
               ],
             );
@@ -477,7 +490,6 @@ class NotePage extends GetView<NotePageController> {
         builder: (_) => ChatDetailPage(
           roomId: roomId,
           peerName: accepted['name'],
-          peerProfileImagePath: accepted['profileImagePath'],
         ),
       ),
     );

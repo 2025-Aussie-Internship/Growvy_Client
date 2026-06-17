@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Trans;
 import '../../styles/colors.dart';
 import '../MainPage/main_page.dart';
+import 'seeker_interest_page.dart';
 import 'signin_page.dart';
 
 /// 언어 선택 직후 잠깐 보였다가 자동으로 사라지는 인사말 페이지.
@@ -15,12 +16,17 @@ import 'signin_page.dart';
 /// - true  (= 이미 가입된 사용자, 로그아웃 후 재진입 등): [MainPage]
 /// - false (= 신규 사용자 또는 회원가입 흐름):                [SignInPage]
 class WelcomePage extends StatefulWidget {
-  const WelcomePage({super.key, this.isExistingUser = false});
+  const WelcomePage({
+    super.key,
+    this.isExistingUser = false,
+    this.isSeekerProfileUpdate = false,
+  });
 
   /// 이 흐름이 기존 회원의 재진입인지 여부.
-  /// 첫 진입(구글 로그인 후 신규 판정) 은 false,
-  /// 기존 회원 재로그인 / MyPage 의 로그아웃 후 재진입은 true.
   final bool isExistingUser;
+
+  /// 구직자 로그아웃 후 관심사~프로필만 다시 받아 갱신하는 흐름.
+  final bool isSeekerProfileUpdate;
 
   @override
   State<WelcomePage> createState() => _WelcomePageState();
@@ -64,9 +70,14 @@ class _WelcomePageState extends State<WelcomePage>
 
   void _goNext() {
     if (!mounted) return;
-    // 기존 회원 → MainPage 로 곧장. (스택을 모두 비워 뒤로가기로 회원가입
-    //   화면으로 돌아가지 않도록 Get.offAll 사용.)
-    // 신규 사용자 → SignInPage (구인자/구직자 선택) 부터 회원가입 흐름.
+    if (widget.isSeekerProfileUpdate) {
+      Get.offAll(
+        () => const SeekerInterestPage(),
+        transition: Transition.fadeIn,
+        duration: const Duration(milliseconds: 320),
+      );
+      return;
+    }
     if (widget.isExistingUser) {
       Get.offAll(
         () => const MainPage(),

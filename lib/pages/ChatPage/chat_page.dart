@@ -1,12 +1,11 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../../services/token_storage.dart';
+import 'dart:async';
 import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:growvy_client/pages/ChatPage/chat_detail_page.dart';
+import '../../services/chat_repository.dart';
+import '../../services/chat_realtime_service.dart';
 import '../../widgets/auto_translate_text.dart';
-import '../../config/env.dart';
 
 class ChatListPage extends StatefulWidget {
   const ChatListPage({super.key});
@@ -16,15 +15,26 @@ class ChatListPage extends StatefulWidget {
 }
 
 class ChatListPageState extends State<ChatListPage> {
-  List<dynamic> _chatRooms = [];
+  List<Map<String, dynamic>> _chatRooms = [];
   bool _isLoading = true;
-
-  static String get _baseUrl => Env.apiBaseUrl;
+  final Map<int, int> _localUnreadBoost = {};
+  int? _activeRoomId;
+  StreamSubscription<ChatIncomingEvent>? _realtimeSub;
 
   @override
   void initState() {
     super.initState();
+    _realtimeSub = ChatRealtimeService.instance.messages.listen(
+      _onRealtimeMessage,
+    );
+    ChatRealtimeService.instance.connect();
     _fetchChatRooms();
+  }
+
+  @override
+  void dispose() {
+    _realtimeSub?.cancel();
+    super.dispose();
   }
 
   void refreshChatList() {
@@ -32,41 +42,116 @@ class ChatListPageState extends State<ChatListPage> {
   }
 
   Future<void> _fetchChatRooms() async {
-    try {
-      final token = await TokenStorage.readAccessToken();
-      final resp = await http
-          .get(
-            Uri.parse('${_baseUrl}chat/rooms'),
-            headers: {
-              'Content-Type': 'application/json',
-              if (token != null && token.isNotEmpty)
-                'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(const Duration(seconds: 10));
+    final rooms = await ChatRepository.fetchRooms();
+    if (!mounted) return;
+    setState(() {
+      _chatRooms = rooms;
+      _isLoading = false;
+      _localUnreadBoost.clear();
+    });
+    _syncRealtimeSubscriptions();
+  }
 
-      if (resp.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(resp.body);
-        if (mounted) {
+  void _syncRealtimeSubscriptions() {
+    final roomIds = _chatRooms
+        .map(ChatRepository.roomIdOf)
+        .whereType<int>()
+        .toList();
+    ChatRealtimeService.instance.updateRoomSubscriptions(roomIds);
+  }
+
+  void _onRealtimeMessage(ChatIncomingEvent event) {
+    if (!mounted) return;
+    _applyIncomingMessage(event.roomId, event.raw);
+  }
+
+  void _applyIncomingMessage(int roomId, Map<String, dynamic> msg) {
+    final text = ChatRepository.messageText(msg);
+    if (text.isEmpty) return;
+
+    final isMine = ChatRepository.isMineMessage(msg);
+    final timeStr = ChatRepository.messageTime(msg).toIso8601String();
+
+    final idx = _chatRooms.indexWhere(
+      (r) => ChatRepository.roomIdOf(r) == roomId,
+    );
+    if (idx < 0) {
+      _fetchChatRooms();
+      return;
+    }
+
+    final updated = Map<String, dynamic>.from(_chatRooms[idx]);
+    updated['lastMessage'] = text;
+    updated['lastMessageIsMine'] = isMine;
+    updated['lastMessageTime'] = timeStr;
+
+    final shouldCountUnread = !isMine && _activeRoomId != roomId;
+    if (shouldCountUnread) {
+      _localUnreadBoost[roomId] = (_localUnreadBoost[roomId] ?? 0) + 1;
+    }
+
+    setState(() {
+      _chatRooms.removeAt(idx);
+      _chatRooms.insert(0, updated);
+    });
+  }
+
+  Future<void> _openChatRoom(Map<String, dynamic> room) async {
+    final roomId = ChatRepository.roomIdOf(room);
+    final partnerName = room['partnerName']?.toString() ?? 'Unknown';
+
+    if (roomId == null) return;
+
+    try {
+      setState(() {
+        _activeRoomId = roomId;
+        _localUnreadBoost.remove(roomId);
+      });
+
+      final result = await Navigator.push<Map<String, dynamic>>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatDetailPage(
+            roomId: roomId,
+            peerName: partnerName,
+          ),
+        ),
+      );
+
+      if (!mounted) return;
+      setState(() => _activeRoomId = null);
+
+      if (result != null && result['lastMessage'] != null) {
+        final idx = _chatRooms.indexWhere(
+          (r) => ChatRepository.roomIdOf(r) == roomId,
+        );
+        if (idx >= 0) {
           setState(() {
-            _chatRooms = data;
-            _isLoading = false;
+            _chatRooms[idx] = {
+              ..._chatRooms[idx],
+              'lastMessage': result['lastMessage'],
+              'lastMessageIsMine': result['lastMessageIsMine'] == true,
+              'lastMessageTime': result['lastMessageTime'],
+              'unreadCount': 0,
+            };
           });
         }
-      } else {
-        if (mounted) setState(() => _isLoading = false);
       }
-    } catch (e) {
-      debugPrint('❌ 채팅방 목록 fetch 에러: $e');
-      if (mounted) setState(() => _isLoading = false);
+
+      if (result?['refresh'] == true) {
+        await _fetchChatRooms();
+      }
+    } catch (e, st) {
+      debugPrint('[ChatList] open room error: $e\n$st');
+      if (mounted) setState(() => _activeRoomId = null);
     }
   }
 
-  /// 시간 포맷: Month, Date, Year(Time) 느낌으로 포맷팅
   String _formatDateTime(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return '';
     try {
-      final dt = DateTime.parse(dateStr);
+      final dt = ChatRepository.parseToLocalDateTime(dateStr) ??
+          DateTime.parse(dateStr).toLocal();
       final month = dt.month.toString().padLeft(2, '0');
       final day = dt.day.toString().padLeft(2, '0');
       final year = dt.year;
@@ -78,6 +163,14 @@ class ChatListPageState extends State<ChatListPage> {
     } catch (e) {
       return '';
     }
+  }
+
+  int _displayUnreadCount(Map<String, dynamic> room) {
+    final roomId = ChatRepository.roomIdOf(room);
+    if (roomId != null && _activeRoomId == roomId) return 0;
+    final base = ChatRepository.unreadCount(room);
+    final boost = roomId != null ? (_localUnreadBoost[roomId] ?? 0) : 0;
+    return base + boost;
   }
 
   @override
@@ -118,7 +211,6 @@ class ChatListPageState extends State<ChatListPage> {
             ),
           ),
         ),
-
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -141,27 +233,16 @@ class ChatListPageState extends State<ChatListPage> {
     );
   }
 
-  Widget _buildChatTile(BuildContext context, dynamic room) {
-    final roomId = room['roomId'] as int?;
+  Widget _buildChatTile(BuildContext context, Map<String, dynamic> room) {
     final partnerName = room['partnerName']?.toString() ?? 'Unknown';
-    final lastMessage = room['lastMessage']?.toString() ?? '';
+    final preview = ChatRepository.lastMessagePreview(room);
     final lastMessageTime = _formatDateTime(
-      room['lastMessageTime']?.toString(),
+      ChatRepository.lastMessageTimeRaw(room),
     );
+    final unread = _displayUnreadCount(room);
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                ChatDetailPage(roomId: roomId, peerName: partnerName),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) => child,
-            transitionDuration: Duration.zero,
-          ),
-        );
-      },
+      onTap: () => _openChatRoom(room),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -192,8 +273,8 @@ class ChatListPageState extends State<ChatListPage> {
                           fontSize: 14,
                         ),
                       ),
-                      AutoTranslateText(
-                        lastMessage.isEmpty ? '새로운 채팅방이 생성되었습니다.' : lastMessage,
+                      Text(
+                        preview.isEmpty ? '새로운 채팅방이 생성되었습니다.' : preview,
                         style: const TextStyle(
                           color: Color(0xFF747474),
                           fontWeight: FontWeight.w400,
@@ -209,7 +290,7 @@ class ChatListPageState extends State<ChatListPage> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     const SizedBox(height: 35),
-                    AutoTranslateText(
+                    Text(
                       lastMessageTime,
                       style: const TextStyle(color: Colors.grey, fontSize: 10),
                     ),
@@ -218,36 +299,37 @@ class ChatListPageState extends State<ChatListPage> {
               ],
             ),
           ),
-          Positioned(
-            top: -5,
-            right: -5,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF7252),
-                shape: BoxShape.circle,
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-                border: Border.all(color: const Color(0xFFD26B53), width: 1),
-              ),
-              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-              child: const Center(
-                child: Text(
-                  '1',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+          if (unread > 0)
+            Positioned(
+              top: -5,
+              right: -5,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF7252),
+                  shape: BoxShape.circle,
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                  border: Border.all(color: const Color(0xFFD26B53), width: 1),
+                ),
+                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                child: Center(
+                  child: Text(
+                    unread > 99 ? '99+' : '$unread',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

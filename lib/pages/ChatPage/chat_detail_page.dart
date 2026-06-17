@@ -1,13 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-// 🌟 추가된 STOMP 패키지
 import 'package:stomp_dart_client/stomp_dart_client.dart';
-import '../../services/token_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../services/chat_repository.dart';
+import '../../services/chat_message_time_cache.dart';
 import '../../utils/auto_localize.dart';
 import '../../widgets/auto_translate_text.dart';
-import '../../config/env.dart';
 
 /// 채팅 메시지 데이터
 class ChatMessage {
@@ -29,12 +28,10 @@ class ChatDetailPage extends StatefulWidget {
     super.key,
     this.roomId,
     this.peerName,
-    this.peerProfileImagePath,
   });
 
   final int? roomId;
   final String? peerName;
-  final String? peerProfileImagePath;
 
   @override
   State<ChatDetailPage> createState() => _ChatDetailPageState();
@@ -44,13 +41,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   final TextEditingController _textController = TextEditingController();
   final List<ChatMessage> _messages = [];
   bool _isLoading = true;
+  bool _listNeedsRefresh = false;
 
-  // 🌟 실시간 수신을 위한 STOMP 클라이언트와 중복 방지 리스트
   StompClient? _stompClient;
   final List<String> _recentlySent = [];
 
-  static String get _baseUrl => Env.apiBaseUrl;
-  // 🌟 백엔드 웹소켓 주소 (SockJS를 사용할 경우 뒤에 /websocket을 붙이는 것이 플러터 표준입니다)
   static const String _wsUrl =
       'wss://growvy.mirim-it-show.site/ws-stomp/websocket';
 
@@ -59,7 +54,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     super.initState();
     if (widget.roomId != null) {
       _fetchMessages().then((_) {
-        _initStomp(); // 과거 메시지를 다 불러온 뒤 웹소켓 연결!
+        if (mounted) _initStomp();
       });
     } else {
       setState(() => _isLoading = false);
@@ -88,22 +83,23 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       callback: (StompFrame frame) {
         if (frame.body != null) {
           final Map<String, dynamic> msg = jsonDecode(frame.body!);
-          final receivedText = msg['content']?.toString() ?? '';
+          final receivedText = ChatRepository.messageText(msg);
 
-          // 내가 방금 보낸 메시지가 웹소켓으로 돌아온 경우 무시 (화면에 두 번 뜨는 것 방지)
+          if (receivedText.isEmpty) return;
+
           if (_recentlySent.contains(receivedText)) {
             _recentlySent.remove(receivedText);
             return;
           }
 
-          // 상대방이 보낸 새로운 메시지라면 화면에 즉시 추가!
           if (mounted) {
             setState(() {
+              _listNeedsRefresh = true;
               _messages.add(
                 ChatMessage(
                   text: receivedText,
-                  isMe: false, // 상대방 메시지
-                  time: DateTime.now(),
+                  isMe: ChatRepository.isMineMessage(msg),
+                  time: ChatRepository.messageTime(msg),
                 ),
               );
             });
@@ -117,59 +113,119 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   // 기존 로직들 유지
   // ==========================================
   Future<void> _fetchMessages() async {
-    try {
-      final token = await TokenStorage.readAccessToken();
-      final resp = await http
-          .get(
-            Uri.parse('${_baseUrl}chat/rooms/${widget.roomId}/messages'),
-            headers: {
-              'Content-Type': 'application/json',
-              if (token != null && token.isNotEmpty)
-                'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(const Duration(seconds: 10));
+    if (widget.roomId == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
-      if (resp.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(resp.body);
-        if (mounted) {
-          setState(() {
-            _messages.clear();
-            _messages.addAll(
-              data.map(
-                (m) => ChatMessage(
-                  text: (m['content'] as String?) ?? '',
-                  // 🌟 앞서 해결한 isMe 파싱 유지
-                  isMe: (m['isMine'] ?? m['mine'] ?? false) as bool,
-                  time:
-                      DateTime.tryParse(m['createdAt'] ?? '') ?? DateTime.now(),
-                  isUnread: false,
+    final roomId = widget.roomId!;
+
+    try {
+      final data = await ChatRepository.fetchMessages(roomId);
+      final cachedTimes = await ChatMessageTimeCache.loadRoom(roomId);
+      final now = DateTime.now();
+
+      _applyTimeCacheCorrections(data, roomId, cachedTimes, now);
+
+      data.sort(
+        (a, b) => ChatRepository.messageTime(
+          a,
+          cachedTimes: cachedTimes,
+        ).compareTo(
+          ChatRepository.messageTime(b, cachedTimes: cachedTimes),
+        ),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(
+            data.map(
+              (m) => ChatMessage(
+                text: ChatRepository.messageText(m),
+                isMe: ChatRepository.isMineMessage(m),
+                time: ChatRepository.messageTime(
+                  m,
+                  cachedTimes: cachedTimes,
                 ),
               ),
-            );
-            _isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      debugPrint('❌ 메시지 fetch 에러: $e');
+            ),
+          );
+        _isLoading = false;
+        _listNeedsRefresh = true;
+      });
+
+      unawaited(ChatRepository.markRoomAsRead(roomId));
+    } catch (e, st) {
+      debugPrint('[ChatDetail] fetch error: $e\n$st');
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  void _applyTimeCacheCorrections(
+    List<Map<String, dynamic>> data,
+    int roomId,
+    Map<String, DateTime> cachedTimes,
+    DateTime now,
+  ) {
+    final uniformCreatedAt = _uniformCreatedAt(data);
+    if (uniformCreatedAt != null &&
+        !_isSameDay(uniformCreatedAt, now) &&
+        uniformCreatedAt.isBefore(_localDateOnly(now))) {
+      for (final m in data) {
+        if (!ChatRepository.isMineMessage(m)) continue;
+        final id = ChatRepository.messageIdOf(m);
+        if (id == null || cachedTimes.containsKey('$id')) continue;
+        cachedTimes['$id'] = now;
+        unawaited(ChatMessageTimeCache.save(roomId, id, now));
+      }
+    }
+
+    for (final m in data) {
+      final id = ChatRepository.messageIdOf(m);
+      if (id == null || !ChatRepository.isMineMessage(m)) continue;
+      final parsed = ChatRepository.parseToLocalDateTime(
+        m['createdAt'] ?? m['sentAt'] ?? m['sendAt'],
+      );
+      if (parsed != null && _isSameDay(parsed, now)) {
+        cachedTimes['$id'] = parsed;
+        unawaited(ChatMessageTimeCache.save(roomId, id, parsed));
+      }
+    }
+  }
+
+  Map<String, dynamic> _popResult() {
+    final last = _messages.isNotEmpty ? _messages.last : null;
+    return {
+      'refresh': _listNeedsRefresh,
+      'roomId': widget.roomId,
+      if (last != null) ...{
+        'lastMessage': last.text,
+        'lastMessageIsMine': last.isMe,
+        'lastMessageTime': last.time.toIso8601String(),
+      },
+    };
+  }
+
+  void _popWithRefresh() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    Navigator.pop(context, _popResult());
+  }
+
   @override
   void dispose() {
-    _stompClient?.deactivate(); // 🌟 페이지 나갈 때 웹소켓 연결 해제
+    _stompClient?.deactivate();
     _textController.dispose();
     super.dispose();
   }
 
   String _formatTime(DateTime dt) {
-    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
-    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
-    final min = dt.minute.toString().padLeft(2, '0');
+    final local = dt.toLocal();
+    final hour =
+        local.hour > 12 ? local.hour - 12 : (local.hour == 0 ? 12 : local.hour);
+    final ampm = local.hour >= 12 ? 'PM' : 'AM';
+    final min = local.minute.toString().padLeft(2, '0');
     return '$hour:$min $ampm';
   }
 
@@ -180,114 +236,172 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     final text = _textController.text.trim();
     if (text.isEmpty || widget.roomId == null) return;
 
-    // 1. 화면에 내 메시지 즉시 띄우기 (Optimistic UI - 기다림 없이 바로 보여줌!)
+    final sentAt = DateTime.now();
     _recentlySent.add(text);
     setState(() {
+      _listNeedsRefresh = true;
       _messages.add(
         ChatMessage(
           text: text,
           isMe: true,
-          time: DateTime.now(),
-          isUnread: true,
+          time: sentAt,
         ),
       );
       _textController.clear();
     });
 
-    // 2. 서버 DB에 저장 요청 (이후 서버가 구독자들에게 웹소켓을 쏴줌)
-    try {
-      final token = await TokenStorage.readAccessToken();
-      await http.post(
-        Uri.parse('$_baseUrl/chat/rooms/${widget.roomId}/messages'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({'chatRoomId': widget.roomId, 'message': text}),
+    final response =
+        await ChatRepository.sendMessageWithResponse(widget.roomId!, text);
+    if (!mounted) return;
+
+    if (response == null) {
+      setState(() {
+        _messages.removeLast();
+        _recentlySent.remove(text);
+        _textController.text = text;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('메시지 전송에 실패했습니다.')),
       );
-    } catch (e) {
-      debugPrint('❌ 메시지 전송 API 에러: $e');
+      return;
+    }
+
+    final messageId = ChatRepository.messageIdOf(response);
+    if (messageId != null) {
+      await ChatMessageTimeCache.save(widget.roomId!, messageId, sentAt);
+    }
+
+    final serverTime = ChatRepository.messageTime(
+      response,
+      cachedTimes: {if (messageId != null) '$messageId': sentAt},
+    );
+    final idx = _messages.lastIndexWhere((m) => m.text == text && m.isMe);
+    if (idx >= 0) {
+      setState(() {
+        _messages[idx] = ChatMessage(
+          text: text,
+          isMe: true,
+          time: serverTime,
+        );
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     // UI 로직 100% 동일 유지 (수정 없음)
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(
-                left: 8,
-                right: 8,
-                top: 4,
-                bottom: 0,
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        FocusManager.instance.primaryFocus?.unfocus();
+        Navigator.pop(context, _popResult());
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: 8,
+                  right: 8,
+                  top: 4,
+                  bottom: 0,
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios,
+                          color: Colors.black,
+                          size: 20,
+                        ),
+                        onPressed: _popWithRefresh,
+                      ),
+                    ),
+                    AutoTranslateText(
+                      widget.peerName ?? 'Name',
+                      style: const TextStyle(
                         color: Colors.black,
-                        size: 20,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                       ),
-                      onPressed: () => Navigator.pop(context),
                     ),
-                  ),
-                  AutoTranslateText(
-                    widget.peerName ?? 'Name',
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView(
-                      padding: const EdgeInsets.only(
-                        left: 16,
-                        right: 16,
-                        top: 24,
-                        bottom: 8,
+              const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(
+                          left: 16,
+                          right: 16,
+                          top: 24,
+                          bottom: 8,
+                        ),
+                        itemCount: _messageListItems.length,
+                        itemBuilder: (context, index) {
+                          return _messageListItems[index];
+                        },
                       ),
-                      children: _buildMessageListWithDateDividers(),
-                    ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: _buildInputArea(),
-            ),
-          ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: _buildInputArea(),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  List<Widget> get _messageListItems => _buildMessageListWithDateDividers();
+
   String _formatDate(DateTime dt) {
-    final y = dt.year;
-    final m = dt.month.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
+    final local = dt.toLocal();
+    final y = local.year;
+    final m = local.month.toString().padLeft(2, '0');
+    final d = local.day.toString().padLeft(2, '0');
     return '$y.$m.$d';
+  }
+
+  DateTime _localDateOnly(DateTime dt) {
+    final local = dt.toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    final la = a.toLocal();
+    final lb = b.toLocal();
+    return la.year == lb.year && la.month == lb.month && la.day == lb.day;
+  }
+
+  DateTime? _uniformCreatedAt(List<Map<String, dynamic>> data) {
+    if (data.isEmpty) return null;
+    final first = (data.first['createdAt'] ?? data.first['sentAt'] ?? '')
+        .toString();
+    if (first.isEmpty) return null;
+    final allSame = data.every(
+      (m) => (m['createdAt'] ?? m['sentAt'] ?? '').toString() == first,
+    );
+    if (!allSame) return null;
+    return ChatRepository.parseToLocalDateTime(first);
   }
 
   List<Widget> _buildMessageListWithDateDividers() {
     final list = <Widget>[];
     DateTime? lastDate;
     for (final msg in _messages) {
-      final msgDate = DateTime(msg.time.year, msg.time.month, msg.time.day);
+      final msgDate = _localDateOnly(msg.time);
       if (lastDate == null || msgDate != lastDate) {
-        list.add(_buildDateDivider(msg.time));
+        list.add(_buildDateDivider(msgDate));
       }
       lastDate = msgDate;
       list.add(_buildMessage(msg));
@@ -341,14 +455,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               if (msg.isMe) ...[
-                if (msg.isUnread)
-                  const Padding(
-                    padding: EdgeInsets.only(right: 4),
-                    child: Text(
-                      '1',
-                      style: TextStyle(color: Color(0xFF931515), fontSize: 10),
-                    ),
-                  ),
                 Text(
                   timeStr,
                   style: const TextStyle(color: Color(0xFF747474), fontSize: 9),

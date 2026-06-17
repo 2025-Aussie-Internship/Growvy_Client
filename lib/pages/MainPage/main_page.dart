@@ -84,6 +84,12 @@ class _MainPageState extends State<MainPage> {
       const NoteTabPage(),
       MyPage(key: _myPageKey),
     ];
+
+    if (widget.initialTab == 4) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _myPageKey.currentState?.refreshMyInfo();
+      });
+    }
   }
 
   void _onRegionPanelChanged(bool open) {
@@ -109,6 +115,9 @@ class _MainPageState extends State<MainPage> {
     }
     if (index == 4 && _selectedIndex == 4) {
       _myPageKey.currentState?.closeReviews();
+    }
+    if (index == 4 && _selectedIndex != index) {
+      _myPageKey.currentState?.refreshMyInfo();
     }
     // 홈 탭(0)으로 돌아올 때 jobseeker면 새로고침
     if (index == 0 && _selectedIndex != 0) {
@@ -393,8 +402,8 @@ class _HomePageContentState extends State<HomePageContent> {
 
   // ── Fetch ─────────────────────────────────────────────────
 
-  Future<void> _fetchJobs() async {
-    if (mounted) setState(() => _isLoading = true);
+  Future<void> _fetchJobs({bool showLoading = true}) async {
+    if (showLoading && mounted) setState(() => _isLoading = true);
     try {
       final results = await Future.wait([_fetchRecommended(), _fetchPopular()]);
       debugPrint('✅ recommended: ${results[0].length}개');
@@ -409,7 +418,7 @@ class _HomePageContentState extends State<HomePageContent> {
       debugPrint('❌ _fetchJobs 에러: $e');
       debugPrint(st.toString());
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (showLoading && mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -501,8 +510,12 @@ class _HomePageContentState extends State<HomePageContent> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Container(
+    return RefreshIndicator(
+      color: AppColors.mainColor,
+      onRefresh: () => _fetchJobs(showLoading: false),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
         color: AppColors.subColor,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -935,6 +948,7 @@ class _HomePageContentState extends State<HomePageContent> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

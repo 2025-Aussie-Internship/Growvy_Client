@@ -1,5 +1,8 @@
 import 'package:flutter/widgets.dart';
 
+import '../utils/image_url.dart';
+import '../utils/profile_image_helper.dart';
+
 /// 로그인된 사용자의 프로필 정보를 표현하는 immutable 모델.
 ///
 /// 회원가입 직후엔 [SignupDataController] 의 값으로 채워지고,
@@ -63,12 +66,15 @@ class UserProfile {
   /// URL > asset > 기본 placeholder 순으로 선택한다.
   ImageProvider get profileImageProvider {
     if (profileImageUrl != null && profileImageUrl!.isNotEmpty) {
-      return NetworkImage(profileImageUrl!);
+      return NetworkImage(resolveImageUrl(profileImageUrl!));
     }
     if (profileImageAsset != null && profileImageAsset!.isNotEmpty) {
       return AssetImage(profileImageAsset!);
     }
-    return const AssetImage('assets/image/test_profile1.png');
+    if (profileImageId != null) {
+      return AssetImage(assetFromProfileImageId(profileImageId));
+    }
+    return const AssetImage(kDefaultProfileAsset);
   }
 
   /// 표시용 이름. 백엔드 name 우선, 없으면 Google displayName, 그것도 없으면
@@ -139,6 +145,10 @@ class UserProfile {
       isEmployer: (json['userType'] as String?) == 'EMPLOYER' ||
           (json['isEmployer'] as bool? ?? false),
       profileImageId: json['profileImageId'] as int?,
+      profileImageAsset: (json['profileImageAsset'] as String?) ??
+          (json['profileImageId'] != null
+              ? assetFromProfileImageId(json['profileImageId'] as int?)
+              : null),
       profileImageUrl: json['profileImageUrl'] as String?,
       bannerImageId: json['bannerImageId'] as int?,
       companyName: json['companyName'] as String?,

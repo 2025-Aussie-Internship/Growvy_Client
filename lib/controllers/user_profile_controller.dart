@@ -51,6 +51,83 @@ class UserProfileController extends GetxController {
     UserProfileCache.save(profile.value!);
   }
 
+  /// 구직자 프로필 갱신 흐름 완료 시: 기존 프로필 + 새 관심사·경력·소개·프사 병합.
+  void hydrateFromProfileUpdate(SignupDataController s) {
+    final base = s.profileUpdateBaseline ?? profile.value ?? const UserProfile();
+    final imageId = s.profileImageId ?? base.profileImageId;
+    final idx = (imageId ?? 1) - 1;
+    final asset =
+        s.profileImageAsset ??
+        base.profileImageAsset ??
+        'assets/image/test_profile${idx.clamp(0, 8) + 1}.png';
+    final ids = s.interestIds.isNotEmpty
+        ? (s.interestIds.toSet().toList()..sort())
+        : base.interestIds;
+    final pickedNewImage = s.profileImageId != null;
+    profile.value = UserProfile(
+      id: base.id,
+      email: s.googleEmail ?? base.email,
+      displayName: s.googleDisplayName ?? base.displayName,
+      name: base.name,
+      gender: base.gender,
+      pronouns: base.pronouns,
+      phoneNumber: base.phoneNumber,
+      birthDate: base.birthDate,
+      isEmployer: false,
+      profileImageId: imageId,
+      profileImageAsset: asset,
+      profileImageUrl: pickedNewImage ? null : base.profileImageUrl,
+      bannerImageId: base.bannerImageId,
+      companyName: base.companyName,
+      businessAddress: base.businessAddress,
+      homeAddress: base.homeAddress,
+      career: s.career ?? base.career,
+      introduction: s.introduction ?? base.introduction,
+      interestIds: List<int>.unmodifiable(ids),
+    );
+    UserProfileCache.save(profile.value!);
+  }
+
+  /// 서버 응답과 로컬(방금 갱신한) 값을 병합. 갱신 직후 필드는 로컬 우선.
+  Future<void> refreshFromServerMergingLocal(
+    Future<Map<String, dynamic>> Function() fetcher,
+  ) async {
+    final local = profile.value;
+    final json = await fetcher();
+    if (json.isEmpty) return;
+    final fresh = UserProfile.fromJson(json);
+    if (local == null) {
+      profile.value = fresh;
+    } else {
+      final useLocalImage = local.profileImageAsset != null &&
+          local.profileImageAsset!.isNotEmpty;
+      profile.value = UserProfile(
+        id: fresh.id ?? local.id,
+        email: fresh.email ?? local.email,
+        displayName: fresh.displayName ?? local.displayName,
+        name: fresh.name ?? local.name,
+        gender: fresh.gender ?? local.gender,
+        pronouns: fresh.pronouns,
+        phoneNumber: fresh.phoneNumber ?? local.phoneNumber,
+        birthDate: fresh.birthDate ?? local.birthDate,
+        isEmployer: fresh.isEmployer,
+        profileImageId: local.profileImageId ?? fresh.profileImageId,
+        profileImageAsset: local.profileImageAsset ?? fresh.profileImageAsset,
+        profileImageUrl: useLocalImage ? null : (fresh.profileImageUrl ?? local.profileImageUrl),
+        bannerImageId: fresh.bannerImageId ?? local.bannerImageId,
+        companyName: fresh.companyName ?? local.companyName,
+        businessAddress: fresh.businessAddress ?? local.businessAddress,
+        homeAddress: fresh.homeAddress ?? local.homeAddress,
+        career: local.career ?? fresh.career,
+        introduction: local.introduction ?? fresh.introduction,
+        interestIds: local.interestIds.isNotEmpty
+            ? local.interestIds
+            : fresh.interestIds,
+      );
+    }
+    UserProfileCache.save(profile.value!);
+  }
+
   /// 디스크 캐시에서 프로필 복원. AuthController 의 isEmployer 와도 sync.
   Future<void> loadFromCache() async {
     final cached = await UserProfileCache.load();

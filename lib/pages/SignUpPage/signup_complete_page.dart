@@ -5,9 +5,12 @@ import '../../i18n/app_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Trans;
 import '../../bindings/main_binding.dart';
+import '../../controllers/auth_controller.dart';
 import '../../controllers/signup_data_controller.dart';
 import '../../controllers/user_profile_controller.dart';
 import '../../models/user_profile.dart';
+import '../../services/user_profile_cache.dart';
+import '../../services/user_repository.dart';
 import '../../styles/colors.dart';
 import '../../widgets/signin_app_bar.dart';
 import '../../widgets/next_button.dart';
@@ -52,21 +55,65 @@ class _SignupCompletePageState extends State<SignupCompletePage> {
               UserProfileController(),
               permanent: true,
             );
-      profileCtrl.hydrateFromSignup(signupData);
+      final isProfileUpdate = signupData.isSeekerProfileUpdate;
+      if (isProfileUpdate) {
+        profileCtrl.hydrateFromProfileUpdate(signupData);
+      } else {
+        profileCtrl.hydrateFromSignup(signupData);
+      }
 
-      // 2) 백엔드 회원가입은 fire-and-forget.
-      //    toPayload() 는 호출 시점에 즉시 평가되므로, 곧이어 reset() 해도 안전.
-      //    응답이 도착하면 profile 을 보강한다 (Rx 라 MainPage 도 자동 반영).
-      final pendingSubmit = signupData.submitToBackend();
+      final pendingSubmit = isProfileUpdate
+          ? signupData.updateProfileToBackend()
+          : signupData.submitToBackend();
       unawaited(
-        pendingSubmit.then((serverUser) {
-          if (serverUser.isEmpty) {
-            debugPrint('[SignupComplete] (bg) submit 응답 비어 있음 (백엔드 미응답 가능)');
-            return;
-          }
+        pendingSubmit.then((serverUser) async {
           try {
-            profileCtrl.profile.value = UserProfile.fromJson(serverUser);
-            debugPrint('[SignupComplete] (bg) 서버 프로필로 보강 완료');
+            if (isProfileUpdate) {
+              if (Get.isRegistered<AuthController>()) {
+                await AuthController.to.saveUserType(false);
+              }
+              if (serverUser.isNotEmpty) {
+                final current = profileCtrl.profile.value;
+                if (current != null) {
+                  final useLocalImage = current.profileImageAsset != null &&
+                      current.profileImageAsset!.isNotEmpty;
+                  final merged = UserProfile(
+                    id: current.id,
+                    email: current.email,
+                    displayName: current.displayName,
+                    name: current.name,
+                    gender: current.gender,
+                    pronouns: current.pronouns,
+                    phoneNumber: current.phoneNumber,
+                    birthDate: current.birthDate,
+                    isEmployer: false,
+                    profileImageId:
+                        current.profileImageId ?? serverUser['profileImageId'] as int?,
+                    profileImageAsset: current.profileImageAsset,
+                    profileImageUrl: useLocalImage ? null : current.profileImageUrl,
+                    career: current.career ?? serverUser['career'] as String?,
+                    introduction:
+                        current.introduction ?? serverUser['bio'] as String?,
+                    interestIds: current.interestIds,
+                  );
+                  profileCtrl.profile.value = merged;
+                  await UserProfileCache.save(merged);
+                }
+              }
+              final me = await UserRepository.fetchAuthMe()
+                  .timeout(const Duration(seconds: 8));
+              if (me.isNotEmpty) {
+                await profileCtrl.refreshFromServerMergingLocal(() async => me);
+              }
+            } else {
+              if (serverUser.isEmpty) {
+                debugPrint('[SignupComplete] (bg) submit 응답 비어 있음');
+                return;
+              }
+              profileCtrl.profile.value = UserProfile.fromJson(serverUser);
+              await UserProfileCache.save(profileCtrl.profile.value!);
+            }
+            debugPrint('[SignupComplete] (bg) 서버 반영 완료');
           } catch (e) {
             debugPrint('[SignupComplete] (bg) 프로필 보강 실패: $e');
           }
@@ -91,7 +138,7 @@ class _SignupCompletePageState extends State<SignupCompletePage> {
         debugPrint('[SignupComplete] MainPage 로 offAll 호출');
         try {
           Get.offAll(
-            () => const MainPage(),
+            () => MainPage(initialTab: isProfileUpdate ? 4 : 0),
             binding: MainBinding(),
             transition: Transition.fadeIn,
             duration: const Duration(milliseconds: 220),
